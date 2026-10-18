@@ -1,0 +1,27 @@
+name: Windows build
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -B build -G "Visual Studio 17 2022" -A x64
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Collect
+        shell: pwsh
+        run: |
+          $art = Get-ChildItem build -Recurse -Directory -Filter "*_artefacts" | Select-Object -First 1
+          New-Item -ItemType Directory -Path dist/StarterAmp-Windows | Out-Null
+          Copy-Item "$($art.FullName)/Release/Standalone/*.exe" dist/StarterAmp-Windows/
+          Copy-Item "$($art.FullName)/Release/VST3/*.vst3" dist/StarterAmp-Windows/ -Recurse
+          Copy-Item WINDOWS_TESTERS.txt dist/StarterAmp-Windows/README.txt
+          Get-ChildItem dist -Recurse | Select-Object FullName
+      - uses: actions/upload-artifact@v4
+        with:
+          name: StarterAmp-Windows
+          path: dist/StarterAmp-Windows

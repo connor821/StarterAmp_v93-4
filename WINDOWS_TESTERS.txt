@@ -1,0 +1,13 @@
+Starter Amp v92 beta (Windows, 64-bit)
+
+Standalone: double-click "Starter Amp v92.exe". Choose your audio interface in the Audio settings
+(an ASIO driver gives the lowest delay; the Windows default driver works but is slower).
+
+Plug-in: copy the folder "Starter Amp v92.vst3" into C:\Program Files\Common Files\VST3
+then rescan plug-ins in your DAW.
+
+Windows may show a blue "protected your PC" screen because this beta is not code-signed.
+Click "More info", then "Run anyway".
+
+To report a problem: say what you did, your Windows version, your audio interface and driver,
+and the version label shown in the corner of the window (v92).
