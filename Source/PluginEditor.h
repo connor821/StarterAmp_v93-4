@@ -31,7 +31,7 @@ namespace ui
     const juce::Colour colourD    { 0xffb6f06b };   // fourth
 
     // Window: header (0-44), page tabs (46-74), signal-flow strip (80-110), then the page.
-    constexpr int kWidth = 1500, kHeight = 650, kPageY = 120, kPageHeight = 520;
+    constexpr int kWidth = 1500, kHeight = 614, kPageY = 84, kPageHeight = 520;
 }
 
 //==============================================================================
@@ -49,6 +49,8 @@ public:
                            juce::Slider::SliderStyle, juce::Slider&) override;
     void drawComboBox (juce::Graphics&, int width, int height, bool isButtonDown,
                        int buttonX, int buttonY, int buttonW, int buttonH, juce::ComboBox&) override;
+    void positionComboBoxText (juce::ComboBox&, juce::Label&) override;
+    static juce::String comboCaption (const juce::ComboBox&);       // a dim label drawn inside a menu whose text does not say what it is for
     void drawToggleButton (juce::Graphics&, juce::ToggleButton&,
                            bool highlighted, bool down) override;
     void drawButtonBackground (juce::Graphics&, juce::Button&, const juce::Colour&,
@@ -170,6 +172,9 @@ public:
     void setAdvancedShown (bool shown);
     std::function<void (bool)> onAdvancedChanged;
 
+    // Per-block presets: a small PRE button in the title bar. The editor decides what the menu holds.
+    void setPresetHandler (std::function<void (juce::Component&)> handler);
+
     void paint (juce::Graphics&) override;
     void resized() override;
 
@@ -184,6 +189,8 @@ private:
     bool bigNameplate = false;
     std::vector<juce::Component*> advancedComps;
     juce::TextButton advButton { "ADV" };
+    juce::TextButton presetButton { "PRE" };
+    std::function<void (juce::Component&)> onPreset;
     bool advancedShown = false, advAvailable = true;
     bool isExplicitlyHidden (const juce::Component* c) const { return std::find (hiddenComps.begin(), hiddenComps.end(), c) != hiddenComps.end(); }
     bool isAdvancedHidden (const juce::Component* c) const
@@ -227,11 +234,18 @@ public:
 
 private:
     juce::Rectangle<float> itemBounds (int index) const;
+    // the second lane: branches that run beside a stage of the main row (a second fuzz, a second amp)
+    struct Branch { juce::String label, onId, routeId, anchor; int page; };
+    std::vector<Branch> branches;
+    juce::Rectangle<float> branchBounds (int index) const;
+    bool branchOn (int index) const;
+    bool branchParallel (int index) const;
     bool isOn (int index) const;
     void rebuildShown();
     const Item& at (int position) const { return items[(size_t) shown[(size_t) position]]; }
     StarterAmpProcessor* processor = nullptr;
     std::vector<int> shown;       // which item is drawn at each position (the effects can be reordered)
+    int visibleCount = 0;         // b35: how many of them are drawn (the old pedals that are off are not)
     void timerCallback() override;
 
     juce::AudioProcessorValueTreeState& apvts;
@@ -512,13 +526,24 @@ public:
         cache = juce::Image();
         repaint();
     }
+    // the live positions (0 to 1) of the six knobs drawn on the faceplate: gain, bass, low mid, high mid, treble, presence
+    void setValues (const std::array<float, 6>& v)
+    {
+        if (v != vals) { vals = v; repaint(); }
+    }
+    void setVoicing (int v) { if (v != voicing) { voicing = v; repaint(); } }
     void paint (juce::Graphics&) override;
     void refresh() { cache = juce::Image(); repaint(); }
+    // which faceplate layout a look uses: 0 classic plate, 1 vintage top strip over grille cloth, 2 modern lit panel with a control strip
+    static int styleFor (int theme);
 private:
+    struct Geo { juce::Rectangle<float> head, plate, strip; juce::Point<float> knob[6]; float rad = 10.0f, labelY = 0.0f; int style = 0; };
+    Geo geo (float w, float h) const;
     void render (juce::Graphics&, int w, int h) const;
-    int theme = 2;
+    int theme = 2, voicing = 0;
     juce::String name;
     juce::Image cache;
+    std::array<float, 6> vals { 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.4f };
 };
 
 //==============================================================================
@@ -628,27 +653,65 @@ public:
     ~OrderPanel() override { stopTimer(); }
     void paint (juce::Graphics&) override;
     void resized() override;
-    void visibilityChanged() override { if (isShowing()) startTimerHz (4); else stopTimer(); }
-    void mouseDrag (const juce::MouseEvent&) override;       // v73: drag a row to move it
+    void visibilityChanged() override { if (isShowing()) startTimerHz (8); else stopTimer(); }
+    void mouseDown (const juce::MouseEvent&) override;
+    void mouseDrag (const juce::MouseEvent&) override;
+    void mouseUp (const juce::MouseEvent&) override;
+    void mouseMove (const juce::MouseEvent&) override;
+    std::function<void (int)> onOpenBlock;       // b34: double-click a pedal to open its controls (the editor jumps to its page)
 
 private:
-    struct Model : public juce::ListBoxModel
-    {
-        Model (StarterAmpProcessor& p, int g) : processor (p), group (g) {}
-        int getNumRows() override { return StarterAmpProcessor::kFxBlocks; }
-        void paintListBoxItem (int row, juce::Graphics&, int w, int h, bool selected) override;
-        StarterAmpProcessor& processor;
-        int group;
-    };
-    void timerCallback() override { lists[0].repaint(); lists[1].repaint(); }
-    void move (int group, int delta);
+    // The pedalboard (v0.1): the two reorderable groups drawn as pedals on a board with two rails and patch cables.
+    juce::Rectangle<float> cellRect (int group, int pos, int row) const;
+    bool cellAt (juce::Point<float> p, int& group, int& pos, int& row) const;
+    std::vector<int> visibleBlocks (int group) const;
+    // b27: pedals that are off wait in a tray under the lanes until they are switched on (unless "Show every pedal" is ticked)
+    bool showAll = false;
+    juce::ToggleButton showAllButton { "Show every pedal" };
+    bool dragFromTray = false, hoverTray = false;
+    // b35: the plugs at the two ends of a lane's parallel section; drag one to move the split or merge point along the lane
+    int plugGroup = -1, plugEnd = -1;
+    float sectionX (int group, int end) const;
+    bool plugAt (juce::Point<float> p, int& group, int& end) const;
+    void dragPlug (juce::Point<float> p);
+    std::vector<int> trayBlocks() const;
+    juce::Rectangle<float> trayArea() const;
+    juce::Rectangle<float> trayChip (int i) const;
+    int  trayChipAt (juce::Point<float> p) const;
+    int  processorPosition (int group, const std::vector<int>& shown, int shownPos, int block) const;
+    void timerCallback() override { refreshStrip(); repaint(); }
 
     StarterAmpProcessor& processor;
-    Model models[2];
-    juce::ListBox lists[2];
-    juce::TextButton up[2], down[2];
-    juce::TextButton resetButton { "RESET ORDER" };
-    juce::Label notes;
+    juce::Slider balance[3];
+    juce::Label balanceLabel[3];
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> balanceAttach[3];
+    juce::TextButton resetButton { "RESET BOARD" };
+    int dragGroup = -1, dragBlock = -1, hoverGroup = -1, hoverPos = -1, hoverRow = -1;
+    juce::Point<float> dragAt;
+    bool dragMoved = false;
+
+    // b10: split / merge controls per lane
+    juce::ComboBox splitBox[3];
+    juce::ComboBox regStartBox[3], regEndBox[3];                // b25: where the lane's parallel section starts and ends
+    juce::Label regLabel[3];
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> regStartAttach[3], regEndAttach[3];
+    juce::Slider xoverSlider[3], bLevelSlider[3], bPanSlider[3];
+    juce::ToggleButton bPolButton[3];
+    juce::Label xoverLabel[3], bLevelLabel[3], bPanLabel[3];
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> splitAttach[3];
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> xoverAttach[3], bLevelAttach[3], bPanAttach[3];
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bPolAttach[3];
+
+    // b9: routing strip for the selected pedal (route, level, pan, polarity)
+    void select (int block);
+    void refreshStrip();
+    int selected = -1;
+    juce::Label stripName, stripNote, levelLabel, panLabel;
+    juce::TextButton routeButton { "SERIES" };
+    juce::Slider levelSlider, panSlider;
+    juce::ToggleButton polButton { "Flip polarity" };
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> levelAttach, panAttach;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> polAttach;
 };
 
 //==============================================================================
@@ -670,6 +733,35 @@ private:
     std::unique_ptr<APVTS::ButtonAttachment> onAttach, accentAttach;
     std::unique_ptr<APVTS::ComboBoxAttachment> subAttach, soundAttach;
     std::unique_ptr<APVTS::SliderAttachment> beatsAttach, volumeAttach;
+};
+
+//==============================================================================
+// Looper window (b16): one big button that steps Record -> Play -> Overdub -> Play, plus Undo, Stop and Clear.
+//==============================================================================
+class LooperPanel : public juce::Component, private juce::Timer
+{
+public:
+    explicit LooperPanel (StarterAmpProcessor&);
+    ~LooperPanel() override { stopTimer(); }
+    void paint (juce::Graphics&) override;
+    void resized() override;
+    static juce::String stateText (int state);
+    static juce::String buttonText (int state);
+    static juce::Colour stateColour (int state);
+
+private:
+    using APVTS = juce::AudioProcessorValueTreeState;
+    void timerCallback() override;
+    StarterAmpProcessor& processor;
+    juce::TextButton cycleButton, undoButton { "UNDO" }, stopButton { "STOP" }, clearButton { "CLEAR" };
+    juce::ToggleButton armButton { "Wait for the first note before recording" }, latchButton { "My footswitch is latching (sends on / off alternately)" };
+    juce::ComboBox barsBox;
+    juce::Slider levelSlider;
+    juce::Label barsLabel, levelLabel, note;
+    std::unique_ptr<APVTS::ButtonAttachment> armAttach, latchAttach;
+    std::unique_ptr<APVTS::ComboBoxAttachment> barsAttach;
+    std::unique_ptr<APVTS::SliderAttachment> levelAttach;
+    int shownState = -1;
 };
 
 //==============================================================================
@@ -884,9 +976,11 @@ private:
     void openMidiWindow();
     void midiTick();
     void openOrderWindow();
+    void openBlockControls (int block);
     void openMetroWindow();
     void openBrowserWindow();
     void openToneWindow();
+    void openLoopWindow();
     void openToneLabWindow();
     void abMenuClicked();
     bool userBusy() const;
@@ -894,8 +988,8 @@ private:
     std::unique_ptr<ToolWindow> riffWindow;
     void openRiffWindow();
     juce::TextButton browseButton { "BROWSE" }, abA { "A" }, abB { "B" }, abMenu { "A/B" },
-                     undoButton { "UNDO" }, redoButton { "REDO" }, metroButton { "METRO" }, orderButton { "ORDER" };
-    std::unique_ptr<ToolWindow> orderWindow, metroWindow, browserWindow, toneWindow, toneLabWindow, libraryWindow, helpWindow;
+                     undoButton { "UNDO" }, redoButton { "REDO" }, metroButton { "METRO" }, orderButton { "ORDER" }, loopButton { "LOOP" };
+    std::unique_ptr<ToolWindow> loopWindow, orderWindow, metroWindow, browserWindow, toneWindow, toneLabWindow, libraryWindow, helpWindow;
     juce::TextButton toneMatchButton { "MATCH..." }, toneLabButton { "TONE LAB..." };
     mutable juce::uint32 lastTextBusy = 0;     // when a text box last had the keyboard (typing a value is a hand edit)
 
@@ -911,6 +1005,11 @@ private:
         std::unique_ptr<juce::ParameterAttachment> paramAttach;   // used by the amp menu, which lists Acoustic first
     };
     juce::ComboBox& makeAmpModelCombo (const char* paramId);
+    juce::ComboBox& makeGroupedCombo (const char* paramId);
+
+    // ---- per-block presets (see BlockPresets.cpp section at the end of PluginEditor.cpp)
+    void setupBlockPresets();
+    void showBlockPresetMenu (juce::Component& anchor, const juce::String& family, int slot, std::function<std::vector<juce::String> (int)> idsFor);
     juce::ComboBox& makeSpeakerCombo (const char* paramId);
     juce::ComboBox& makeMicCombo (const char* paramId);   // v71
     juce::ComboBox& makeCabinetCombo (const char* paramId);
@@ -918,12 +1017,15 @@ private:
     KnobControl *fuzzStarveKnob = nullptr, *fuzzInputKnob = nullptr, *fuzzCompKnob = nullptr, *fuzzMidsKnob = nullptr, *fuzzDriftKnob = nullptr, *fuzzHissKnob = nullptr, *fuzzShapeKnob = nullptr, *fuzzCrushKnob = nullptr, *fuzzBitsKnob = nullptr, *fuzzRateKnob = nullptr;
     juce::Component *fuzzGeToggle = nullptr, *fuzzOpAmpToggle = nullptr, *fuzzVersionBox = nullptr, *fuzzModelBox = nullptr,
                     *fuzzDiodeBox = nullptr, *fuzzTonePassToggle = nullptr, *fuzzBufferToggle = nullptr;
-    KnobControl *focusKnob = nullptr, *masterKnob = nullptr, *fuzzGateKnob = nullptr, *fuzzStabKnob = nullptr, *buzzLowKnob = nullptr, *buzzHighKnob = nullptr, *limCeilKnob = nullptr, *limRelKnob = nullptr, *shimmerDetuneKnob = nullptr, *delayOffsetKnob = nullptr, *delaySpreadKnob = nullptr,
+    KnobControl *focusKnob = nullptr, *masterKnob = nullptr, *fuzzGateKnob = nullptr, *fuzzStabKnob = nullptr, *buzzLowKnob = nullptr, *buzzHighKnob = nullptr, *limCeilKnob = nullptr, *limRelKnob = nullptr, *shimmerDetuneKnob = nullptr, *shimmerBelowKnob = nullptr, *delayOffsetKnob = nullptr, *delaySpreadKnob = nullptr, *preOffsetKnob = nullptr, *preSpreadKnob = nullptr,
                 *shimmerAmountKnob = nullptr, *shimmerToneKnob = nullptr;
     juce::Component* shimmerPitchBox = nullptr;
+    KnobControl *shimmerAmountKnob2 = nullptr, *shimmerToneKnob2 = nullptr, *shimmerDetuneKnob2 = nullptr, *shimmerBelowKnob2 = nullptr, *reverbPreKnob2 = nullptr;
+    juce::Component *shimmerPitchBox2 = nullptr, *shimmerModeBox2 = nullptr;
     juce::Component* shimmerModeBox = nullptr;
     juce::Component* ampQualityBox = nullptr;
     std::vector<KnobControl*> electricAmpKnobs;
+    std::vector<KnobControl*> blendKnobs;       // v0.2 Triple Blend: the three part levels (shown only for that amp)
 
     // Helpers that create a control, attach it to a parameter, and keep it alive.
     void addKnob (Panel&, const char* paramId, const juce::String& name,
@@ -952,8 +1054,9 @@ private:
     bool isLatched (const char* latchId) const;
     void setSwitch (const char* paramId, bool on);
     void chooseIR (int slot);
+    void chooseReverbIr();                                   // v0.2: the IR reverb's file
     void updateIRButtons();
-    void timerCallback() override { updateIRButtons(); syncOverdrivePage(); syncIRPages(); syncDelayKnobs(); syncVisibility(); syncUsed(); layoutFlow (false); }
+    void timerCallback() override { updateDiMatch(); updateIRButtons(); syncOverdrivePage(); syncIRPages(); syncDelayKnobs(); syncVisibility(); syncUsed(); layoutFlow (false); }
     void syncOverdrivePage();
     void syncIRPages();
     void syncDelayKnobs();
@@ -971,6 +1074,7 @@ private:
         Panel* extra = nullptr;                 // a second panel that goes with the first (shown and hidden with it)
         int w = 0, wExtra = 0, lanes = 1, lane = -1;
         juce::String onId, name;
+        bool legacy = false;                    // b29: an old stand-alone effect that a Mod FX slot type replaces; hidden while it is off
         std::unique_ptr<PedalTile> tile;
     };
     struct FlowPage { juce::Component* page = nullptr; std::vector<FlowItem> items; juce::Label hint; };
@@ -1015,18 +1119,19 @@ private:
     KnobControl* postTimeKnob = nullptr;
     juce::TextButton alignButton { "ALIGN NOW" };
     juce::TextButton libraryButton { "IR LIBRARY" };   // v70
+    juce::TextButton reverbIrButton { "Load reverb IR..." };   // v0.2
     void openLibraryWindow();
     std::unique_ptr<juce::FileChooser> chooser;
 
     Backdrop content;   // holds the panels, and is scaled to fit the window
     juce::TooltipWindow tooltipWindow { this, 500 };   // hover help for every control
     Panel inputPanel      { "INPUT & GATE" };
-    Panel noisePanel      { "NOISE PEDAL" };
+    Panel noisePanel      { "CLASH PEDAL" };
     Panel fuzzPanel       { "FUZZ" };
     Panel fuzz2Panel      { "FUZZ 2" };
-    struct FuzzCtl { juce::Component *buzzSoft = nullptr, *buzzHard = nullptr, *buzzPol = nullptr, *ge = nullptr, *opAmp = nullptr, *version = nullptr, *model = nullptr, *diode = nullptr, *tonePass = nullptr, *buffer = nullptr;
-                     KnobControl *gate = nullptr, *stab = nullptr, *starve = nullptr, *mids = nullptr, *shape = nullptr, *crush = nullptr, *bits = nullptr, *rate = nullptr, *comp = nullptr, *input = nullptr, *drift = nullptr, *hiss = nullptr, *buzzLow = nullptr, *buzzHigh = nullptr, *buzzMid = nullptr, *buzzBlend = nullptr, *tone = nullptr; } fzc[2];
-    Panel preDelayPanel   { "PRE-AMP DELAY" };
+    struct FuzzCtl { juce::Component *vProg = nullptr, *vOrder = nullptr, *vHold = nullptr, *buzzSoft = nullptr, *buzzHard = nullptr, *buzzPol = nullptr, *ge = nullptr, *opAmp = nullptr, *version = nullptr, *model = nullptr, *diode = nullptr, *tonePass = nullptr, *buffer = nullptr;
+                     KnobControl *gate = nullptr, *stab = nullptr, *starve = nullptr, *mids = nullptr, *shape = nullptr, *crush = nullptr, *bits = nullptr, *rate = nullptr, *comp = nullptr, *input = nullptr, *drift = nullptr, *hiss = nullptr, *buzzLow = nullptr, *buzzHigh = nullptr, *buzzMid = nullptr, *buzzBlend = nullptr, *tone = nullptr, *oct = nullptr, *boost = nullptr, *vAmt = nullptr, *vDecay = nullptr, *vMod = nullptr, *cut = nullptr, *eq1 = nullptr, *eq2 = nullptr, *eq3 = nullptr, *eq4 = nullptr, *eq5 = nullptr, *depth = nullptr; } fzc[2];
+    Panel preDelayPanel   { "DELAY 1" };
     Panel compPanel       { "COMPRESSOR" };
     GainReductionMeter grMeter { processorRef };
     Panel phaserPanel     { "PHASER" };
@@ -1034,21 +1139,27 @@ private:
     Panel overdrivePanel  { "OVERDRIVE" };
     Panel drive2Panel     { "DRIVE 2" };
     Panel transposePanel  { "TRANSPOSE / FORMANT" };
+    Panel diMatchPanel    { "DI MATCH" };                          // b34
+    juce::TextButton diLearnButton { "LEARN" }, diLoadButton { "LOAD DI..." }, diClearButton { "CLEAR" };
+    juce::Label diStatusLabel;
+    void chooseDiReference();
+    void updateDiMatch();
 
     // The five pages and their tabs
     juce::Component pageInput, pageGain, pageMod, pageDelay, pagePitch, pageAmp, pageCab, pageSpeaker, pageEq, pageScapes, pagePost;
     juce::TextButton pageTabs[10];
     Panel harmPanel       { "HARMONIZER" };
     juce::Label harmHeard;                    // v53: the notes the harmonizer hears
-    Panel preDelayFxPanel  { "PRE-AMP DELAY: DUCK, MODULATION, DIFFUSION, HOLD, TAPS" };
-    Panel postDelayFxPanel { "POST-AMP DELAY: DUCK, MODULATION, DIFFUSION, HOLD, TAPS" };
-    ChainStrip chainStrip { processorRef.apvts, [this] (int page) { showPage (page); } };
+    Panel preDelayFxPanel  { "DELAY 1: DUCK, MODULATION, DIFFUSION, HOLD, TAPS" };
+    Panel postDelayFxPanel { "DELAY 2: DUCK, MODULATION, DIFFUSION, HOLD, TAPS" };
     AmpHero ampHero;                  // v61: the big amp illustration on the right of the AMP page
     Panel ampArtPanel     { "" };      // the amp's grille cloth under its controls (decoration)
     void applyAccent (juce::Colour);
     juce::Colour currentAccent;
     Panel wowPanel        { "PITCH PEDAL  (EXPRESSION)" };
     Panel octPanel        { "OCTAVER" };
+    Panel synthPanel      { "GUITAR SYNTH  (SINGLE NOTE)" };
+    juce::Label synthHeard;                   // v0.2: the note the synth is playing
     Panel shapePanel      { "BLOCK SHAPING  (per cab block)" };
     Panel dynPanel        { "SPEAKER DYNAMICS" };
     Panel exportPanel     { "EXPORT CAB AS IR" };
@@ -1060,6 +1171,11 @@ private:
     Panel tremPanel       { "TREMOLO" };
     Panel wobblePanel     { "WOBBLE" };
     Panel swellPanel      { "SWELL" };
+    Panel filterPanel     { "FILTER" };
+    Panel volPanPanel     { "VOL / PAN" };
+    Panel mbPanel         { "MULTIBAND COMP" };
+    Panel gatePanel       { "GATE / EXPANDER" };
+    KnobControl* filtRateKnob = nullptr;
     Panel doublerPanel    { "DOUBLER" };
     Panel widenerPanel    { "WIDENER" };
     KnobControl* tremRateKnob = nullptr;
@@ -1089,8 +1205,20 @@ private:
     Panel boostEqPanel    { "BOOST EQ  (4-BAND PARAMETRIC)" };
     Panel mfPanel0        { "MOD FX A" };
     Panel mfPanel1        { "MOD FX B" };
+    Panel mfPanel2        { "MOD FX C" };
+    Panel mfPanel3        { "MOD FX D" };
+    Panel& mfPanelOf (int s) { return s == 0 ? mfPanel0 : s == 1 ? mfPanel1 : s == 2 ? mfPanel2 : mfPanel3; }
     Panel reverbShapePanel { "REVERB SHAPING" };
-    KnobControl* mfRateKnob[2] = { nullptr, nullptr };
+    Panel reverb2ShapePanel { "REVERB 2 SHAPING" };
+    KnobControl* mfRateKnob[4] = { nullptr, nullptr, nullptr, nullptr };
+    KnobControl* mfShiftKnob[4] = { nullptr, nullptr, nullptr, nullptr };
+    KnobControl* compThumpKnob[3] = { nullptr, nullptr, nullptr };         // b31
+    juce::Component* compRatioBox = nullptr; juce::Component* compAutoBox = nullptr; juce::Component* compSatBox = nullptr; juce::Component* compDetBox = nullptr;
+    KnobControl* mfFbKnob[4] = { nullptr, nullptr, nullptr, nullptr };     // b29: knobs a type does not use are hidden
+    KnobControl* mfManKnob[4] = { nullptr, nullptr, nullptr, nullptr };
+    KnobControl* mfToneKnob[4] = { nullptr, nullptr, nullptr, nullptr };
+    KnobControl* mfFidKnob[4] = { nullptr, nullptr, nullptr, nullptr };
+    KnobControl* mfXKnob[4][6] = {};                                       // b30: Phaser stages / envelope / lag, Lo-Fi noise / dropouts / level
 
     // The NAM tab: one strip per model slot, each with its own loader (0 Amp A, 1 Amp B, 2 pedal before the
     // overdrive, 3 pedal after the cab)
@@ -1120,8 +1248,9 @@ private:
     MeterView meterView   { processorRef };
     TunerView tunerView   { processorRef };
     juce::TextButton tunerButton { "TUNER" };
-    Panel postDelayPanel  { "POST-AMP DELAY" };
+    Panel postDelayPanel  { "DELAY 2" };
     Panel reverbPanel     { "REVERB" };
+    Panel reverb2Panel    { "REVERB 2" };
     Panel outputPanel     { "OUTPUT" };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (StarterAmpEditor)

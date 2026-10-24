@@ -3,7 +3,8 @@
 //
 // It reads the JSON file, builds the network and runs it. It supports the two architectures that nearly all shared
 // captures use: WaveNet (the standard, lite, feather and nano sizes; plain layers with tanh/ReLU/sigmoid activations,
-// optionally gated) and LSTM. Anything else (the newer "A2" WaveNet variants with extra options, ConvNet, containers)
+// optionally gated), the newer "A2" WaveNet layout (per-layer kernels, bottleneck, convolutional head, plain layers only),
+// slimmable containers (plays the largest size) and LSTM. Anything else (ConvNet, FiLM/gated/grouped A2 options)
 // is refused with a clear message instead of guessing.
 //
 // This is my own implementation of the published file format, written without copying the engine's code. Its output
@@ -351,11 +352,164 @@ namespace NamLite
     };
 
     //==========================================================================
+    // The newer "A2" WaveNet layout: one layer array whose layers each have their own kernel size and dilation, a bottleneck
+    // that can be narrower than the channel count, a 1x1 mix back to the channels, and a convolutional output head.
+    // Only the options the shared A2 captures use are handled (no gating, no FiLM, no head 1x1, no groups); anything else
+    // is refused in parse(). Written from the published file format and checked against the official engine's output.
+    class WaveNetA2 : public Network
+    {
+    public:
+        struct LayerSpec { int K, D; int act; float slope; };           // act: 0 LeakyReLU, 1 ReLU, 2 Tanh
+        bool build (int channels, int bottleneck, int condSize, int headKernel, bool headBias, const std::vector<LayerSpec>& specs,
+                    const std::vector<float>& w, juce::String& error)
+        {
+            C = channels; B = bottleneck; hk = headKernel;
+            if (condSize != 1) { error = "only single-input models are supported"; return false; }
+            size_t pos = 0;
+            auto take = [&] (std::vector<float>& dst, size_t n) -> bool
+            {
+                if (pos + n > w.size()) return false;
+                dst.assign (w.begin() + (std::ptrdiff_t) pos, w.begin() + (std::ptrdiff_t) (pos + n));
+                pos += n;
+                return true;
+            };
+            const char* shortMsg = "the weights are shorter than the model needs";
+            if (! take (rechW, (size_t) C)) { error = shortMsg; return false; }
+            for (const auto& sp : specs)
+            {
+                Layer L;
+                L.K = sp.K; L.D = sp.D; L.act = sp.act; L.slope = sp.slope;
+                L.hist = (L.K - 1) * L.D;  L.stride = L.hist + kBlock;
+                if (! take (L.convW, (size_t) B * (size_t) C * (size_t) L.K) || ! take (L.convB, (size_t) B)
+                    || ! take (L.mixW, (size_t) B) || ! take (L.w1, (size_t) C * (size_t) B) || ! take (L.b1, (size_t) C))
+                { error = shortMsg; return false; }
+                L.xin.assign ((size_t) C * (size_t) L.stride, 0.0f);
+                L.z.assign ((size_t) B * kBlock, 0.0f);
+                layers.push_back (std::move (L));
+            }
+            if (! take (headW, (size_t) B * (size_t) hk)) { error = shortMsg; return false; }
+            headB = 0.0f;
+            if (headBias) { std::vector<float> hb; if (! take (hb, 1)) { error = shortMsg; return false; } headB = hb[0]; }
+            std::vector<float> sc;
+            if (! take (sc, 1)) { error = shortMsg; return false; }
+            headScale = sc[0];
+            if (pos != w.size()) { error = "the file has more weights than the model uses"; return false; }
+            headHist = hk - 1;  headStride = headHist + kBlock;
+            headIn.assign ((size_t) B * (size_t) headStride, 0.0f);
+            acc.assign ((size_t) B * kBlock, 0.0f);
+            bufA.assign ((size_t) C * kBlock, 0.0f);  bufB.assign ((size_t) C * kBlock, 0.0f);
+            receptive = hk;
+            for (auto& L : layers) receptive += L.hist;
+            return true;
+        }
+        void reset() override
+        {
+            for (auto& L : layers) std::fill (L.xin.begin(), L.xin.end(), 0.0f);
+            std::fill (headIn.begin(), headIn.end(), 0.0f);
+            std::vector<float> zeros ((size_t) kBlock, 0.0f), sink ((size_t) kBlock);
+            for (int done = 0; done < warmUpSamples(); done += kBlock) process (zeros.data(), sink.data(), kBlock);
+        }
+        int warmUpSamples() const override { return receptive + 64; }
+        void process (const float* in, float* out, int n) override
+        {
+            float* x = bufA.data();  float* y = bufB.data();
+            for (int c = 0; c < C; ++c)
+                for (int t = 0; t < n; ++t) x[(size_t) c * kBlock + (size_t) t] = rechW[(size_t) c] * in[t];
+            std::fill (acc.begin(), acc.end(), 0.0f);
+            for (auto& L : layers)
+            {
+                for (int c = 0; c < C; ++c)
+                    std::memcpy (L.xin.data() + (size_t) c * (size_t) L.stride + (size_t) L.hist, x + (size_t) c * kBlock, sizeof (float) * (size_t) n);
+                for (int o = 0; o < B; ++o)
+                {
+                    float* z = L.z.data() + (size_t) o * kBlock;
+                    const float b = L.convB[(size_t) o], mw = L.mixW[(size_t) o];
+                    for (int t = 0; t < n; ++t) z[t] = b + mw * in[t];
+                    for (int i = 0; i < C; ++i)
+                    {
+                        const float* wr = L.convW.data() + ((size_t) o * (size_t) C + (size_t) i) * (size_t) L.K;
+                        const float* xs = L.xin.data() + (size_t) i * (size_t) L.stride;
+                        for (int k = 0; k < L.K; ++k)
+                        {
+                            const float wv = wr[k];
+                            const float* src = xs + (size_t) (L.hist - (L.K - 1 - k) * L.D);
+                            for (int t = 0; t < n; ++t) z[t] += wv * src[t];
+                        }
+                    }
+                    float* a = acc.data() + (size_t) o * kBlock;
+                    for (int t = 0; t < n; ++t)
+                    {
+                        float v = z[t];
+                        if (L.act == 0) v = v >= 0.0f ? v : L.slope * v;
+                        else if (L.act == 1) v = v > 0.0f ? v : 0.0f;
+                        else v = fastTanh (v);
+                        z[t] = v;
+                        a[t] += v;
+                    }
+                }
+                for (int c = 0; c < C; ++c)
+                {
+                    float* d = y + (size_t) c * kBlock;
+                    const float* xr = x + (size_t) c * kBlock;
+                    const float b = L.b1[(size_t) c];
+                    for (int t = 0; t < n; ++t) d[t] = xr[t] + b;
+                    for (int j = 0; j < B; ++j)
+                    {
+                        const float wv = L.w1[(size_t) c * (size_t) B + (size_t) j];
+                        const float* src = L.z.data() + (size_t) j * kBlock;
+                        for (int t = 0; t < n; ++t) d[t] += wv * src[t];
+                    }
+                }
+                for (int c = 0; c < C; ++c)
+                {
+                    float* h = L.xin.data() + (size_t) c * (size_t) L.stride;
+                    std::memmove (h, h + n, sizeof (float) * (size_t) L.hist);
+                }
+                std::swap (x, y);
+            }
+            for (int j = 0; j < B; ++j)
+                std::memcpy (headIn.data() + (size_t) j * (size_t) headStride + (size_t) headHist, acc.data() + (size_t) j * kBlock, sizeof (float) * (size_t) n);
+            for (int t = 0; t < n; ++t) out[t] = headB;
+            for (int j = 0; j < B; ++j)
+                for (int k = 0; k < hk; ++k)
+                {
+                    const float wv = headW[(size_t) j * (size_t) hk + (size_t) k];
+                    const float* src = headIn.data() + (size_t) j * (size_t) headStride + (size_t) (headHist - (hk - 1 - k));
+                    for (int t = 0; t < n; ++t) out[t] += wv * src[t];
+                }
+            for (int t = 0; t < n; ++t) out[t] *= headScale;
+            for (int j = 0; j < B; ++j)
+            {
+                float* h = headIn.data() + (size_t) j * (size_t) headStride;
+                std::memmove (h, h + n, sizeof (float) * (size_t) headHist);
+            }
+        }
+    private:
+        struct Layer { int K = 1, D = 1, hist = 0, stride = 0, act = 0; float slope = 0.01f; std::vector<float> convW, convB, mixW, w1, b1, xin, z; };
+        int C = 1, B = 1, hk = 1, headHist = 0, headStride = 0, receptive = 1;
+        std::vector<float> rechW, headW, headIn, acc, bufA, bufB;
+        float headB = 0.0f, headScale = 1.0f;
+        std::vector<Layer> layers;
+    };
+
+    // A container of several sizes of the same capture (a "slimmable" file). The plugin plays the largest one.
+    class Container : public Network
+    {
+    public:
+        std::vector<std::unique_ptr<Network>> nets;
+        void reset() override { if (! nets.empty()) nets.back()->reset(); }
+        int warmUpSamples() const override { return nets.empty() ? 0 : nets.back()->warmUpSamples(); }
+        void process (const float* in, float* out, int n) override { nets.back()->process (in, out, n); }
+    };
+
+    //==========================================================================
     struct Model
     {
         Info info;
         std::unique_ptr<Network> net;
     };
+
+    inline std::unique_ptr<Model> parseVar (const juce::var& root, juce::String& error);
 
     // Reads a .nam file. Returns null and fills 'error' if it cannot be used.
     inline std::unique_ptr<Model> parse (const juce::String& text, juce::String& error)
@@ -366,8 +520,46 @@ namespace NamLite
             error = "That file is not a valid .nam file (it is not readable JSON).";
             return nullptr;
         }
+        return parseVar (root, error);
+    }
+
+    inline std::unique_ptr<Model> parseVar (const juce::var& root, juce::String& error)
+    {
         const auto arch = root.getProperty ("architecture", {}).toString();
         const auto cfg  = root.getProperty ("config", {});
+        if (arch == "SlimmableContainer")
+        {
+            const auto subs = cfg.getProperty ("submodels", {});
+            if (! subs.isArray() || subs.size() == 0) { error = "The container holds no models."; return nullptr; }
+            auto model = std::make_unique<Model>();
+            auto cont = std::make_unique<Container>();
+            double lastMax = -1.0;
+            for (int i = 0; i < subs.size(); ++i)
+            {
+                const double mv = (double) subs[i].getProperty ("max_value", 0.0);
+                if (mv <= lastMax) { error = "The container's models are not in order."; return nullptr; }
+                lastMax = mv;
+                auto sub = parseVar (subs[i].getProperty ("model", {}), error);
+                if (sub == nullptr) return nullptr;
+                if (i + 1 == subs.size()) model->info = sub->info;
+                cont->nets.push_back (std::move (sub->net));
+            }
+            model->info.architecture = "SlimmableContainer (largest size)";
+            const auto sr = root.getProperty ("sample_rate", {});
+            if ((sr.isDouble() || sr.isInt() || sr.isInt64()) && (double) sr > 1000.0) model->info.sampleRate = (double) sr;
+            const auto meta = root.getProperty ("metadata", {});
+            if (meta.isObject())
+            {
+                model->info.name = meta.getProperty ("name", {}).toString();
+                const auto make = meta.getProperty ("gear_make", {}).toString(), mod = meta.getProperty ("gear_model", {}).toString();
+                model->info.gear = (make + " " + mod).trim();
+                const auto ld = meta.getProperty ("loudness", {});
+                if (ld.isDouble() || ld.isInt()) { model->info.hasLoudness = true; model->info.loudnessDb = (float) (double) ld; }
+            }
+            model->net = std::move (cont);
+            model->info.receptiveField = model->net->warmUpSamples();
+            return model;
+        }
         const auto wv   = root.getProperty ("weights", {});
         if (arch.isEmpty() || ! cfg.isObject() || ! wv.isArray())
         {
@@ -403,6 +595,53 @@ namespace NamLite
         {
             const auto layers = cfg.getProperty ("layers", {});
             if (! layers.isArray() || layers.size() == 0) { error = "The WaveNet model has no layers."; return nullptr; }
+            if (layers.size() == 1 && layers[0].getProperty ("kernel_sizes", {}).isArray())
+            {
+                const auto L0 = layers[0];
+                // the options this player does not implement must be off or absent
+                static const char* filmKeys[] = { "conv_pre_film", "conv_post_film", "input_mixin_pre_film", "input_mixin_post_film", "activation_pre_film",
+                                                  "activation_post_film", "layer1x1_post_film", "head1x1_post_film", "head1x1" };
+                for (auto* k : filmKeys)
+                {
+                    const auto o = L0.getProperty (k, {});
+                    if (o.isObject() && (bool) o.getProperty ("active", false)) { error = "This model uses A2 options (\"" + juce::String (k) + "\") that this plugin does not support yet."; return nullptr; }
+                }
+                const auto l1 = L0.getProperty ("layer1x1", {});
+                if (l1.isObject() && ! (bool) l1.getProperty ("active", true)) { error = "This A2 model has no layer 1x1, which this plugin does not support yet."; return nullptr; }
+                if ((int) L0.getProperty ("groups_input", 1) != 1 || (int) L0.getProperty ("groups_input_mixin", 1) != 1 || (l1.isObject() && (int) l1.getProperty ("groups", 1) != 1))
+                { error = "This A2 model uses grouped convolutions, which this plugin does not support yet."; return nullptr; }
+                if (cfg.getProperty ("head", {}).isObject()) { error = "This A2 model has a post-stack head, which this plugin does not support yet."; return nullptr; }
+                const auto ks = L0.getProperty ("kernel_sizes", {}), ds = L0.getProperty ("dilations", {}), ac = L0.getProperty ("activation", {}), gm = L0.getProperty ("gating_mode", {});
+                const int n = ks.size();
+                if (n < 1 || ds.size() != n || (ac.isArray() && ac.size() != n)) { error = "The A2 layer lists do not match."; return nullptr; }
+                std::vector<WaveNetA2::LayerSpec> specs;
+                for (int i = 0; i < n; ++i)
+                {
+                    if (gm.isArray() && gm[i].toString() != "none") { error = "This A2 model uses gated layers, which this plugin does not support yet."; return nullptr; }
+                    const int K = (int) ks[i], D = (int) ds[i];
+                    if (K < 1 || K > 64 || D < 1 || D > 8192) { error = "The A2 kernel or dilation is not valid."; return nullptr; }
+                    juce::var a = ac.isArray() ? ac[i] : ac;
+                    juce::String type = a.isObject() ? a.getProperty ("type", {}).toString() : a.toString();
+                    WaveNetA2::LayerSpec sp { K, D, 0, 0.01f };
+                    if (type == "LeakyReLU") { sp.act = 0; if (a.isObject() && a.getProperty ("negative_slope", {}).isDouble()) sp.slope = (float) (double) a.getProperty ("negative_slope", 0.01); }
+                    else if (type == "ReLU") sp.act = 1;
+                    else if (type == "Tanh" || type == "Fasttanh") sp.act = 2;
+                    else { error = "This model uses an activation (\"" + type + "\") that this plugin does not support."; return nullptr; }
+                    specs.push_back (sp);
+                }
+                const auto head = L0.getProperty ("head", {});
+                const int ch = (int) L0.getProperty ("channels", 0), bn = (int) L0.getProperty ("bottleneck", ch);
+                const int hk = head.isObject() ? (int) head.getProperty ("kernel_size", 1) : 1;
+                const int ho = head.isObject() ? (int) head.getProperty ("out_channels", 1) : 1;
+                const bool hb = head.isObject() ? (bool) head.getProperty ("bias", true) : true;
+                if (ch < 1 || ch > 256 || bn < 1 || bn > 256 || hk < 1 || hk > 256 || ho != 1 || (int) L0.getProperty ("input_size", 1) != 1)
+                { error = "The A2 layer settings are not valid."; return nullptr; }
+                auto net = std::make_unique<WaveNetA2>();
+                if (! net->build (ch, bn, (int) L0.getProperty ("condition_size", 1), hk, hb, specs, weights, error)) { error = "The model file is damaged or unsupported: " + error + "."; return nullptr; }
+                model->net = std::move (net);
+                info.receptiveField = model->net->warmUpSamples();
+                return model;
+            }
             if (cfg.getProperty ("head", {}).isObject()) { error = "This model uses a newer WaveNet variant that this plugin does not support yet."; return nullptr; }
             const auto inCh = cfg.getProperty ("in_channels", {});
             if ((inCh.isInt() || inCh.isDouble()) && (int) inCh != 1) { error = "Only single-input models are supported."; return nullptr; }

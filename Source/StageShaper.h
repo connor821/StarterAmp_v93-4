@@ -42,24 +42,40 @@ namespace StageShaper
         const float* pwrMed = nullptr;
         const float* pwrHot = nullptr;
         float trimDb = 0.0f;
+        float blend = 1.0f;          // 1 = the circuit-derived shapes alone, below 1 = that share of them mixed with the classic tanh shapes (the Hybrid mode)
     };
+
+    // Hybrid mode: the measured level difference (guitar-like test signal, three gain settings) of the 50/50 mix against Classic, undone
+    inline float hybridTrimDb (int model)
+    {
+        static const float t[29] = { 0.4f, -0.9f, 0.3f, 0.0f, 0.0f, 0.0f, -0.3f, 0.0f, 0.9f, 0.9f, 0.0f, -2.1f, -2.1f, 0.4f, 0.0f, -0.3f,
+                                     -1.4f, -0.4f, -0.6f, -1.2f, -0.8f, -0.3f, 0.0f, 0.2f, -0.8f, 0.0f, -0.8f, -0.8f, 0.0f };
+        return model >= 0 && model < 29 ? t[model] : 0.0f;
+    }
 
     inline Plan planFor (int model, int preTube, int pwrSel)
     {
         // model: 0 clean, 1 chime, 2 hot-rod, 3 sat lead, 4 modern, 5 acoustic, 6 classic rock, 7 boutique, 8 tight metal,
-        // 9 low-watt, 10 glass clean, 11 creamy, 12 doom, 13 precision, 14 digital, 15 MV rock
-        static const signed char arch[16][3] = {
+        // 9 low-watt, 10 glass clean, 11 creamy, 12 doom, 13 precision, 14 digital, 15 MV rock, 16 to 20 the v95 amps
+        static const signed char arch[29][3] = {
             { 0, 0, 0 }, { 1, 1, 1 }, { 2, 2, 3 }, { 2, 3, 3 }, { 3, 3, 3 }, { 0, 0, 0 }, { 2, 2, 2 }, { 1, 3, 3 },
-            { 3, 3, 4 }, { 1, 1, 1 }, { 0, 0, 0 }, { 2, 3, 3 }, { 2, 2, 3 }, { 3, 3, 4 }, { 3, 3, 3 }, { 2, 2, 3 } };
-        static const signed char defPwr[16] = { 1, 3, 0, 0, 1, 0, 0, 1, 1, 2, 1, 0, 4, 1, 0, 0 };
+            { 3, 3, 4 }, { 1, 1, 1 }, { 0, 0, 0 }, { 2, 3, 3 }, { 2, 2, 3 }, { 3, 3, 4 }, { 3, 3, 3 }, { 2, 2, 3 },
+            { 2, 3, 3 }, { 3, 3, 4 }, { 3, 3, 4 }, { 3, 3, 4 }, { 2, 3, 3 },   // 16 to 20 (v95)
+            { 0, 2, 2 }, { 0, 0, 0 },   // 21 Hi-Wat Headroom, 22 Console DI (v0.1)
+            { 2, 2, 2 }, { 2, 3, 3 },   // 23 Plexi-style, 24 Matamp-style (v0.2)
+            { 3, 3, 4 },   // 25 Marmalade (retuned against the captures: the hot-stage shapes give the third-harmonic-heavy clipping the captures have)
+            { 3, 3, 4 },   // 26 Hi / Lo input amp (hot stages throughout)
+            { 2, 2, 3 },   // 27 Marque Five (Mark-series three-channel head)
+            { 3, 3, 2 } };   // 28 Dual Thirty (hot cascaded 12AX7 stages, a gentler third)
+        static const signed char defPwr[29] = { 1, 3, 0, 0, 1, 0, 0, 1, 1, 2, 1, 0, 4, 1, 0, 0, 0, 0, 4, 1, 0, 0, 0, 0, 0, 4, 0, 0, 3 };
         Plan p;
-        if (model < 0 || model > 15 || model == 5 || model == 10 || model == 14) return p;   // acoustic, solid-state and digital amps keep their own shaping
+        if (model < 0 || model > 28 || model == 5 || model == 10 || model == 14 || model == 22) return p;   // acoustic, solid-state and digital amps keep their own shaping
         for (int i = 0; i < 3; ++i) p.pre[i] = preCurve (preTube, arch[model][i]);
         const int pt = pwrSel <= 0 ? defPwr[model] : pwrSel - 1;
         p.pwrMed = pwrCurve (pt, false);
         p.pwrHot = pwrCurve (pt, true);
         // level match to the classic shaping (measured with a guitar-like test signal at three gain settings)
-        static const float trim[16] = { -0.6f, 1.2f, 3.0f, 2.7f, 3.0f, 0.0f, 2.5f, 0.5f, 1.8f, 0.6f, 0.0f, 2.7f, 4.3f, 1.7f, 0.0f, 2.8f };
+        static const float trim[29] = { -0.6f, 1.2f, 3.0f, 2.7f, 3.0f, 0.0f, 2.5f, 0.5f, 1.8f, 0.6f, 0.0f, 2.7f, 4.3f, 1.7f, 0.0f, 2.8f, 2.7f, 3.0f, 3.0f, 3.0f, 2.8f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 3.0f, 3.0f, 0.0f };   // (v0.1: this table had 23 entries, so models 23 and 24 read past its end; now 0)
         p.trimDb = trim[model];
         p.active = true;
         return p;
@@ -70,7 +86,7 @@ namespace StageShaper
     struct StageState
     {
         float shift = 0.0f;
-        inline float process (const float* curve, float u, float attack, float release)
+        inline float process (const float* curve, float u, float attack, float release, float cap = 1.0f)
         {
             // v94: a smooth knee, half the charging rate, a shallower cap (0.5, was 2.0) and a 3x faster leak (about 15 ms, was 45 ms).
             // The old settings made the operating point wander enough to modulate the level of held notes (the "sputter") and to put
@@ -80,7 +96,7 @@ namespace StageShaper
             const float over = d > 1.8f ? d : 0.15f * std::log1p (std::exp (d / 0.15f));
             shift -= 0.5f * attack * over;
             shift += 3.0f * release * (0.0f - shift);
-            if (shift < -0.5f) shift = -0.5f;
+            if (shift < -0.5f * cap) shift = -0.5f * cap;
             return lut (curve, v);
         }
     };

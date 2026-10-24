@@ -1,6 +1,6 @@
-# Starter Amp v93 (JUCE, macOS)
+# Starter Amp v0.1 (JUCE, macOS)
 
-A hand-built guitar amp simulator (Standalone, VST3, AU): input and gate, pitch shifting, fuzz, compressor, overdrive, boost, wah, phaser, chorus, modulation, fifteen amp models (fourteen electric and an acoustic), four neural-capture (NAM) slots, four cab blocks, Post EQ, granular and shoegaze effects, delays and reverbs.
+A hand-built guitar amp simulator (Standalone, VST3, AU): input and gate, pitch shifting, fuzz, compressor, overdrive, boost, wah, phaser, chorus, modulation, thirty-two amp models (electric amps, a console channel, an acoustic, and the Triple Blend multi-amp), four neural-capture (NAM) slots, four cab blocks, Post EQ, granular and shoegaze effects, delays and reverbs.
 
 This README is organised by section (one section per part of the plugin). Other files: **MANUAL.md** (full user manual and control reference), **QUICKSTART.md** (first ten minutes), **MODELED_GEAR.md** (the real gear the parts are loosely inspired by; names appear only there), **CHANGELOG.md** (old per-version notes), **WINDOWS_BUILD.md** (the Windows beta build).
 
@@ -11,7 +11,7 @@ brew install cmake
 cmake -B build -G Xcode
 cmake --build build --config Release
 ```
-App: `build/StarterAmpV93_artefacts/Release/Standalone/Starter Amp v93.app`
+App: `build/StarterAmp_artefacts/Release/Standalone/Starter Amp v0.1.app`
 
 Use headphones, and keep Output low while you raise the gain knobs. If the build shows errors, paste them to whoever maintains this project.
 
@@ -62,30 +62,30 @@ The trims (in dB, the last number in each entry in `getVoicing`):
 
 | Amp | Trim |
 |---|---|
-| Clean (sparkly) | +9.0 |
-| Vintage Chime (class-A) | +1.5 |
-| British Hot-Rod (tight) | -6.8 |
-| Saturated Lead (smooth) | -3.8 |
-| Modern High-Gain (scooped) | -1.4 |
-| Modern High-Gain with Voicing on | -4.65 |
-| Classic Rock (crunch) | -1.0 |
-| Classic Rock with Voicing on (pushed) | -2.0 |
-| Boutique Lead, Jazz | +2.8 |
-| Boutique Lead, Rock | -1.4 |
-| Tight Metal, Raw | -4.6 |
-| Tight Metal, Modern | -3.5 |
-| Low-Watt Combo, Soft | +3.8 |
-| Low-Watt Combo, Cranked | +1.9 |
-| Glass Clean, Glass | +13.1 |
-| Glass Clean, Warm | +6.8 |
-| Creamy Lead, Rhythm | -3.7 |
-| Creamy Lead, Lead | -5.4 |
-| Doom Stack, Stoner | -4.1 |
-| Doom Stack, Wall | -2.2 |
+| Twin Sparkle (sparkly) | +9.0 |
+| Chime Thirty (class-A) | +1.5 |
+| Brown Eye (tight) | -6.8 |
+| Slow Burn (smooth) | -3.8 |
+| Modern Maul (scooped) | -1.4 |
+| Modern Maul with Voicing on | -4.65 |
+| Club Crunch (crunch) | -1.0 |
+| Club Crunch with Voicing on (pushed) | -2.0 |
+| Bumble Lead, Jazz | +2.8 |
+| Bumble Lead, Rock | -1.4 |
+| 5555 Block, Raw | -4.6 |
+| 5555 Block, Modern | -3.5 |
+| Tweedle Dee, Soft | +3.8 |
+| Tweedle Dee, Cranked | +1.9 |
+| Jade Chorus, Glass | +13.1 |
+| Jade Chorus, Warm | +6.8 |
+| Marque Dream, Rhythm | -3.7 |
+| Marque Dream, Lead | -5.4 |
+| Citrus Doom, Stoner | -4.1 |
+| Citrus Doom, Wall | -2.2 |
 
-the Saturated Lead trim was measured the same way. At the default Amp Gain (0.5) all six land within about 0.3 dB of each other in the model. Away from the middle they drift apart on purpose, because that is how the amps behave:
+the Slow Burn trim was measured the same way. At the default Amp Gain (0.5) all six land within about 0.3 dB of each other in the model. Away from the middle they drift apart on purpose, because that is how the amps behave:
 - **Clean** and **Vintage** get louder as you turn Amp Gain up (about 4 dB per 0.3 of the knob), since they have headroom and clip later. At Amp Gain 0.2 they are about 3 to 5 dB quieter than the high-gain models, and at 0.8 about 3 dB louder.
-- **Hot-Rod**, **Saturated Lead** and **Modern** change by only a few dB across the whole knob, because they are already squashed by clipping and sag.
+- **Hot-Rod**, **Slow Burn** and **Modern** change by only a few dB across the whole knob, because they are already squashed by clipping and sag.
 
 Limits: this is a measured match with a test signal, not a perception test. Your guitar, playing, the Overdrive, the Compressor, and a loaded cab IR (IRs vary a lot in level) will all shift it. If one amp still seems too loud or quiet to you, change its `trimDb`, or use the Output control.
 
@@ -384,13 +384,13 @@ Tips:
 
 | # | Model | Preamp gain at Amp Gain 0.5 | Character | How it's voiced |
 |---|---|---|---|---|
-| 1 | Clean (sparkly) | about 9 dB | Lots of headroom, sparkly, scooped mids | 2 gentle stages, low gain, little clipping. A bright boost before the stages, mids pulled back a little, speaker roll-off opened up to 8 kHz. |
-| 2 | Vintage Chime (class-A) | about 22 dB | Chimey, jangly, upper-mid "honk", gritty when pushed | 2 stages with moderate gain, strongly asymmetric clipping (a Class A-style character), a 1.8 kHz push before the stages, high mids lifted around 2 kHz, medium sag. The real amp has a Cut control instead of Presence, so Presence here only adds a little air. |
-| 3 | British Hot-Rod (tight) | about 42 dB | Tight, bright, saturated, strong upper mids | 3 stages with high cutoffs (tight lows), big gain range, a 1.3 kHz push before the stages, mid knob centred higher. |
-| 4 | Saturated Lead (smooth) | about 45 dB | Smooth, thick, singing lead tones, forward upper mids, a lot of compression | 3 stages with moderately tight lows, a 2 kHz push before the stages, a hump in the high mids around 1.6 kHz, a little extra bass, strong sag for the long, creamy sustain. A touch less gain than the next amp, a bit more than the British amp. |
-| 5 | Modern High-Gain (scooped) | about 45 dB | Big low end, scooped mids, spongy and heavy | 3 stages with looser lows, big gain range, extra bass, mids scooped about 5 dB, strong power-amp sag so loud notes squash and bloom. |
+| 1 | Twin Sparkle (sparkly) | about 9 dB | Lots of headroom, sparkly, scooped mids | 2 gentle stages, low gain, little clipping. A bright boost before the stages, mids pulled back a little, speaker roll-off opened up to 8 kHz. |
+| 2 | Chime Thirty (class-A) | about 22 dB | Chimey, jangly, upper-mid "honk", gritty when pushed | 2 stages with moderate gain, strongly asymmetric clipping (a Class A-style character), a 1.8 kHz push before the stages, high mids lifted around 2 kHz, medium sag. The real amp has a Cut control instead of Presence, so Presence here only adds a little air. |
+| 3 | Brown Eye (tight) | about 42 dB | Tight, bright, saturated, strong upper mids | 3 stages with high cutoffs (tight lows), big gain range, a 1.3 kHz push before the stages, mid knob centred higher. |
+| 4 | Slow Burn (smooth) | about 45 dB | Smooth, thick, singing lead tones, forward upper mids, a lot of compression | 3 stages with moderately tight lows, a 2 kHz push before the stages, a hump in the high mids around 1.6 kHz, a little extra bass, strong sag for the long, creamy sustain. A touch less gain than the next amp, a bit more than the British amp. |
+| 5 | Modern Maul (scooped) | about 45 dB | Big low end, scooped mids, spongy and heavy | 3 stages with looser lows, big gain range, extra bass, mids scooped about 5 dB, strong power-amp sag so loud notes squash and bloom. |
 
-"Preamp gain" is the total gain of the model's stages at Amp Gain 0.5, from the numbers in `getVoicing`, and is how they were put in order. The Saturated Lead amp and the Modern High-Gain amp are close in gain (the Modern is a little higher). They differ more in tone than in how hard they clip. The numbers are my own, based on the general reputation of each kind of sound.
+"Preamp gain" is the total gain of the model's stages at Amp Gain 0.5, from the numbers in `getVoicing`, and is how they were put in order. The Slow Burn amp and the Modern Maul amp are close in gain (the Modern is a little higher). They differ more in tone than in how hard they clip. The numbers are my own, based on the general reputation of each kind of sound.
 
 - **Amp Gain** sets how hard each model's stages are driven. On the Clean model, low settings stay clean, and the top of the range starts to break up.
 - **Presence, Bass, Low Mid, High Mid, Treble**: see below. The tone knobs are added to each model's built-in offsets, so "0" isn't flat. It's that amp's neutral setting.
@@ -404,16 +404,16 @@ The **Voicing** switch does something on every amp, and its label changes to say
 
 | Amp | Switch on | What changes (all my own numbers, not measurements) |
 |---|---|---|
-| Clean (sparkly) | **Edge push** | A small old amp turned up: about 2x the gain range with more asymmetry (so it breaks up when you dig in), a push near 800 Hz, heavy sag, a thicker low mid, a darker top (treble -3 dB, speaker filter 6 kHz). |
-| Vintage Chime (class-A) | **Treble boost** | A treble booster in front of the amp: much more gain, a +5 dB push near 2.6 kHz, thinner lows (bass -3 dB, tighter high-passes), more bite and top. |
-| British Hot-Rod (tight) | **Heavy** | A modern compact heavy-rhythm voicing: more gain and compression (stage gains up to 23 / 17 / 6), a deep but controlled low end (the first stage lets the lows through at 95 Hz, the later stages clamp them harder at 175 and 125 Hz), bass +3.5 dB, a slight low-mid scoop (-1.5 dB at 420 Hz), a forward +2.5 dB upper-mid at 2.2 kHz for chunk and definition, and a tamed, less fizzy top (speaker filter 5.6 kHz). This is my own take on that kind of sound, not a model of any particular amp. |
-| Saturated Lead (smooth) | **Lead** | More gain and compression for sustain, a +4.5 dB push at 1.1 kHz plus +3.5 dB at 1.4 kHz for a singing lead tone, a slightly lighter low end, a smoother top. It still responds to the Focus knob. |
-| Modern High-Gain (scooped) | **Clarity** | Fills in the mids and tightens the lows (details below). |
+| Twin Sparkle (sparkly) | **Edge push** | A small old amp turned up: about 2x the gain range with more asymmetry (so it breaks up when you dig in), a push near 800 Hz, heavy sag, a thicker low mid, a darker top (treble -3 dB, speaker filter 6 kHz). |
+| Chime Thirty (class-A) | **Treble boost** | A treble booster in front of the amp: much more gain, a +5 dB push near 2.6 kHz, thinner lows (bass -3 dB, tighter high-passes), more bite and top. |
+| Brown Eye (tight) | **Heavy** | A modern compact heavy-rhythm voicing: more gain and compression (stage gains up to 23 / 17 / 6), a deep but controlled low end (the first stage lets the lows through at 95 Hz, the later stages clamp them harder at 175 and 125 Hz), bass +3.5 dB, a slight low-mid scoop (-1.5 dB at 420 Hz), a forward +2.5 dB upper-mid at 2.2 kHz for chunk and definition, and a tamed, less fizzy top (speaker filter 5.6 kHz). This is my own take on that kind of sound, not a model of any particular amp. |
+| Slow Burn (smooth) | **Lead** | More gain and compression for sustain, a +4.5 dB push at 1.1 kHz plus +3.5 dB at 1.4 kHz for a singing lead tone, a slightly lighter low end, a smoother top. It still responds to the Focus knob. |
+| Modern Maul (scooped) | **Clarity** | Fills in the mids and tightens the lows (details below). |
 
 These describe general reputations of these sounds, and I have not tuned any of them by ear. **Level trims:** the new voicings have more gain, so I estimated their trims (+7.5, 0.0, -7.5 and -5.6 dB for Clean, Chime, Hot-Rod and Lead) instead of measuring them like the original trims. They may be a few dB off, so adjust Output if the level jumps when you flip the switch. Edit entries 6 to 9 of the `getVoicing` table to change any of this.
 
-### Clarity (Modern High-Gain) details
-**Voicing switch on the Modern High-Gain amp** fills in the mids and tightens the amp. This is my own take on "more mids and more clarity":
+### Clarity (Modern Maul) details
+**Voicing switch on the Modern Maul amp** fills in the mids and tightens the amp. This is my own take on "more mids and more clarity":
 
 | | Switch off (default) | Switch on |
 |---|---|---|
@@ -430,8 +430,8 @@ These describe general reputations of these sounds, and I have not tuned any of 
 - Flipping it while playing may click briefly, since the filters and gains change at once.
 - Good for fast riffs and chords, where the scooped setting turns muddy. The off setting is better for big, hollow, rhythm-heavy tones.
 
-## Amp Focus (Saturated Lead and Modern High-Gain)
-The **Focus** knob is on the AMP panel (0 to 12, in 0.1 steps; think of it as "semitones below E standard": 2 = Drop D, 4 = Drop C, 5 = 7-string B, 10 = 8-string F#). It was called Tuning before v28 and works exactly the same; old sessions load unchanged. It only changes the Saturated Lead and Modern High-Gain models (both voicings); the other amps ignore it. 0 is exactly what you had before.
+## Amp Focus (Slow Burn and Modern Maul)
+The **Focus** knob is on the AMP panel (0 to 12, in 0.1 steps; think of it as "semitones below E standard": 2 = Drop D, 4 = Drop C, 5 = 7-string B, 10 = 8-string F#). It was called Tuning before v28 and works exactly the same; old sessions load unchanged. It only changes the Slow Burn and Modern Maul models (both voicings); the other amps ignore it. 0 is exactly what you had before.
 
 For lower tunings it does these things, scaled by how many semitones down the knob is:
 - raises the pre-gain high-pass so low strings do not flub the gain stages (the tight-ness setting moves up in frequency);
@@ -447,10 +447,10 @@ The numbers are my own rules of thumb, not measurements of real amps, and I have
 
 | Model | Presence starts at | Full boost |
 |---|---|---|
-| Clean (sparkly) | 5.5 kHz | +8 dB |
-| British Hot-Rod (tight) | 4.5 kHz | +9 dB |
-| Modern High-Gain (scooped) | 4 kHz | +10 dB |
-| Vintage Chime (class-A) | 6 kHz | +4 dB |
+| Twin Sparkle (sparkly) | 5.5 kHz | +8 dB |
+| Brown Eye (tight) | 4.5 kHz | +9 dB |
+| Modern Maul (scooped) | 4 kHz | +10 dB |
+| Chime Thirty (class-A) | 6 kHz | +4 dB |
 
 It sits above the **Treble** control, so the two work together: Treble for the overall brightness, Presence for the very top.
 
@@ -458,10 +458,10 @@ It sits above the **Treble** control, so the two work together: Treble for the o
 
 | Model | Low Mid centre | High Mid centre |
 |---|---|---|
-| Clean (sparkly) | 400 Hz | 1.5 kHz |
-| British Hot-Rod (tight) | 500 Hz | 1.8 kHz |
-| Modern High-Gain (scooped) | 400 Hz | 1.2 kHz |
-| Vintage Chime (class-A) | 500 Hz | 2 kHz |
+| Twin Sparkle (sparkly) | 400 Hz | 1.5 kHz |
+| Brown Eye (tight) | 500 Hz | 1.8 kHz |
+| Modern Maul (scooped) | 400 Hz | 1.2 kHz |
+| Chime Thirty (class-A) | 500 Hz | 2 kHz |
 
 - **Low Mid** controls body and "boxiness". Cutting it cleans up muddiness, and boosting it adds thickness.
 - **High Mid** controls bite, pick attack, and how forward a lead sounds. Boosting it helps solos cut through a mix, and cutting it tames harshness.
@@ -557,7 +557,7 @@ Tips:
 - **More real component values (v89):** Circuit-derived mode now takes preamp cathode corners, a bright cap and supply values from schematics I have read, for two more amps (the high-gain amp and the Mark-style creamy lead amp). The creamy lead amp's low end is tighter than before. Classic mode is unchanged. Details and what was not applied are in MODELED_GEAR.md.
 - **Circuit-derived by default (v88):** new sessions and factory presets start in Circuit-derived; older sessions keep the mode they had. Component-value preamp voicing exists only for the American combo and 50 W British amps, the ones I have schematics for. At high gain the new default is up to about 5 dB quieter than Classic on a couple of amps (more sag), within about 2 dB on most.
 - **Amp mode (v87):** the Circuit Amp, Stage Model and Derived menus (and the Dual voice switch, Power, Class and Rectifier menus and the Metal Sag knob) are folded into one "Mode" menu per amp. **Classic** is the original voicing. **Circuit-derived** uses the circuit-derived stage curves and works out the power section, supply droop, transformer saturation, feedback loop and preamp corners from circuit values; in my timing test it costs about the same CPU as Classic (roughly 2% of real time against 1.5 to 2%, on the build machine). **Full circuit** is the 50 W lead-amp simulation; it is only for that one amp and measured about 45% of real time, roughly 20 times the others, with no extra reported latency. Amp B has Classic and Circuit-derived. Master only shows in Full circuit. The Stack menu now reads As voiced, Neutral, then the seven passive stacks. Older sessions are moved across: Circuit Amp on becomes Full circuit; Stage Model or Derived on becomes Circuit-derived; Power Half/Low adds some Power Drive; Silicon rectifier and Metal Sag scale the Sag knob; American/British stack settings become the closest passive stack. These are close, not identical. From v88 the default is Circuit-derived; Classic remains selectable and is unchanged from before. Dual voice is removed (its effect was subtle).
-- **Circuit-derived levels (v83):** next to the Stage Model menu, a "Derived" menu (Amp B has its own in the advanced rows). Off is the classic voicing, as before. "Power section" replaces the Feel switch's tone nudges and the Presence shelf with the response of the power amp worked out from its feedback network, presence control, output transformer and a speaker impedance model: more feedback is tighter and stiffer, the Presence knob works by cutting feedback at high frequencies (its effect is milder than the classic shelf, as on the real amps), and the speaker's bass resonance lifts the low end. "Power + supply" adds a supply droop with two time constants (the reservoir recovers in tens of milliseconds, the filter stages in a few hundred) and a little low-end saturation of the output transformer, with depth from each amp's supply values (the Sag knob scales it; Rectifier Silicon makes it stiffer). "Power + supply + voicing" also takes the preamp corner frequencies and the bright-cap shelf from component values, for the American-combo and 50 W British models. Levels are matched to classic on a test signal. It costs no extra CPU. Not available for the Acoustic, Glass Clean and Digital models. Default is Off, so older sessions are unchanged.
+- **Circuit-derived levels (v83):** next to the Stage Model menu, a "Derived" menu (Amp B has its own in the advanced rows). Off is the classic voicing, as before. "Power section" replaces the Feel switch's tone nudges and the Presence shelf with the response of the power amp worked out from its feedback network, presence control, output transformer and a speaker impedance model: more feedback is tighter and stiffer, the Presence knob works by cutting feedback at high frequencies (its effect is milder than the classic shelf, as on the real amps), and the speaker's bass resonance lifts the low end. "Power + supply" adds a supply droop with two time constants (the reservoir recovers in tens of milliseconds, the filter stages in a few hundred) and a little low-end saturation of the output transformer, with depth from each amp's supply values (the Sag knob scales it; Rectifier Silicon makes it stiffer). "Power + supply + voicing" also takes the preamp corner frequencies and the bright-cap shelf from component values, for the American-combo and 50 W British models. Levels are matched to classic on a test signal. It costs no extra CPU. Not available for the Acoustic, Jade Chorus and Digital models. Default is Off, so older sessions are unchanged.
 - **Power stage with feedback (v86):** in Circuit-derived mode, the output stage runs inside its negative-feedback loop. Tight feedback stays clean longer and then clips harder; loose feedback breaks up earlier and softer. The Feel switch no longer nudges the drive by itself in that mode. Effect is subtle at most settings, since the preamp clips first.
 - **Two more passive stacks (v84):** "high-gain, 680 pF" and "high-gain, 500 pF" in the Stack menus, from a two-channel high-gain amp: the British lead stack with a 220k treble pot and 22k mid pot, and a different treble cap. The two differ slightly in brightness.
 - **Optical tremolo (v83):** the Tremolo Shape menu has a new "Optical (bulb and photocell)" entry: the oscillator lights a lamp, the lamp lights a light-sensitive cell; rounded, a little lopsided and shallower at fast rates, like the vibrato of a classic combo.

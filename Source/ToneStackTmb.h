@@ -14,7 +14,7 @@
 
 namespace ToneStack
 {
-    struct Values { double R1, R2, R3, R4, C1, C2, C3, Rsrc, Rload; bool bassAudio, trebleAudio; };
+    struct Values { double R1, R2, R3, R4, C1, C2, C3, Rsrc, Rload; bool bassAudio, trebleAudio; double Rn = 0.0; };   // Rn > 0: Dumble-style wiring: the bass pot's bottom goes to ground through Rn, and the mid pot is only a resistor from the C3 node to ground
 
     // 0 American combo, 1 British 50 W master-volume lead, 2 British lead 100 W, 3 American lead, 4 chime (class A), 5 and 6 high-gain two-channel stack (680 pF and 500 pF treble caps)
     inline Values valuesFor (int type)
@@ -27,6 +27,8 @@ namespace ToneStack
             case 3:  return { 250e3, 250e3, 10e3, 100e3, 250e-12, 0.1e-6, 0.047e-6, 38e3, 470e3, true, true };
             case 5:  return { 220e3, 1.0e6, 22e3, 47.5e3, 680e-12, 20e-9, 20e-9, 1.0e3, 1.0e6, true, false };   // 220k treble, 22k mid, 680 pF
             case 6:  return { 220e3, 1.0e6, 22e3, 47.5e3, 500e-12, 20e-9, 20e-9, 1.0e3, 1.0e6, true, false };   // same with a 500 pF treble cap
+            case 7:  return { 250e3, 500e3, 25e3, 39e3, 560e-12, 22e-9, 22e-9, 45e3, 1.0e6, true, false };   // orange-style: 250k treble, 500k bass, 25k mid, 39k slope, 560 pF; driven from a plate (about 45k), not a cathode follower
+            case 8:  return { 250e3, 250e3, 100e3, 100e3, 330e-12, 0.1e-6, 0.05e-6, 38e3, 1.0e6, true, true, 1800.0 };   // Dumble-style (Rock setting), read from a 1970s preamp sheet: 330 pF treble, 250k pots, 100k linear middle used as a resistor to ground, 100k slope, 0.1 uF and 0.05 uF, 1.8k under the bass pot
             default: return { 1.0e6, 1.0e6, 10e3, 56e3, 50e-12, 22e-9, 22e-9, 5e3, 1.0e6, true, true };
         }
     }
@@ -64,7 +66,7 @@ namespace ToneStack
         stamp (T, O, 1.0 / r1a);
         stamp (O, M, 1.0 / r1b);
         stamp (M, N, 1.0 / r2);
-        stamp (N, W, 1.0 / r3a);
+        if (v.Rn > 0.0) stamp (N, -1, 1.0 / v.Rn); else stamp (N, W, 1.0 / r3a);
         stamp (W, -1, 1.0 / r3b);
         stamp (O, -1, 1.0 / v.Rload);
         // Gaussian elimination with the determinant

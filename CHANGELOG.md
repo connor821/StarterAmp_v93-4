@@ -1,8 +1,340 @@
+## b36
+- **Master Cranker, Stock** refitted to a JCM800-with-mods amp-only capture (Gain 2 / noon / 10 at knob positions 0.3 / 0.5 / 0.85, six input levels): the low end of the knob is now close to clean (Gain 2 is nearly clean on the real amp), the top is about 1.5 dB hotter, and the fit follows the capture's gain at the three knob positions to within about 4 dB at all six levels (the worst point is 4.3 dB at knob 0.3, lowest level), and the harmonic mix is close at the top two positions and a few dB off in the middle. The Boosted voicing is built on Stock, so it moves with it. **Harmonic Haze, Clean** has about 17 dB more gain over the knob (refitted to a clean amp-only capture). Both measured against the captures, not listened to. Extra range: the knob still reaches well above and below the captured positions.
+- **New (internal): per-voicing knob taper** (`gainCurve`, 1 = as before). Not used by any shipped voicing yet.
+- **Wah:** the Classic circuit voice is now the default and uses the published pedal numbers (450 Hz to 1.6 kHz sweep, resonance that falls from a high Q rocked back to a low Q rocked forward, as measured on a real unit). The Heel / Toe / Resonance knobs scale that pedal around their defaults and their ranges now reach well beyond it (Heel 225 Hz to 1.0 kHz, Toe 0.87 to 2.9 kHz, Resonance x0.2 to x2.4).
+- **Phase 90 (Phaser):** the sweep is linear in frequency over the pedal's 330 Hz to 3.3 kHz range, with the circuit's feedback; default LFO shape Triangle, default centre 1040 Hz; Rate range widened to 0.02 to 20 Hz (was 0.05 to 10).
+- **Chorus (Juno-style):** rates 0.513 / 0.863 / 9.75 Hz and the delay ranges from a published analysis of a real unit.
+- **Compressors:** FET style now has a fast peak detector (50 us up, 2 ms down) and a 5 us attack floor (a published attack range is 20 to 800 us), program-dependent release; Opto style has a two-stage release (about 60 ms for the first half, then a slow tail that depends on how long and how deep it squeezed), 10 ms average attack at the default knob. Thresholds mean the same as before.
+- **Fix (drive pedals):** a shared soft limiter clamped at 30 rails, so the second stage of Stack Drive (hundreds of volts at full gain) collapsed to nothing, and Blues Driver's two stages shared one limiter state. Blues Driver now has its own, Stack Drive has the 1.06 kHz low-pass its second stage needs. Pedal trims reset to match (Stack Drive 0.12, Blues Driver 1.12 = a small-signal gain of about +7 dB at Gain 0). Screamer tone stage input resistor 909 ohm (1k in parallel with the 10k bias resistor). Auto Level rows for Stack Drive and Blues Driver re-measured.
+- **Auto Level** rows re-measured: Cranker Stock, Cranker Boosted, Haze Clean (all flat at the target within 0.01 dB at the fixed test signal). The Haze Crunch row was changed by mistake during this work and restored to its b35 values.
+- Default sound: **not identical to b26 any more** where the wah, Phase 90, chorus or compressors are switched on (circuit changes above); the default amp and drive sounds are the same as b35. Regression golden updated for Cranker Stock, Cranker Boosted and Haze Clean only. Not listened to. 2031 stress checks and 136 regression checks pass; no allocations in the audio thread (seeds 43, 52, 71).
+- **Analysed, not yet applied:** the new John Mayer and Nolly test-pack captures (Headroom Hero, Signature 83, Smooth operator, Blend with cab; Shiva Clean, JCM800 with mods) are analysed for gain, H2 and H3 against level. A Mayer-style blend voicing is not built yet.
+
+## b35
+- **Order window: Fuzz 2 is its own pedal** (block 26, starts right after Fuzz 1). Series or parallel is now set by where you put it on the board, so the Series / Parallel switch inside the Fuzz page is gone. Fuzz 2 can go before the amp, in the FX loop or after the cab, like any other pedal. Drive 2's Route switch is gone as well: Drive 2 stacks after Drive 1 by default, and putting it on the lower row runs it beside Drive 1 (as a stand-alone drive with its own oversampling).
+- **Order window: parallel-section plugs.** Each lane has a plug at each end of its parallel rows. Drag a plug along the lane to choose where the rows split and merge (it sets the same "Parallel section" menus on the right, which still work). The pedal-lamp, drag and series / parallel behaviour is unchanged. This is the first step toward cable-style routing; a free cable graph would need a new routing engine and is not built.
+- **Delay 1 and Delay 2** (renamed from Pre-amp / Post-amp delay; they still start before the amp and after the cab). Delay 1 gains the stereo mode, Right offset, Spread and Forward / Reverse playback that Delay 2 had, so both have the same controls. Stereo modes only do anything where the signal is stereo (after the cab). Four new automation parameters (Delay 1 Stereo / Right Offset / Spread / Style); the defaults give the same sound as before.
+- **Bright** moved to the top row of the Amp panel, next to Auto Level (both amps). Amp B's Tone stack, Feel and Engine are now behind its ADV button too.
+- **Compressor:** Auto Level is hidden for the Dyna style (it has its own fixed behaviour).
+- **Signal strip (top):** the old Phaser, Chorus and Lo-Fi pedals no longer show on it while they are off.
+- **Switched-off tiles no longer overlap the pedals** when the page is full (for example four Mod FX slots on): the pedals are squeezed (down to about 60 percent) to make room for the tile column.
+- **Fix (cab):** the built-in cab's room reflection could read past the end of its table when the room was long (found by the stress test; it could crash on some settings). It is bounded now.
+- Default sound identical to b26. Not listened to. 2031 stress checks and 136 regression checks pass; no allocations in the audio thread. The state round-trip test now marks its state as current, because old Wobble / Tremolo settings are converted on load by design.
+
+## b34
+- **DI Match** (new, INPUT page, end of the input stage, after the Transpose): reshapes the guitar's tone so one guitar can sound like another. Pick **Your pickups** (Single coil, Humbucker, P90, Active, or Measured) and **Match to** (a pickup type, Pink noise, or a Loaded DI recording). Pickup to pickup is worked out from simple generic pickup models (no learning). Measured needs LEARN (play about ten seconds; it stops itself after about 25 s) and goes with Pink noise or Loaded DI (LOAD DI... measures up to 90 s of a recording). Amount, Level Match (also matches loudness), and an optional **Active circuit** (up to 12 dB of gain with a soft clip, like an active pickup's preamp). It is placed after the Transpose and moves its picture of your pickups with the shift, so shifted notes keep a plausible pickup character. Own design; the idea comes from JST's DI Match, nothing else is borrowed. The generic pickup shapes are my approximations, not measurements.
+- **Gate / Expander: Listens to** (Its own signal / The input). With "The input" the gate decides from your dry playing at the end of the input stage and applies its cut where the pedal sits, so it can go after the amp (or in the FX loop) and still follow your picking, cutting the amp's hiss and ring-out.
+- **Amp menu**: amps that have separate clean, crunch and lead voicings now appear in every folder they cover (Marque Five, Harmonic Haze, Wreck Stack, Diesel Fuel, Cutaway, Revved Up, Marmalade, Brit Eighteen, Power Brawl, 5555 Block, Solid Metal, Bumble Lead). Picking one from a folder sets the voicing that fits the folder. Applies to Amp A and Amp B. Extra entries are at the end of each folder.
+- **Order window**: double-click a pedal to open its controls (switches to its page).
+- **Build:** CMake bundle ID set to `com.starteramp.StarterAmp` (the old one contained spaces and gave a CMake warning). Not tested with a real CMake run here.
+- Default sound identical to b26. Not listened to. 2017 stress checks pass.
+
+## b33
+- **Spring return menu** (both Reverb blocks, shown for the two Spring types, in Reverb Shaping): seven styles for the electronics around the tank. **Generic** (as before), **Sparkle** (thin and bright, a sizzle near 4 kHz), **Chime** (very bright, return cut below 1.6 kHz), **Tight** (two cascaded stages, steeper bass cut, and the send is thinned too), **Full** (almost no bass cut), **Clean** (flat, solid-state, and the driver does not clip) and **Tilt** (a treble-tilted op-amp return, the unusual one). Each was read off a real amp's reverb circuit (see CIRCUITS.md); the levels were matched to within 1 dB of Generic (measured on a noise burst), so switching does not jump in volume.
+- **Fix:** the Spring Drive knob was hidden for Spring (tank) (it only showed for the older Spring). It shows for both now.
+- Default sound identical to b26. Not listened to. 1974 stress checks and 136 regression checks pass; no allocations in the audio thread.
+- Not built: the AC30-style Cut control (it belongs to the amp, not the reverb; waiting for a decision).
+
+## b32
+- **New reverb type: Spring (tank)**, in both Reverb blocks (so it can sit in the amp's FX loop or anywhere in the order). It models the tank itself: two springs of different length, each with the "chirp" a real spring gives to a pluck, a mid-band pickup and a loop low-pass. Decay sets the spring length, Damp the top end. Use Spring Drive in front for the drive stage. The old "Spring" type is still there.
+- **Compressor ratio**: "10:1 Soft" is gone. The Ratio menu (eight entries) now follows every style except Dyna, which has its own fixed behaviour. Saturation is still its own menu.
+- **MODELED_GEAR.md is now sorted by block** (Amps, Gain, Compressor, Mod FX, Pitch and noise, Delay, Reverb, Cab, EQ, Post FX, Other, Presets, General). The text is the same, only moved; every original line was checked to still be present.
+- Default sound identical to b26. Not listened to. 1855 stress checks and 136 regression checks pass; no allocations in the audio thread.
+
+## b31
+- **New compressor style: Thump.** It is the Standard compressor with Bloom, Smack and Clarity, which now belong to it alone (they used to sit behind ADV and act on every style; in the other styles they now do nothing). They are normal knobs shown only for Thump, with starting values of 0.4, 0.4 and 0.15. The Dyna style hides the Ratio, Saturation and Detector menus it ignores.
+- Default sound identical to b26 (Standard is the default style). Not listened to.
+- Not done yet from the compressor review: per-style ratios, dropping "10:1 Soft", tying the Saturation entries to styles, and fitting the FET, Opto and Dyna styles.
+
+## b30
+- The Phaser and Lo-Fi slot types now have everything the old stand-alone pedals had. Phaser: **Stages** (2 to 12), **Envelope** and **Lag** knobs. Lo-Fi warble: separate **Noise**, **Dropouts** and **Level** knobs (Fidelity no longer does anything for it). These knobs show only for those types. The LFO Shape for both types now maps like the old pedals (Sine, Triangle, Random): a slot's "Random (wandering)" shape is the Random one.
+- Default sound identical to b26. Not listened to.
+
+## b29
+- **Six new Mod FX slot types** (each slot has them): Filter sweep (low-pass), Filter sweep (band-pass), Notch sweep, Vowel sweep (formant), Auto-wah (envelope) and Slicer (step gate). The filters reuse the Filter block's engine: Manual is the cutoff (or the vowel), Feedback the resonance (either sign), Rate and Depth the sweep, Shape "Random" gives random steps. The Auto-wah follows your playing instead of an LFO. The Slicer chops with one of eight eight-step patterns (Manual), Rate is the step speed (Note locks it to the tempo), Depth the gap, Tone the softness of the steps.
+- **A slot now hides the knobs its type does not use** (Feedback, Manual, Tone, Fidelity, Rate and Shift), instead of only dimming them.
+- **The old Phaser, Chorus and Lo-Fi pedals are hidden while they are switched off**: no tile on the Mod and Scapes pages and not in the Order tray. Nothing was removed. They show again when switched on (a preset that uses one) and with TIDY VIEW off, and "Show every pedal" on the Order page lists them. Their settings still load and save as before. Things the slot types cannot do yet: the Phaser's stage count, envelope and lag; the Lo-Fi's separate noise and dropout levels and its output level. That is why they are only hidden.
+- The signal strip at the top of the window still lists the old pedals (not hidden there yet).
+- Default sound identical to b26. Not listened to; the new types were only checked for stability, level and that they change the sound.
+
+## b28
+- **Four Mod FX slots (A to D).** C and D are new, on the Mod page and as pedals on the Order board (they start in the tray, switched off). Every slot has the same Type menu, which now also holds **Chorus** (Manual picks the mode, Rate is the speed relative to the mode's own, Fidelity below 1 adds hiss), **Phaser** (four stages; Manual is the centre frequency, Feedback the resonance) and **Lo-Fi warble** (Rate/Depth warble, Manual the random drift, Tone the top end, Feedback the dirt, Fidelity below 1 adds hiss and dropouts). These three are mono, like the stand-alone blocks. Slots C and D start as a Chorus and a Phaser.
+- The stand-alone Chorus, Phaser and Lo-Fi blocks are still there and unchanged; nothing was removed.
+- The default sound is bit-identical to b26. Mod C and D come after Boost and before the drives in the default order, because a block after a drive would stop it counting as built into the amp.
+- Not listened to; the new types were only checked for stability, level and that they change the sound.
+
+## b27
+- Order page: pedals that are switched off no longer sit on the board. They wait in a tray under the lanes. Click one to switch it on where it belongs, or drag it onto a lane to place it (it switches on). Drag a lit pedal onto the tray to switch it off, or click its lamp. "Show every pedal" (top right) brings back the full board. Each pedal keeps its place in the order while it is in the tray.
+- Order window is taller (1070 px). Editor only; the sound is unchanged from b26.
+
+## b26
+- **Brown Eye refit** against the BE-100 captures (gain 1 to MAX, plus the HBE switch set) and the BE-100 schematic. The amp used to clip hard from the lowest Gain setting; the captures stay fairly clean at 1 and saturate around 7. Each voicing now has its own gain range: Tight follows the BE channel, Heavy the HBE (saturates almost at once, with the near-symmetric clipping the captures show), Brown the HBE Fat switch (fat low end), Mid push the voice-left captures. Tone offsets were fitted to the captures' average spectra; the 2 to 4 kHz peak the captures show is only partly reached (the fit tool's limits), and the top above 6 kHz was not matched separately. Not listened to.
+- **Wider ranges for every amp** (you asked that ranges may go beyond the captures and schematics as long as they contain them): the Amp Gain knob now covers about 5 dB more at each end (the voiced range sits between 10% and 90% of the knob, with the same curve continued past both ends; 50% is unchanged). The Bass, Low Mid, High Mid and Treble knobs (Amp A and Amp B) now go to +/-18 dB instead of +/-12.
+- Regression golden regenerated: only Brown Eye and Triple Blend voicing 3 changed at the default Gain of 50%.
+- Test builds only: AMPG variable (per-voicing gain multipliers) for fitting.
+- Because Gain below 10% and above 90% now means something different, old saved sessions will sound different at the extremes of the knob.
+
+## b25
+- Parallel sections: each lane has "Parallel section" menus (starts at / ends after a pedal). Inside it the upper and lower rows run side by side from the same signal; they are added back together at the end, and the pedals after it run in series on the merged sound (e.g. two pedals side by side, then one chorus). Pedals before and after the section run in series whatever row they sit on. Default (start of lane to end of lane) is exactly the old behaviour, bit-identical.
+- New params (appended): laneRegStart0-2, laneRegEnd0-2. One section per lane (three lanes, so up to three). The section shows as a teal outline on the board. A pedal that is not in the lane, or an end before the start, falls back to the whole lane.
+- Order window is taller (1000 px) to fit the new menus.
+- Tests: 1451 checks (new: parallel section). Nothing here was listened to.
+
+## b24
+- Drive 1 and Drive 2 are movable pedals (before the amp, FX loop, after the cab). While a drive sits at the end of the before-the-amp lane on the main row (the default) it is built into the amp exactly as before, so the default sound is bit-identical. Anywhere else it runs on its own at its place, with its own oversampling.
+- New location params (appended): fxLocDrive1, fxLocDrive2.
+- Tests: 1445 checks (new: both drives in every lane). Nothing here was listened to.
+
+## b23
+- Order page: the side controls no longer overlap the board (the board is wider, the side column sits clear of it).
+- Lo-Fi and Boost are now movable pedals: drag them to before the amp, the FX loop or after the cab. Default position is unchanged, so default sound is bit-identical to b21/b22.
+- New location params (appended): fxLocLoFi, fxLocBoost. Lane order now has 24 slots; old saved orders are padded automatically.
+- Drives are still fixed (next: b24). Split-anywhere comes after that (b25).
+- Tests: 1433 checks (new: Lo-Fi/Boost in each lane). Nothing here was listened to.
+
+## b22
+Documents only; the sound is the same as b21.
+- Received and filed: the Friedman BE-100 v2 schematic, both JC-120 / JC-160 service notes, and three Hammond 1750-series output-transformer datasheets (reference/schematics, reference/datasheets).
+- TRANSFORMERS.md: the datasheet numbers and what they imply. Short version: winding resistance and leakage inductance have no audible effect on their own (under 0.3 dB, and poles above 50 kHz); only low-frequency saturation matters, and the datasheets do not give it.
+- CIRCUITS.md: the BE-100 transcribed in full (tight 2.2 nF / 68k coupling, JCM-style stack, four EL34, about 15 dB of negative feedback, solid-state supply with a choke) and the JC-120's power amp and specs.
+- Not applied to the model yet; see the report.
+
+## b21
+- **Diesel Fuel retuned to your Diezel VH4 captures** (47 files; Lead to channel 3, High gain to channel 4, Crunch to channel 2). 2nd-harmonic error went from 7.5 dB to 1.7 dB and the profile error from about 5 dB to 2.4 dB. Details: stronger grid blocking and more clipping asymmetry on Lead and High gain; EQ fitted (high-passes x0.34 to x0.49, bass +8.5 to +9.6 dB, treble +1 to +9 dB); level trims re-matched so the loudness is unchanged. The fit pushed the bass and the high-passes to their limits, so these are tighter-to-fuller moves than any earlier fit. Not listened to.
+- **Cutaway: harmonic balance partly fitted** to the 5 new Prometheus captures (stronger grid blocking; Clean also gets more asymmetry). Its 2nd harmonic is still about 7 dB lower than the captures (was 9). Tone left as it was (already fitted).
+- Checked, not changed: Digital Dread against the two Big Bottom captures (harmonics within 3 and 5 dB, compression matches); Cedar Twelve against the Deluxe Reverb captures (4 dB harmonic error). Digital Dread still needs Thall-style captures.
+- The VH4 "bal / mids / scoop" captures differ by less than 2 dB in every band, so any EQ-knob position covers them; only the baseline needed fixing.
+- Unchanged amps render bit-identical to b7.
+- **New Tests folder** (see Tests/README.md): about 1,400 stability, block-size, automation, save/load, lifecycle, oversampling and switching checks, plus a fixed-render regression of all 34 amps x 4 voicings against golden.txt. All pass on b21. The CMake test target and a manual GitHub workflow (Actions > Tests) are included but not yet built; the tests themselves were built and run another way.
+
+## b20
+- **Fuzz: Factory style re-fitted to your 15 Fuzz Factory captures** (Vexter, Vol 4, Drive 5, Gate 6 or 8, Comp 5 to 10, Stab 0 to 10). Before: it ignored Stab and was 5 to 20 dB too dark above 2 kHz. Now Stab lifts the top end and the level the way the captures do (the captures gain about 10 dB at 4 to 8 kHz from Stab 0 to 10), the input low cut moved from 120 Hz to 5 Hz, the output tone range is 3 to 48 kHz (the real pedal has no tone control), and Gate, Comp and Drive were retuned. Fit error against the captures fell from about 56 to about 17 (my own score: mean squared dB difference of the one-octave spectrum plus level). The captures lose more bass than ours at high Gate; that is still short by about 10 dB at 63 Hz. The captures were noted as imperfect, so this is a fit to imperfect data. Kept a small amount of the Stab feedback so it still squeals at low Stab. Stable over 108 extreme setting combinations. Not listened to.
+- **Overdrive: Open now has a Circuit Mode** (off by default, so old sessions sound the same). It is a Fulltone OCD-type circuit built from the supplied schematic: the two TL082 gain stages (2.2k / 100 nF leg, 500k gain pot + 18k, 220 pF), the 10k / 10 nF filter into the clipper, the MOSFET-as-diode on the negative side and a germanium diode plus a body diode on the positive side, the second stage (about x4.85), and the 33k / 22k / 47 nF / 10k tone network. HIGH RANGE is the HP / LP switch in this mode. Estimated: the MOSFET wiring (the schematic and the written analysis disagree), its threshold (2.1 V) and transconductance, the op-amp swing, the gain pot taper. Auto Level rows added (HP and LP). Nothing listened to; no OCD capture was available to compare with.
+- Power Brawl plate supply 450 V and the 6550 power tube are in b18 and b19.
+
+## b19
+New Power Tube choice: 6550 (appended after KT88, so saved sessions are unchanged). Hand-estimated from the datasheet limits (more headroom and a firmer low end than a 6L6, a little less stiff than the KT88, slightly more upper mid). Its saturation curve is the KT88 one; there is no separate 6550 curve. Not listened to.
+Also: TUBES.md (datasheet figures) and a reference folder with your pasted notes.
+
+## b18
+Power Brawl: plate supply now 450 V, read from the newly supplied Powerball schematic (was an estimated 500 V). Nothing else changed; Harmonic Haze already matched the Shiva schematic. Not listened to.
+
+## b17
+Menu and layout tidy. Nothing was removed, merged or reordered: every parameter keeps its meaning, so saved sessions sound the same.
+- **Menu captions**: menus whose text did not say what they were for now carry a small dim caption inside (Shape: Sine, Type: Mangled, Engine: Hybrid, Tone stack, Saturation, Detector HP, and so on). A caption is left out when the menu is too narrow to fit it.
+- **Header regrouped**: the top row is presets, A/B, undo/redo, performance mode and tempo. The second row is the ten pages, then one group of tools (Tuner, Metro, Loop, Riff, MIDI), then Order, Tidy View and Help. The preset menu is wider.
+- **Noise Pedal renamed Clash Pedal** (it is a harsh pitch-shifting instrument, not a noise gate; the new Gate / Expander is on the Input page). Same controls, same sound.
+- **Reverb Shaping**: controls that belong to one reverb type (Spring Drive, Gravity, the IR loader, ModEcho's echo, Mangle) now appear only while that type is picked, so the panel is no longer half greyed out. The common controls stay put, greyed with a reason when they do not apply.
+- **Transpose / Formant moved from Input to Pitch**, where you would look for it.
+- **Grouped menus**: Fuzz "Muff version" (Voiced / Solved from a circuit) and Compressor Saturation (Basic / Stage emulations).
+- **Pointers between look-alike effects**: the tooltips for Tremolo, Wobble and Mod FX type say where the other versions are. The Amp B menu's tooltip says which amps are Amp A only.
+- Pedal tiles in Tidy View that had no description now have one (Filter, Volume / Pan, Multiband, Gate, Transpose, Guitar Synth). The "everything is switched off" message no longer sits on the divider line. Page tooltips list what is on each page.
+- Already tidy, so unchanged: the Fuzz style and Mod FX type menus (grouped in b13), the amp's oversampling menu (under ADV), and the old circuit/derived engine switches (not shown in the interface).
+- Checked: the existing sound is bit-identical to b7; no audio-thread allocations; screenshots of the Amp, Post FX and Pitch pages and the new header.
+
+## b16
+- **Looper.** New LOOP button (next to Tidy View) opens the looper. It records the finished sound (after the amp, cab and all effects) and plays it back so you can play over it.
+  - One big button steps **Record, Play, Overdub, Play**. Separate **Undo** (takes off the last overdub; again puts it back; with only the first take it erases the loop), **Stop** and **Clear**.
+  - **Wait for the first note** (on by default): Record waits until you play, so the loop starts on your first note.
+  - **Length**: Free, or 1 / 2 / 4 / 8 bars. With a bar count the loop closes by itself, using the header tempo and the metronome's beats per bar.
+  - **Loop level** knob. Maximum loop length is 40 seconds. Short fades at the loop join and on overdub in and out, so there are no clicks.
+  - **Space bar** is the big button in the standalone app only (not in a plugin host, which keeps its own space bar).
+  - **Footswitch / DAW**: four new switches (Looper Record / Play / Overdub, Stop, Undo, Clear) can be mapped in the MIDI window. A MIDI control that sends 127 when pressed fires at once; if your switch sends on / off alternately, turn on "my footswitch is latching". In a plugin host the same switches can be automated (a 0 to 1 change fires).
+  - The button in the header shows the state (WAIT, REC, PLAY, OVERDUB).
+- The header tabs are slightly narrower to make room.
+- Checked: the existing sound is bit-identical to b7; no audio-thread allocations; a test of the loop engine (record, close, overdub, undo and redo, stop, restart, clear, auto-close at 2 bars gave exactly 4.000 s at 120 BPM, wait-for-note, mono input); a test through the plugin of a mapped MIDI control and of the host switches.
+- Nothing listened to. Not done: loops are not saved with the session (they are lost when you close), and there is no half-speed or reverse.
+
+## b15
+- Four new effect blocks on the Order board (20 blocks now; saved boards load fine and the new ones are added):
+  - **Filter** (MOD page, default before the amp): Low-pass, High-pass, Band-pass, Notch, **Formant** (vowels A E I O U with a Vowel knob) and **Resonator** (tuned ringing). Motion: Manual, LFO (free or tempo-synced), Envelope (follows your playing), Random steps. Depth can be negative.
+  - **Volume / Pan** (GAIN page, default after the cab): Level (mutes at the bottom) and Pan (stereo only).
+  - **Multiband Comp** (GAIN page, default after the cab): three bands, adjustable crossovers, a threshold per band, shared Ratio / Attack / Release, Output and a Mix knob for parallel compression.
+  - **Gate / Expander** (INPUT page, default first before the amp): Gate or soft Expander (2:1), Threshold, Range, Attack, Hold, Release and a detector high-pass so rumble does not hold it open.
+- Delay ducking and diffusion already existed in both delays; nothing added there.
+- The Order board's cells are narrower (48 px) so up to 18 pedals fit in one lane; pedal names are shorter (TREM, REV 2, WOB / SWELL).
+- Checked: the existing sound is bit-identical to b7; no audio-thread allocations; each filter mode, vol/pan, multiband and gate respond and stay finite; Multiband with thresholds at 0 dB is transparent (within 0.3%).
+- Nothing listened to. All four are my own designs (the Formant vowel table and the Multiband crossover are generic, not matched to any unit). The Expander is gentle by design (2:1).
+
+## b14
+- New amp **Jazz Box** (Clean folder): a big, dark, solid-state jazz clean with a low-mid hump and a rolled-off top. Voicings: Jazz, Archtop (a little brighter), Dark Room (the roundest and darkest), Pushed (turned up for a soft, dark breakup). Measured against Jade Chorus Warm: 1.5 to 4 kHz is 5 dB lower (Jazz) to 8.5 dB lower (Dark Room). Not matched to any real amp; no schematic or capture.
+- New amp **Brit Eighteen** (Low / mid gain folder): an 18 W British EL84 combo, chimey and mid-forward, breaks up early. Voicings: Clean, Crunch, Cranked, Brilliant. Power stage uses the chime family's feedback model and an estimated supply (no schematic read). Not matched to any real amp.
+- Both: Auto Level tables measured for all four voicings (flat to about 1 dB across Gain), looks added, shown in the amp menu and its tooltips. They are Amp A only (Amp B's menu does not have them, like Triple Blend). Existing amps and saved sessions are unchanged (bit-identical render check against b7).
+- Nothing listened to. Tone balance checked by measurement only.
+
+## b13
+- Two new reverb types (both reverbs): **ModEcho** (a wobbling feedback echo whose repeats go into a lush hall; Echo Time, Echo Fdbk, and Mod for the wobble) and **Mangled** (the reverb's output is squashed, crushed and fed back into itself; Mangle sets how rough). New knobs in Reverb Shaping, greyed out when the type does not use them.
+- Menus with more than ten entries are grouped under headings: Reverb type (Regular / Big spaces / Effected / Impulse response), Fuzz style, Mod FX type and Amp stack. Amp, cab, speaker and mic menus were already in folders. Saved sessions are unaffected (the stored values did not change).
+- Reverb Shaping panels are wider (8 knobs per row) so the extra knobs do not crowd.
+- Nothing listened to. Mangled at Mangle 1.0 rings for several seconds (checked it stays bounded, not how it sounds).
+
+## b12
+- **Reverb 2**: a full second reverb (every control of Reverb 1) as a movable pedal on the Order board, so two reverbs can run in series or parallel. Reverb 2 has no IR Reverb type (it plays Hall there).
+- New reverb type **Reverse**: true time-reversed grains (overlapping, windowed). It swells into the note with up to half a grain of delay, so it is not a "live" effect.
+- **Wet tremolo** (TremoloVerb style) on both reverbs: Wet Trem depth, Trem Rate, shape (Sine / Triangle / Square / Pan L-R). Affects only the reverb tail.
+- **Wet Drive** (Soft / Fold / Crush) before the reverb, **Duck Release** now adjustable, **Focus + Purity** (resonant band-pass on the tail).
+- Fix: Hybrid power mode could allocate memory on the audio thread (a scratch buffer was sized late). Present since b7 or earlier.
+- Nothing listened to; the Lair-inspired extras are my own designs, not matched to it.
+
+## b11
+- **New reverb type: Black Hole** (appended after IR Reverb): an enormous, ultra-dense, slowly swirling space (eight-line network with long, heavily smoothed delays). Use Decay of 10 s and up, and Freeze for an endless wash. New **Gravity** menu in Reverb Shaping (Black Hole only): *Linear* (plain decay), *Surge* (when you stop playing the tail dips, then swells back up past the fading tail and eases back), *Reverse* (the tail drops away, grows slowly from nothing and is cut off at its peak: a live approximation, the tail is not truly reversed). New parameter reverbGravity (appended).
+- Checked (measured, not listened to): at Decay 12 s the tail falls about 10 dB in 2 s (consistent with a 12 s decay); with Surge the level 4 s after the note is about 0.0011 against 0.0006 for Linear; with Reverse it climbs from 0.0002 (2 s) to 0.0009 (4 s to 5 s) and then falls; no NaN, 0 audio-thread allocations, default chain still bit-identical to b7. Level against other types was not matched by ear.
+
+## b10
+- **Split / merge per lane** (ORDER window, right of each lane). A Split menu says how the lower row is fed and merged: *Separate branches* (b9 behaviour, the default), *Chain B beside chain A* (lower pedals run one after another as path B), *Crossover split* (upper row gets only the lows, lower row only the highs; Linkwitz-Riley 24 dB/oct, 80 Hz to 4 kHz; an empty row passes its band) and *Left / right split* (after the cab only: upper row gets the left channel, lower row the right, each stays on its side). B level, B pan (after the cab) and a polarity flip merge path B back; the lane's Rail Balance still sets A against B. In the chain and split modes the per-pedal level, pan and polarity are replaced by these lane controls. New parameters (appended): laneSplit, laneXover, laneBLevel, laneBPan, laneBPol for each of the three lanes. RESET BOARD resets them.
+- Checked (measured, not listened to): chain B with one pedal equals main + pedal; B level -6 dB halves it; left/right split with a pedal on the left only changes only the left channel and a transparent pedal leaves both channels bit-identical; crossover with only the default EQ keeps the level (rms 0.01404 against 0.01406) but, as any crossover, shifts phase (so it is not bit-identical to the plain chain); default chain still bit-identical to b7 (ref2); 0 audio-thread allocations. Crossover and left/right engage only when a pedal is actually on in the lane; with nothing to split the lane is the plain chain.
+
+## b9
+- **Per-pedal parallel routing in the ORDER window.** A pedal on the lower row is now its own parallel branch: it starts from a copy of the lane's input and its result is added to the main (upper) row. Several pedals can sit on the lower row and each runs beside the main row and beside each other (before: they were chained). Click a pedal to get a strip at the bottom with SERIES / PARALLEL, **Level** (-24 to +12 dB), **Pan** (after the cab only; before the amp and in the loop the signal is mono) and **Flip polarity**. New parameters (appended): fxLvl, fxPan, fxPol for each of the 13 movable pedals.
+- The lane's Rail Balance now works like this: in the middle both the main row and the branches are at full level; to the left the branches fade out; to the right the main row fades out. With no active branch the lane is the plain series chain. A branch pedal that is switched off adds nothing. Tremolo in the loop ignores the lower row (it always runs in the amp).
+- A pedal with its own Mix control passes its own dry sound too, so as a branch it adds dry plus effect; set its Mix to 100% wet or lower its Level.
+- Checked (measured, not listened to): the branch output equals main + pedal output exactly; polarity flip = main minus pedal; level -6 dB = half; pan hard right puts the branch only in the right channel with unity-centre constant-power gains; balance 0 = main only; off branch = no change; default chain bit-identical to b8 and b7 (ref2); state round trip; 0 audio-thread allocations. Not checked: delay or latency differences between the branch and the main row (Mod/fuzz stages with their own oversampling are not time-aligned to the main row).
+
+## b8
+- **Movable effects.** The ORDER window (button in the top bar, now easy to find) is a three-lane pedalboard: Before the amp, In the amp's FX loop (between preamp and power stage), After the cab. Drag any pedal to any lane and position. Movable: Fuzz, Comp, Wah, Phaser, Chorus, both Delays, Mod FX A and B, Post EQ, Wobble/Swell, Reverb, Tremolo. Fixed: Doubler and Widener always last, Granular first in the after-cab lane, and all input/pitch/synth/denoise/amp stages.
+- **Parallel rails** in every lane: each lane has a main and a parallel rail with a balance slider (preRailBal, postRailBal, new loopRailBal); drop a pedal on the lower rail to run it in parallel.
+- **FX loop.** With a single electric Amp A it is a true loop (oversampled signal leaves and re-enters before the power stage); this adds one oversampler trip of latency (the "Lowest" quality adds none). With Amp B, Triple Blend, Acoustic or a neural capture the loop sits on Amp A's output just before the cab. Tremolo in the loop always uses the in-amp path.
+- Mono-only effects moved after the cab are processed mid-channel; their change is added to both sides so the stereo image is kept.
+- Chain strip removed (the ORDER window replaces it). Tremolo Placement switch removed (use the lane). Mod FX A/B position menus gained "In the amp's FX loop". New params appended; old order strings migrate.
+- Checked: default chain bit-identical to b7; moves, loop latency, fallbacks, state round trip, migration, reset; 0 audio-thread allocations. Not listened to.
+- Polytone-style jazz amp: still not built. Jade Warm is already the darkest clean voicing; a Jade Warm retune toward a low-mid hump would be the cheaper option.
+
+## b7
+- Tremolo: new **Bias (amp-style)** shape (narrow dips, wide full-level part), a **Placement** switch (Pedal after the cab, or In the amp, between the preamp and the power stage) and a **Pick** knob (playing harder fills in the dips; in the amp only). In the amp it works with Amp A, Amp B and the Triple Blend parts; the Acoustic and neural captures fall back to the pedal. Measured, not listened to: at the same Depth the in-amp swing is about 3 dB smaller than the pedal's (11 vs 14 dB at Depth 0.8), and Pick 0.3 shrinks it further on loud playing.
+- Checked a Polytone-style jazz amp against Jade Chorus: not built (see MANUAL notes below).
+
+## b6
+- Fixed: the plugin now removes all of its parameter listeners when it closes (cab on/off, Auto Align, reverb type/size/IR controls were left registered).
+- Docs: amp counts in README and QUICKSTART brought up to date.
+- Checked, no change needed: NamSlot buffers are sized in prepare(), so the audio thread does not allocate; MIDI for oversized blocks is applied at block start (the handler ignores sample offsets anyway).
+
 # Starter Amp: version history
 
 This file keeps the old per-version notes (v50 to v72) for reference. The README, MANUAL and MODELED_GEAR are organised by section; read those first. Page and tab names in these old notes are the names of the time (PRE FX, BOOST, MOD FX, SPEAKER and so on): since v73 the pages are INPUT, GAIN, MOD, PITCH, AMP, CAB, EQ, DELAY, SCAPES and POST FX.
 
+## Solid Metal (amp 29)
+- New amp model: solid-state / hybrid 90s metal. Voicings: Hybrid Hi-Gain, Hybrid Classic OD (op-amp stages into LED clippers, then a tube stage), JFET Lead (two JFET stages into zener and diode clipping), JFET Crunch (the same amp's clean-to-crunch channel, soft JFET clipping only).
+- New hard symmetric clip stage (`hardMask` per voicing) for diode, zener and op-amp-rail clipping; power stage is stiff (no sag family, almost no sag).
+- Auto Level tables measured for all four voicings (flat at -32.53 dB). Real-time allocation test: 0.
+- Gain structure checked against Digital Dread and a Big Bottom-style NAM capture: Digital Dread is almost purely odd-harmonic; the capture has clearly more even harmonics, so the Hybrid Hi-Gain voicing got a little clipping asymmetry. The capture's spectrum could not be matched fairly (it includes cab or mic coloration).
+- Not listened to by ear.
+
+## Dual Thirty (amp 28)
+- New amp model: two-channel 4xEL84 chimey crunch, based on the DC30 schematic. Voicings: Channel 1, Channel 2, Pushed, Cut.
+- Channel 1: paralleled first triode into a 500k volume with bright cap, second gain triode, cathode follower, passive tone, long-tail phase inverter, no-feedback EL84 power section with sag from the 4k7/22k supply dropping resistors. Channel 2: EF86-style pentode front end with a switchable tone-cap voicing.
+- Auto Level tables measured for all four voicings (flat at -32.53 dB). Gain structure and band balance checked; real-time allocation test: 0.
+- Not listened to by ear, no captures. Clubman and Chieftain schematics were read but not built (same EL34 family as existing amps).
+
+## Electric-to-acoustic, Dumble stack and supply
+
+
+- **Auto Align now follows cab changes**: it reruns (when switched on) after a new IR is loaded, after a block switches between the built-in model and a file, after any built-in cab setting changes, and when a block is switched on or off. Before, it only ran when an IR file was loaded by hand, so built-in cabs and library sends were missed. Tested headless: changing block B's mic and distance moved A's delay from 0.19 to 0.40 ms; with Auto Align off nothing changes.
+- **Audit fixes (real-time safety)**. Built an allocation detector (counts every heap allocation inside processBlock while parameters are swept at random and blocks of 1 to 8192 samples are fed in); it now reads zero. Fixed: (1) blocks larger than the size the host announced overran internal buffers and corrupted memory (crash at 2048 and up when prepared at 512); oversize blocks are now processed in pieces, MIDI goes with the first piece. (2) Parameter names such as the overdrive and fuzz IDs were built as heap strings several times per block; they are now joined on the stack and looked up by spelling. (3) Amp B and the drive tone filter rebuilt their coefficients with heap objects; they now write into the existing coefficients. The sound is unchanged. Not yet done from the audit: oversampling/latency host tests, packaging/licensing. Manufacturer placeholder "YourName" is now "Starter Amp" (code Stam); change it in CMakeLists.txt if you want another.
+- **Cab pass (analysis of ~430,000 IRs from the user's cab folder)**. Findings: the existing mic models already sit within about 1 dB of the real 57, 421, 121, 160, 414, 441 and e906 averages, and the 44 speaker voicings already cover the broad curves of the mix-ready packs (no new fitted voicings were added under the 2.4 dB rule). Speaker-type effects on the narrow structure were small and mixed up with the pack (about 0.4 to 0.8 dB), so there is no per-driver overlay. What was repeatable: smaller cabs (1x12, 2x12, 4x10) lack the 4x12's deep notch near 600 Hz and differ by 1 to 2 dB in places; this is now added to Box by cabinet type (up to 3 dB, scaled by Box). Four idealized speakers added (Ideal Reference, Warm, Presence, Wide Open) in a new Idealized folder. Fixed: the five single-mic fitted speakers (American Thin Bite, PA Mid Forward, American Scooped, Big Low Bright, Vintage Hollow Mid) were missing from the speaker menu; they are now in Realistic > Other speaker types. Not listened to.
+- **Acoustic amp:** the Pickup menu has a third choice, Electric guitar (solid body), and there is a new Air knob (string and pick detail, for the magnetic and electric choices). With Electric, Pickup Fix cuts the pickup's peak (about 2.8 kHz) and the low-mid mud and lifts the air above 4 kHz; pick the Body (Nylon classical for classical) and raise Body and Air. Measured on noise only, so not heard on a real guitar.
+- **Tone stack menu (all amps, Amp A and B):** new "Passive stack: Dumble-style (Rock setting)", solved from the '70s preamp sheet (330 pF treble cap, 250k pots, 100k linear middle used as a resistor to ground, 100k slope, 0.1 uF and 0.05 uF, 1.8k under the bass pot). The Jazz setting is not modelled: its 0.005 uF / 100k shunt makes the network fourth order, which the stack solver does not handle.
+- **Bumble Lead power supply:** now uses the '70s power sheet's values (436 V rail, 80 ohm choke, 2.2k with 20 uF); its Circuit-derived level trim was raised 1.5 dB to compensate. Peak current and transformer saturation are still estimates.
+
+## Acoustic pickup choice, Dumble overdrive channel
+- **Acoustic amp:** new Pickup menu (Piezo under-saddle, Magnetic soundhole). The old Piezo Fix knob is now Pickup Fix. With a magnetic pickup it cuts the boxy low mids (about 260 Hz), lifts the air above 3 kHz and brings back some pick attack; Body then supplies the woody top-plate sound the pickup does not hear. Measured on noise only (the 3-8 kHz band comes up about 4 dB and the low mids drop about 4 dB at Fix 0.6); not listened to, and not checked against a real magnetic-pickup recording. Captures of a soundhole pickup would let me tune it properly.
+- **Bumble Lead:** the Rock and Lead voicings take the overdrive channel's 0.02 uF into 100k coupling (about 80 Hz) on their third stage. The engine has three stages and the real channel has two on top of the preamp, so this stage stands for both. The level changed by 0.5 dB or less.
+
+## Guitar synth, Dumble-style Bumble Lead values
+- **Guitar synth** (PITCH page, before the octaver): a single-note pitch tracker driving a small synth. Two oscillators (saw, square, pulse, triangle, sine; the second can be an octave down or up and detuned), a sub, optional grit, a resonant low-pass whose cutoff follows your playing level and the note, attack and release, Touch (picking dynamics set the volume), Glide, Follow bends or Snap to notes, and Sensitivity. Mono only: no chords. The dry signal is not delayed, so the synth trails the pick by about 9 ms on the high strings to about 35 ms on the lowest (measured on a synthetic plucked tone, not with a real guitar). Not listened to; CPU not measured. No MIDI output yet.
+- **Bumble Lead** (Circuit-derived mode): first two stages now use the cathode values (1.5k / 5 uF) and the 500 pF bright cap read from the Dumble-style schematics. The overdrive channel and power section from those sheets are still not applied.
+
+## Blues Driver (new Drive style)
+- **Blues Driver** appended to the Drive Style menu (value 8, Drive 1 and 2): two gain stages with diode clipping between them, Gain and Tone knobs. Always a circuit model. Level measured, auto level row added (about -5.5 to +10.8 dB across Gain at the default trim). Several values are estimates (see MODELED_GEAR). Not listened to.
+- **Fix:** Amp B block presets mixed up Amp A's Bright and Bias with Amp B's own (a naming clash), so saving or loading an Amp B preset touched Amp A. Fixed.
+
+## Marque Five (amp 27) and the Mesa retune
+- **Marque Five** (new amp, appended as value 27): a three-channel Mesa-style head. Voicing: Clean (channel 1 clean, lots of headroom), Crunch (the crunch / edge channel), Lead (channel 3, tight and bright) and Extreme (the lead with the mid contour out). Gain ladders checked first (fundamental slopes at four input levels), then tone fitted to the Mark V captures (Clean to Ch 1 Clean / Fat, Crunch to Ch 2, Lead to Ch 3 MK-IIC+, Extreme to Ch 3 Ext / MK-IV). Supply and feedback shared with Marque Dream; first-stage, coupling and bright-cap values read from the Mark V preamp schematic (used in Component mode). Auto Level measured. Look 26 (graphite and silver). Not listened to. Clean is still a little more compressed in the 24 to 12 dB range than the real clean channel; that comes from the shared power stage, so lower Power Drive for more headroom.
+- **Retune against the Mesa captures:** Modern Maul (Scooped, Clarity, Vintage) and Marque Dream (Rhythm, Lead, Vintage) had their gain ladders and tone re-fitted (high-pass corners about 25% lower, bass and mid offsets changed). Maul Vintage is now a two-stage voicing (a Raw / Vintage rectifier-style sound). Auto Level for these two is flat again. "Marque Cream" renamed **Marque Dream**. Lows are still 5 to 10 dB light and the 2 kHz band 3 to 5 dB light against the Dual Rec captures; kept that way on purpose (tight).
+
+## Eclipse (amp 26)
+- **Eclipse** (new amp, appended as value 26): a modern 100 W extreme-metal head with a high input (both gain stages) and a low input (second stage only), and the master volume pushed or pulled. Voicing: Hi Pulled, Hi Pushed, Lo Pushed, Lo Pulled. Presence is the normal Presence knob. Has the Modern Metal controls and Focus. Built from the manual's settings and 20 captures (5 per input/master combination); component values estimated, tone fitted only roughly because the captures' knob settings are unknown. Auto Level measured (flat). Not listened to.
+- **Eclipse retune against the Nameless captures** (no cab, pink noise, 18 captures): gain structure was already close (Gain II 2 sets of slopes within about 2 dB of Hi / Lo, Pushed / Pulled). Tone was 12 dB too thin in the lows and 8 to 13 dB too dark at 2 to 4 kHz, the same shape as the Fortin Blackout capture, so the high-passes are about 60% lower (use Tight / Focus for the tight sound), the bass, high mid and treble offsets are much higher, and the stage and cab low-passes open to 9 and 8.5 kHz. Still about 6 dB light below 250 Hz and 5 to 7 dB light at 4 kHz. Auto Level re-measured. Not listened to. (The Nameless Grind pedal captures were digitally clipped and are not used.)
+- **Bumble Lead retune against the Dumble ODS and Steel String Singer captures** (72 captures, no cab): gain structure already matched (clean: fundamental slopes about the same, the overdrive channel fully saturated from low levels). Tone was 5 to 10 dB too dark above 2 kHz and 10 to 20 dB too thin below 250 Hz for a no-cab capture, so Jazz, Rock and Lead have lower high-pass corners (about half), more bass, a higher treble shelf and a wider low-pass (8 kHz); Blues is now clearly tighter than Jazz. 2 kHz is still about 5 dB light. Auto Level re-flattened. Not listened to.
+- **Master Cranker "Modded" (the Jose-style mod) retuned against the Friedman Jose captures** (no cab): gain stages, high-pass corners, bass, mid and treble shelves and the low-pass were refitted to the captured tone, Auto Level re-flattened. Not matched: the Jose's even-harmonic character (H2 about 9 dB below the fundamental at high level); our stage has far less. Not listened to.
+- **Master Cranker "Modded": even harmonics.** New per-voicing grid-blocking strength (`blockMul`, 1 = as before; Modded uses 4). The preamp stages' coupling capacitors now charge harder on positive peaks, so the clip turns lopsided with level, which is how the Jose captures get their even harmonics. Measured at 196 Hz (second harmonic relative to the fundamental): about -17 dB before, about -10 dB at Gain 4 to 6 now; at full Gain the clip is too hard for it to show (about -20 dB). Third harmonic drops by a similar amount at mid gain. Auto Level re-flattened (flat at -32.53). Not listened to; watch for gating or sputter on held notes.
+- **Tube Driver, Hex voicing.** The Voicing menu now works on Tube Driver: Mild is the Hex voicing (lows about 9 dB heavier below 125 Hz, a gentler mid push, top about 5 dB darker, lower gain so the knee is softer), Open is Hex with more gain. Classic is the old Tube Driver, unchanged. Matches the captured Hex drive's tone to within a few dB up to 4 kHz (above that the captures roll off, so not compared); the softness is only roughly matched. Not listened to.
+- **Fortin 33 / Fourteen comparison (analysis only, nothing changed):** F808 and F9 are covered by Screamer (bass up for the low end); the 33 is close to Boost Clean with Low cut plus a darker top; HEXD (soft knee, thick lows, dark top) is the only part not covered.
+
+## Marmalade (amp 25), Tighten knob, octave knobs
+- **Marmalade** (new amp, appended as value 25): Crunch, Heavy, Clean and Sharp. Read from Rockerverb / Terror preamp sheets, then fitted to Rockerverb captures in Hybrid mode. Auto Level measured (flat within 0.5 dB). Not listened to.
+- **Tighten** replaces the Grip switch on the Transparent drive (a 0 to 10 knob, same parameter id, so old sessions load Grip-on as 10). At 10 it is about twice as strong as the old switch. This changes how sessions with Grip on sound.
+- **Oct up** (was a switch) and **Oct down** (was Sub oct) are now matching ADV knobs on both fuzz blocks, with the same ducking law. Old sessions with the octave switch on load at 10. Existing Sub oct settings sound slightly different (ducking changed).
+- **AMP page:** the decorative amp illustration and the grille-cloth panel are gone; the amp, Amp B and extras panels use the full page width, and the amp panel is taller when there is no extras strip under it.
+- **Layout:** the EQ page uses the full window width. Transpose stays on INPUT and the Doubler and Widener stay on POST FX (the output stage).
+- StageShaper: the trim table was shorter than the amp list, so Plexi and Matt's Amp read past its end; fixed (zeros), which may change their level slightly in Circuit and Hybrid modes.
+
+## v0.2 amps: Vintage British Lead and Matamp-style Head
+Two new amps appended after Console DI (values 23 and 24), four voicings each, so older sessions load unchanged.
+- Vintage British Lead: Stock, Jumped, Modded (cascade stage, smaller bright cap, diode clipper, softer feedback) and Modded + Jumped.
+- Matamp-style Head: Graphic, Heavy, Bright and Mix. EQ starting points from the solved Orange bass/treble networks.
+- Auto Level measured for all eight voicings (flat at -21.08 dB across Gain). New looks (gold plate; orange tolex), names, tooltips and manual entries.
+- Not listened to. Several voicings are close to existing ones (the response comparison is in MODELED_GEAR.md).
+
+## UI and fixes (this session)
+- **Amp faceplates:** the amp page shows the head only, larger, in three layouts chosen by sound (classic plate, vintage top strip over cloth, modern dark panel). Knobs show your live settings with printed 0 to 10 scales; the modern panel shows which voicing is active. No cab drawing.
+- **Signal strip:** a second lane under the main row shows Fuzz 2 and Amp B hanging beside Fuzz and Amp (a branch line for parallel, a single line for series). Click the light to switch them on or off. The window is 26 px taller.
+- **Reverb Mix** is now a true blend: at full mix only the reverb is heard (before, the dry signal stayed at full level). This changes how existing sessions sound.
+- **Transparent drive (hand-tuned):** the treble shelf after the clipper starts lower and cuts deeper (it was 0 dB at Tone 5, which let the clipper's top-end hash through), and Edge's pre-clip boost is smaller. About 5 dB less above 3 kHz at the same settings.
+- **Wall fuzz:** the OP-AMP switch is gone (it changed the sound by under 1 dB; the op-amp versions are in the list). The version list is 8 entries (Gritty and circuit variant C dropped; old sessions map to the nearest).
+- Stage-mapped fix: Amp B uses the right look for amps 22 and 23.
+
+## Capture fits (amp 2 captures)
+Three reference captures fit Modern High-Gain at noon gain 7 using only the tone knobs (about 0.5 dB RMS): Voice 1 Bass +10, Low Mid -4, High Mid +5, Treble +8; Voice 2 Bass +6, Low Mid -7, High Mid 0, Treble +2; a third reference Bass +12, Low Mid -3, High Mid +2, Treble +6. Hot-Rod fits worse (1.2 to 1.4 dB). Earlier: a dual-rec-style capture fit with Bass +6, Low Mid -6, High Mid +3, Treble +5, Presence 0.5 (Modern High-Gain, Scooped). Not yet saved as presets; nothing listened to.
+
+## Real-time safety fixes (from a code audit)
+
+Checked each point of two outside code audits against the source. What was confirmed and fixed:
+- The audio thread no longer calls `triggerAsyncUpdate()` (it can block on the message system). It now sets a flag and a 25 ms message-thread timer runs the same handler (preset program change, latency report, NAM reload, IR refresh).
+- The reported latency is now read from values the audio thread publishes (oversampling mode and each oversampler's latency), not from live oversampler objects.
+- The fuzz dry/wet buffer is sized in `prepare()`, and its reverb/shifter are prepared there instead of on first use.
+- The NAM pedal dry buffer is sized for two blocks (stereo path), so its first block no longer allocates.
+- Moving an effect control (fuzz, reverb, granular, noise, compressor, wah, phaser, shimmer, octave, chorus, tremolo and similar) no longer rebuilds the amp, tone stack, cab and post EQ filters. Only the controls that function reads trigger it.
+Checked: a 355 s render through Modern High-Gain is bit-identical before and after. Also done: about 85 filter coefficient updates (amp, tone stack, cab, post EQ, chorus, reverb) now write into the existing coefficient object with JUCE's array version of the same formulas, so a moving knob no longer allocates. A 355 s render is bit-identical before and after for two amp setups. Not yet done: smoothing of coefficient changes, crossfading the Amp Quality change, and CPU/latency benchmarks. Nothing was run in a DAW.
+
+## v0.1 (new numbering)
+The old numbers (v50 to v97) stopped updating on screen, so the version now lives in one place: the `STARTERAMP_VERSION` line at the top of CMakeLists.txt. It sets the label in the plug-in window and the app and plug-in file names (0.1.0 shows as v0.1, then 0.1.1, 0.1.2 and so on). Notes below headed v94 to v97 are the same build, before renumbering. The build target is now named StarterAmp, so the build folder is `build/StarterAmp_artefacts`.
+
+**Audit of the remaining sections (v0.1).** Method: the same synthetic guitar-like input through each item with the cab off, comparing level, crest factor and six band shares. This only sees steady-state tone, not feel, attack or sag. **Nothing was removed** because none of it is proven redundant by ears, and removing items breaks saved sessions.
+- Amps: seven high-gain amps (Saturated Lead, Tight Metal, Creamy Lead, Precision High-Gain, Aggressive Four-Channel, Modern Stack, Four-Channel Modern) are within 0.35 on that scale of each other at every gain. Modern Stack and Precision High-Gain are the closest pair (0.15). Cleans, Chime, Low-Watt, Classic Rock, Boutique, Doom, Digital Extreme and the Acoustic amp are clearly apart. Swept over gain, the four voicings and the Bass, Low-Mid, Treble and Presence knobs (about 1 unit = 1 dB rms of tone balance): the close pairs stay at 0.1 to 0.6 across every knob except the voicing switch, where some voicing pairs open up to 1 to 3. Candidates to merge if they sound the same to you: Modern Stack into Precision, and Creamy Lead into Aggressive Four-Channel.
+- Drive styles: Transparent, Tight, Open and Tube Driver are close; Distortion, Op-Amp Distortion and Stack Drive are clearly different.
+- Boost saturation modes: EP, Tube, Mid and FET are close; Treble and Clean are different.
+- Compressor: FET, Opto, Variable-mu, Sustainer and Bus measure the same on steady input (within 0.8 dB). The test cannot see attack and release, so this proves nothing yet. Standard-vs-Dyna are different.
+- Gaps: no tempo-synced rhythmic slicer (Auto-pan with the Square shape only partly covers it). A bit-crusher already exists (the Crusher fuzz style, bits and rate, plus the Lo-Fi delay mode). Cleans, delay (four modes plus reverse, ducking, taps), reverb (ten types plus shimmer) and modulation have no gap I can find.
+
+**Mid-Cut Modern EQ (Lead and Sludge voicings), one EQ that reaches two Prometheus captures.** The two captures clip alike but have different tone settings (the No Cab one is dark with a deep scoop around 500 Hz to 1 kHz; the other is much brighter, less scooped and has more 80 Hz). One voicing EQ (shared by Lead and Sludge, which differ in gain, tightness and sag) was fitted together with two sets of knob positions, one per capture, so the tone knobs themselves move between them. Knob settings (all knobs kept within about 8.5 dB of centre, Presence between 0.25 and 0.75, so there is room on both sides): No Cab = Bass +6.3, Low Mid +3.8, High Mid +2.6, Treble -7.6, Presence 0.25. First (bright) capture = Bass -4.3, Low Mid -6.4, High Mid -2.2, Treble +8.1, Presence 0.75. Error at gain 1.0 (rms, Lead): No Cab 2.0 dB, first 4.0 dB. The Presence range was widened (its top is now 11.5 dB, was 6) so both captures sit away from its ends. Lead and Sludge now have the same EQ, so the old dark, big-low-mid Sludge is gone. The real amp's own knob positions are unknown, so these are matches to the captures, not the amp's settings. The pre-gain boost in the voicing also shapes the clipping. Not listened to; one gain setting per capture; Auto Level re-measured (flat).
+
+**Mid-Cut Modern clipping (Lead and Sludge voicings).** Compared with two Prometheus NAM captures (the No Cab one for the amp alone). The odd harmonics already matched; the even harmonics were 5 to 16 dB too low, so the clipping asymmetry on all three stages is about 3x higher (Lead 0.13/0.11/0.04 to 0.39/0.33/0.12; Sludge 0.16/0.14/0.05 to 0.38/0.34/0.12). After: even harmonics within about 3 dB of the capture on average (EQ differences removed), odd within 1 to 5 dB. The EQ was refitted separately, see above. Auto Level table re-measured for these two voicings (flat to 0.01 dB). One capture setting only; not listened to.
+
+**NAM A2 support.** The NAM player now loads the newer A2 WaveNet layout (per-layer kernel sizes, bottleneck, convolutional head, LeakyReLU) and slimmable container files (plays the largest size). Checked against the official engine on a real A2 file: error about 1e-12 (numerically identical) on noise and sine tests. Not supported (refused with a message): gated layers, FiLM, grouped convolutions, head 1x1. Not tested: other A2 files, speed on a slow machine, the size switch (not exposed).
+
+**Two new amps (values 21 and 22 of the amp list, appended so old sessions load).**
+- **British High-Headroom** (tight, clean to edge): voicings Normal, Brilliant, Linked, Open. From the owner's manual and schematic of a 100 W British head: stiff power supply, high headroom, a tone stack with a scoop near 250 Hz and a rising top (solved as a circuit offline; the voicing EQ was set from that response, not fitted to a recording).
+- **Console DI** (class-A channel, no amp): voicings Console, Pushed, Funk, Air. From a console channel module manual: wide, clean, even-order colour, 110 Hz low shelf and a high shelf. It has no built-in compressor; use the Compressor section.
+- Levels at Gain 0.5 about -23.4 dB; Auto Level tables measured for all four voicings of both. Console DI is clearly different from every other amp (nearest 4.2 to 7.2 on the fingerprint scale). British High-Headroom Brilliant (2.1) and Linked (4.5) are distinct; Normal (1.6) and Open (1.2) are close to existing clean voicings, so treat them as a tighter alternative, not a new character.
+- Not done: derived-mode levels for the two new amps are 0 (unmeasured). Nothing was listened to.
+- Two more channel-strip documents were received (an SSL channel amplifier card: mic and line amps only, no EQ; and an API-style channel strip manual with a 3-band proportional-Q EQ and an RMS compressor). Not built; see MODELED_GEAR.
+
+## v97 additions (edited in place in this folder)
+- **Fuzz style "Distortion + Reverb"** (three reverb programs: normal, octave-down, reversed swell; a Hold switch that freezes the tail; an Order switch to put the reverb before or after the distortion). Both fuzz blocks have it; new params are appended so old sessions load.
+- **Metal Pedal** fuzz style: Cut, five-band EQ, Boost, Gate (see the manual).
+- **Mod FX**: four new LFO shapes (Ramp up, Ramp down, Square, Random wandering) and a Fidelity control (rolls off highs and lows and adds a little grit) on both Mod FX blocks.
+- **Shimmer reverb**: a Down Delay knob that adds a delayed octave-down voice (0 = off).
+- **Five new cab speakers** at the end of the speaker list (American Thin Bite, PA Mid Forward, American Scooped, Big Low Bright, Vintage Hollow Mid), fitted to measured single-mic recordings of five different speakers and kept only if at least 2.4 dB (rms) from every existing speaker. Existing mics were compared against ribbon/condenser/dynamic recordings of three speakers: they already agree within what the cab itself changes (about 2 dB), so no new mics were added.
+- Distortion + Reverb level now stays within about 1.5 dB across the Gain range (measured; was 4.6 dB lower at high gain).
+- **Not built** (they overlap what exists): the second HM-2 style pedal, the second Muff style pedal, a tube preamp pedal, and more amps (the list was checked for gaps; the candidates were within the sound of existing amp voicings).
+- Measured only (levels, no NaN). **Not listened to.**
+
+## v95 (edited in place in this folder)
+**Five new amps** (values 16 to 20 of the amp list, so old sessions load unchanged): Harmonic Lead (rich, mid-focused), Aggressive Four-Channel (tight, cutting), Modern Stack (huge, very tight), Four-Channel Modern (punchy 6L6) and Mid-Cut Modern (growl, flexible). Each has three voicings and a fourth (see the manual's Appendix A), all four Amp B menu entries, panel looks, tooltips, Auto Level tables, circuit-derived settings and levels. The four high-gain ones have the Modern Metal controls and Focus. What each is based on, and which numbers were read from the schematics and which estimated, is in MODELED_GEAR.md and CIRCUITS.md. Measured: levels (Auto Level within about 1 dB across voicings, Classic and Circuit-derived), no NaN, spectra in family range. **Not listened to.**
+
 ## v94 (edited in place in this folder)
+**New speaker: Full-Range Open** (index 38, Raw (bold) folder), fitted to the three SM57 IRs you sent of the full-range guitar speaker. Fit 0.9 dB rms to the averaged curve (60 Hz to 9 kHz); nearest older speaker is 3.4 dB away. Its IRs differ from each other by 3 to 6 dB above 5 kHz depending on mic spot, and the model uses the average. Not modelled: anything beyond the magnitude response (cone breakup, dynamics, phase). The V30 comparison IR is within 2.2 dB of an existing speaker, so no V30 was added.
+**Cleanup.** Removed the dead full-circuit amp (Lead 50) processing code, its header (TubeAmps.h), its hidden Master knob and the leftover plumbing; none of it had been reachable since v93. Classic and Circuit-derived output are bit-identical before and after, in my render tests. The old parameters stay registered so old sessions load: ampCircuit, ampMaster, ampStageModel, ampBStageModel, ampDerived, ampBDerived, ampDual, ampDualBal (nothing reads them now except the one-time v87 migration of very old sessions). TubeNet.h stays in the folder as the documented generator of the stage curves; the plugin does not include it.
 **Sputter fixed in Circuit-derived mode (measured, not heard).** Cause: the grid-blocking stage shapes (each preamp stage's bias wandered by up to 2.0 and leaked back over 45 ms), not the power section or supply. In a plucked-note test on four high-gain amps, held-note level wobble on a high E was 0.88 dB (Classic 0.34 dB) and a high note carried about 20 dB more sub-150 Hz energy than Classic. Now: smooth knee, half the charging rate, cap 0.5 and a 15 ms leak: wobble 0.40 dB, sub energy about 6 dB lower (still about 14 dB above Classic, which is the asymmetric shapes themselves). Low-note (82 Hz) results were noisy in my metric and did not clearly change. Classic is unaffected.
 **Grip now works on the hand-tuned Transparent too** (low cut 120 -> 240 Hz ahead of the clipper, Edge shelf from 1.5 kHz, +1.5 dB). My own recipe, not measured against anything.
 **The original tones are back, and the circuit work is still there as a choice.** Each amp (A and B) has its Mode menu again: **Classic** (the original voicing, now the default) or **Circuit-derived** (circuit stage shapes, power section, supply, component-value voicing and the Low-Watt Combo's built-in Tweed Tone). In my render test Classic is bit-identical to v92's Classic on nine amps. Old sessions that stored a Mode keep it; sessions made in v93 have none stored, so they load as Classic and sound different from how they did in v93.
@@ -964,5 +1296,90 @@ Everything before the amp still works (gate, noise pedal, fuzz, compressor, phas
 - v29 notes: the Reverb Type menu defaults to Classic, so old sessions sound the same. The Attack value, the amp number and the cabinet setting migrate as described above. The amp menu is attached by hand (so Acoustic can be listed first), which is new code I have not been able to run.
 - v28 notes: the new Amp Quality menu defaults to Balanced (2x); older sessions load with that value. The new tempo-note menus default to Free, so older sessions sound the same. Wah, phaser, the mono amp/cab path, change-detected filters and the oversampling switch were tested or reasoned about only in small standalone checks (the wah and phaser match v27 to within 1%); the full plugin has not been compiled or listened to, and the "Heavy" voicing and its level trim (-7.5 dB) are estimates. If the build shows errors, paste them to me.
 
+## v96 (edited in place in this folder): pedals from schematics
+- Fuzz and Fuzz 2: two new styles. **Power Chip** (cranked power-amp chip into a passive Low / High network, Gain, Mix as the clean blend) and **Doom** (octave-up into a rat-type distortion, then a clean boost; Octave, Boost and the Diodes menu).
+- Wall gets a new version, **Circuit (modern build, 560 pF)**, solved from its schematic.
+- New params fuzzOct, fuzzBoost, fuzz2Oct, fuzz2Boost (appended; old sessions load unchanged).
+- Estimates: octave and booster gains, chip rail limits and the modern-build gains are guessed from the schematics. Levels were matched by measurement to within about 0.7 dB. Not listened to.
+
+## v97 (edited in place in this folder): Metal Pedal fuzz style
+- New fuzz style **Metal Pedal**: Cut (pre-gain high-pass), Gain, a five-band EQ after the distortion (plus or minus 12 dB), Boost and a noise gate. New params fuzzCut, fuzzEq1..5, fuzzDepth (unused, kept for later), and the fuzz2 equivalents.
+- Overlap check: two of the Lichtlaerm pedals were not built as separate styles because they would sound the same as what is already here. The Medusa is the Buzzsaw (HM-2) circuit plus a gate and extra gain, and the Altar is the Wall fuzz plus an EQ and a clean boost.
+- Approximation from published descriptions, not schematics; levels matched by measurement, not listened to.
+
+## Pedal look (this session)
+- Effect panels now look like painted stompbox enclosures: body in the pedal's colour, colour band with line art, side jacks, footswitch dome and lamp. Phaser, chorus, wah and Mod FX stay as separate pedals (cleaner than folding them together).
+
+## Amp renames
+Menu names changed (values and saved sessions unchanged): Clean = Twin Sparkle, Vintage Chime = Chime Thirty, British Hot-Rod = Brown Eye, Saturated Lead = Slow Burn, Modern High-Gain = Modern Maul, Classic Rock = Club Crunch, Boutique Lead = Bumble Lead, Tight Metal = 5555 Block, Low-Watt Combo = Tweedle Dee, Glass Clean = Jade Chorus, Creamy Lead = Marque Dream, Doom Stack = Citrus Doom, Precision High-Gain = Revved Up, Digital Extreme = Digital Dread, Master-Volume Rock = Master Cranker, Harmonic Lead = Harmonic Haze, Aggressive Four-Channel = Diesel Fuel, Modern Stack = Wreck Stack, Four-Channel Modern = Power Brawl, Mid-Cut Modern = Cutaway, British High-Headroom = Hi-Wat Headroom, Vintage British Lead = Plex Appeal, Matamp-style Head = Matt's Amp. Older entries below still use the old names.
+
+## Folded effects
+- **Wobble** is now a Mod FX type ("Wobble (tremolo-arm vibrato)"; Feedback sets the arm's random drift). The Wobble pedal is gone from SCAPES. Old sessions that used it are moved into a free Mod FX slot, after the cab.
+- **Tremolo** lost its Stereo (auto-pan) mode; use Mod FX Auto-pan. Old sessions that used it are moved the same way. The panel is now just TREMOLO.
+- **Symphony** (the pitched layer in the reverb tail, with its four pitch styles) now sits in the REVERB panel beside the shimmer controls instead of in REVERB SHAPING. Same engine and styles, so old sessions sound the same.
+- Not yet listened to or measured; the Wobble type reuses the old Wobble engine unchanged.
+
+## Pedal adds and routing (this session)
+- **Mod FX** gains four types: Wobble (above), **Tremolo** (with an Optical shape: a lagging lamp), and the **Shifted-feedback flanger** (its feedback is frequency-shifted by a few Hz on every trip, so the sweep spirals; new Shift knob, shown only for this type). The Tremolo pedal is gone from SCAPES; old sessions move into Mod FX (Stereo mode becomes Auto-pan).
+- **Reverb** gains two types: **Chorale** (the tail sings a slow a-o-u-i vowel) and **Nonlinear** (a gated tail: held at full level after your last loud note, then cut; Decay sets how long it holds).
+- **Delay** Multi-Tap gains **Magneto: heads 1 + 3** and **heads 2 + 3** (tape-echo head patterns; the existing Thirds is heads 1 + 2 + 3).
+- **Granular** Grain Shape gains **Smear** (long grains with a few cents of drift each) and **Glitch** (short flat grains that often replay the last grain's spot, some jumping an octave or playing backwards).
+- **Routing:** Mod FX A and B now take part in the effect order (ORDER window): a slot set to Before the amp is ordered in the left list, After the cab in the right list. Saved orders from earlier sessions load unchanged, with the two slots at the end. The chain strip still shows Mod FX as one chip in a fixed place; drag order is in the ORDER window for these two.
+- Checked by running the code: new modes are finite and audible, tremolo depth works, old-session migration moves Wobble and Stereo Tremolo into free Mod FX slots, and old order strings load. Not listened to: levels were only roughly matched (Chorale was 3 dB loud and was trimmed).
+
+## Per-block presets, Hybrid amp mode, pedalboard routing
+- PRE button on the amp (A and B), the four cab blocks and most pedals: save that block's settings under a name, load one, delete one, or show the folder. Only that block changes.
+- Cab blocks A to D share one preset family (save from A, load into C); the IR file path is stored and reloaded if the file still exists. Amp A and Amp B share one family (model numbers converted; the acoustic model is skipped on Amp B). ON switches are never changed by a preset.
+- Presets live in `Starter Amp/Block Presets/<family>/` in your user application data folder.
+- Amp Mode now has Classic / Circuit-derived / Hybrid (default Hybrid: half and half per stage, level-matched).
+- The ORDER window is now a pedalboard with two parallel rails per side and a balance control for each.
+
+## Voicing tweak (Revved Up, Brown Eye)
+Measured against plain (no cab, no boost) captures: both amps were 5 to 9 dB dark above 2 kHz, and Revved Up was light below 200 Hz. Treble +9 dB and bass +5 dB on Revved Up, treble +8 dB on Brown Eye (offsets, so the knobs still work), with level held within 0.3 dB. Remaining gap at the default: 2 to 4 kHz about 4 dB dark on both, and Brown Eye is still 6 dB dark at 8 kHz against the HBE captures (the HBE is unusually bright; the plain BE channel is within 3 dB). Not listened to.
+
+## Gain structure
+Measured against plain captures (Friedman BE-100, Revv Generator, Big Muff Triangle and op-amp builds): the captures keep one tonal balance from low to high gain, but ours got brighter as gain rose.
+- High-gain amps (Brown Eye, Slow Burn, Modern Maul, 5555 Block, Marque Dream, Citrus Doom, Revved Up, Digital Dread, Master Cranker and the amps 16 to 20): a top-end shelf that is strongest at low Amp Gain and gone at full gain. Gain-to-gain drift at 4 to 8 kHz went from 1 to 4 dB to 1.3 dB or less. Clean and crunch amps are untouched (their brightening with gain is natural breakup). The gain range itself is unchanged.
+- Wall fuzz, the five non-circuit versions: the inter-stage roll-offs now follow Sustain, cutting the 8 kHz climb from about 5 dB to about 3 dB. Sustain range unchanged. The circuit-built Muff versions already tracked their captures and are untouched.
+- Level at low gain rises up to 1 dB on the compensated amps. Not listened to.
+
+## Wall fuzz: early large-box circuit (Ram's Head-style)
+New last entry in the Wall version menu, built from the traced "47" schematic you sent: the first circuit's booster and clippers (12k collectors, 100 ohm emitters, 470k / 470 pF feedback, 1N914 diodes) with the schematic's coupling caps, a 33k / 12 nF / 4 nF / 33k tone network and the second-clipper corner at about 138 Hz. Measured against the four '76 captures (bright, dark, mid boost, golden tone) at the best Tone and Sustain for each: 2 to 4 dB mean error in 8-band balance. About 8 to 10 dB heavier than the captures below 100 Hz, so treat the very bottom as unverified; the capture rig may roll it off. Level-matched to the first circuit. Not listened to.
 
 
+## Revved Up clipping retune
+- Tight and Lead voicings: stage gains and biases refit against plain (no-cab, no-boost) captures of a modern boutique high-gain amp. Harder third-harmonic clipping (about -14 dB vs -13.5 dB in the captures, was -15.6) and second harmonic about -21 dB (captures -19 to -23). Compression and level unchanged. Lead is scaled by the same ratios, not fitted separately. Crunch untouched. Measured only, not listened to.
+
+## Effects additions
+- **Mod FX: Pitch modulation** (new type). A pitch-shifted voice: Manual picks the interval in whole semitones (centre = unison, up to an octave either way), the LFO swings the pitch (Depth, squared: small = detune chorus, large = siren), Feedback makes repeats climb or fall, Ramp shapes give rising/falling effects. It is a crossfading delay-line shifter, so it is slightly grainy (as the shimmer reverb's is); a pure test sine shows sidebands, real guitar is less obvious. The interval was checked by measurement (it converges on the nominal pitch with the 29.5 ms window; not listened to).
+- **Mod FX: Stutter** (new type). Tempo-synced (use Note): each cycle, the last part is a loop of the slice just played. Depth = share of the cycle stuttered, Manual = repeats (1 to 8), Mix = blend. Measured: the loop repeats exactly at the slice length. It is rhythmic, unlike Glitch in the Grain section (random repeats, jumps, reverse).
+- **Ring mod: Track** knob. The carrier follows the note you play (zero-crossing pitch follower, holds between notes); Freq becomes a ratio (330 Hz = same pitch). 0 = unchanged. Single notes only; chords confuse the follower.
+- **Delay mode: Oil-can** (Pre and Post delay). Dark (2.3 kHz), warm saturation and a heavy built-in smooth wobble of the repeats (Mod depth adds to it, Mod rate limited to 2.5 Hz). Measured only.
+- **Phaser: Lag** (ADV). Delays the feedback by 0 to 10 ms (0 = the old phaser exactly). My reading of "phaser lag"; if you meant a lamp-style lag on the sweep itself (as in the Uni-V type) tell me.
+- All new parameters are appended with neutral defaults, so older sessions load unchanged.
+- Fixed a stray brace in the fuzz-version tooltip table (from the early large-box build entry) that stopped the editor compiling.
+
+## Octave-down fuzz
+- New **Sub oct** knob (ADV, in both Fuzz and Fuzz 2, every style). The classic analogue trick: a flip-flop divider toggled by each rising zero crossing of the low-passed note makes a square wave an octave down, scaled by your playing level, blended in front of the fuzz (so the fuzz growls an octave below the note). The pitch filter follows the detected note. 0 = off, so old sessions are unchanged.
+- Measured with test notes: from about 196 Hz up the octave-down becomes the strongest component (fundamental drops about 15 dB at full Sub). On the lowest notes (82 and 110 Hz) the divided note is below the fuzz's own input filters, so mostly its odd harmonics come through (a growl a fifth above the divided note); I have not listened to it. Like the real thing it works best on single notes and glitches on chords and the top of the neck.
+- Lo-fi filter: Lo-Fi Warble already has the worn tone (darker top), crush and noise. It has no low cut, so no telephone/radio band-pass; say if you want that.
+
+## b2
+- New reverb type **IR Reverb**: Source = generated (our own synthesised impulse responses) or Loaded file (WAV/AIFF); Reverse, Stretch, pre-delay, Decay (for loaded files Decay caps the tail). No third-party IR data is bundled; the survey of commercial/freeware packs only guided what the generators do.
+- Acoustic amp no longer adds latency (oversampling is bypassed for it).
+- Clean Boost hiss/fizz fixed (float cancellation in the rail limiter; now double precision).
+- Removed the amp's built-in speaker roll-off that stayed on when the cab section is off. With Cab off you now get the raw amp output.
+- Fixed a rare audio-thread allocation in Amp B.
+
+## b3
+- Auto Level tables re-measured for every amp and voicing (they had drifted by up to about 6 dB). With Auto Level on, every model now measures flat at -32.53 dB across the Gain knob in the default Hybrid mode (Classic and Circuit-derived modes can still differ by about 1.5 dB). Acoustic does not use Auto Level.
+
+## b4
+- New amp **Cedar Twelve** (Clean folder): a small blackface-style combo that runs out of headroom much sooner than Twin Sparkle. Voicings: Blackface, Spanky, Cranked, Big Spring (a 40 W two-6L6 combo with a 15-inch speaker). Measured against the Twin voicings: it compresses about 1.5 dB harder over a 14 dB input step and is 4 to 10 dB darker above 3 kHz. Spanky is the closest to a Twin voicing in tone (it differs in compression and a thinner bottom). Auto Level tables measured (flat at -32.53 dB). Not listened to.
+- New speaker **Big Fifteen** (our own large-diameter, 15-inch-style voicing): big loose low thump, scooped low mid, forward 2 to 3 kHz, early top roll-off. At least 3.5 dB (rms) from every other speaker.
+- New wah mode **Envelope Filter (Q-Tron style)** with Direction (Up / Down) and Shape (Band-pass / Low-pass / High-pass). Resonance is the peak, Sensitivity the input, Decay the fast / slow, Heel and Toe the range.
+- Fixed: Amp B's menu mapped Solid Metal to Dual Thirty (index off by one).
+
+## b5
+- New amp **Triple Blend** (Clean folder): three amps in parallel inside one amp, into the same cab. One Gain knob drives all three; **Warm**, **Smooth** and **Open** knobs set the mix. Voicing: Three-in-One, Warm, Open, Singing. The three parts are placeholders (Cedar Twelve Big Spring, Bumble Lead Rock, Hi-Wat Headroom Normal) until captures are fitted. Parts sit within about 4 dB of each other at Three-in-One; Auto Level tables measured (flat at -32.53 dB). Costs about three amps' CPU while selected. Not listened to.
+- New **Amp A Pan** and **Amp B Pan** knobs (AMP B tab). With the cab blocks on they add to the Pan of the block carrying that amp (a block set to A + B ignores them); with no blocks they pan the amps before the built-in cab. Amp A Pan also works with Amp B off.

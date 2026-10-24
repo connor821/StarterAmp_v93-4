@@ -1,0 +1,229 @@
+For your amp simulator, I’d treat these as two separate research targets: recovering readable circuit documentation for the four amps, and obtaining real output-transformer measurements to improve the power-amp model.
+
+The transformer data is especially valuable because it can help move the power section beyond a static saturation curve toward more realistic load-dependent behavior. However, primary impedance, winding resistance, and leakage inductance are different parameters; one cannot reliably infer all three from a typical amp spec sheet.
+
+## 1. Schematic and service-document priorities
+
+[Diezel VH4S Stereo 4-Channel 2x50-Watt / Side Guitar Amp Head | Reverb](https://images.openai.com/static-rsc-4/HtYDJEB3tPPA0Tjy1tBc9GQgJKXL0ytgP-PPWxWf03dRaWzLA03YRUkU0GP-SmHiNvSi44Pwlhj8J7NLhbBw-GyO4H1kVtAt2JrNk1pD2Y2BR3drkHng1wCM4tDlz1igxcfZys8qe4GlXPX5JAd0xydRRQYShyIr8JOXGu2oyHc?purpose=inline)
+
+1\. Diezel VH4 — highest priority
+
+Preamp schematic found
+
+- [VH4 preamp schematic PDF](http://schems.com/bmampscom/diezel/Diezel%20VH4%20preamp.pdf?utm_source=chatgpt.com) — reported as a dedicated preamp schematic. This is the best lead for resolving the estimated gain stages, though I have not verified the component readability of every page.&#x20;
+
+  [image](https://www.google.com/s2/favicons?domain=https://www.guitarristas.info\&sz=32)
+
+  Guitarristas
+
+- [Official Diezel service manual, V1.2](https://www.diezelamplification.com/manuals/service/service-manual_V1-2.pdf?utm_source=chatgpt.com) — useful for tube assignments, block diagrams, and revision context. It is not a substitute for a full component-level schematic.&#x20;
+
+  [image](https://www.google.com/s2/favicons?domain=https://www.diezelamplification.com\&sz=32)
+
+  Diezel Amplification
+
+- [VH4 schematic listing](https://thecodemachine.co.uk/Schematics/Search.php?manuf=Diezel\&utm_source=chatgpt.com) — a commercial lead for a higher-quality scan.&#x20;
+
+  [image](https://www.google.com/s2/favicons?domain=https://thecodemachine.co.uk\&sz=32)
+
+  The Code Machine
+
+
+
+Still needed: readable channel 3/4 circuitry, switching logic, component values, and the phase-inverter/power-amp circuit.
+
+[Open Box Friedman Brown Eye 100W 2-Channel Tube Guitar Head Black 190839742681 | Guitar Center](https://images.openai.com/static-rsc-4/iIyzUj6oNfRafFBfNeVQrBaSenPnXWZ0L7lppuDGrjkYTBw-41KKPoUUrjXS4gF4n8_DM4xRRCm8XXjut7RjEN_l-C5ZDc8muIUm7q0Fnx5VUMB4IfL7C6UG3qHYHP8oy8SZpn5fiOtuOEtNjCKfykUEDVufoIQBNFTkMVymDvI?purpose=inline)
+
+2\. Friedman BE-100
+
+Readable copy unresolved
+
+- [Existing BE-100 schematic discussion](https://www.reddit.com/r/ToobAmps/comments/1kgfz50/?utm_source=chatgpt.com) — directly addresses the low-quality schematic circulating online. The discussion recommends contacting Friedman for technical assistance.&#x20;
+
+  [image](https://www.google.com/s2/favicons?domain=https://www.reddit.com\&sz=32)
+
+  Reddit
+
+- [Friedman BE-100 Deluxe official product page](https://friedmanamplification.com/shop/heads/be-100-deluxe/?utm_source=chatgpt.com) — confirms the modern variant's channel architecture and controls. Be careful not to transfer Deluxe-specific circuitry to the original BE-100.&#x20;
+
+  [image](https://www.google.com/s2/favicons?domain=https://friedmanamplification.com\&sz=32)
+
+  Friedman Amplification
+
+- [BE-100 owner's manual PDF](https://www.zikinf.com/manuels/friedman-be-100-manuel-utilisateur-en-90753.pdf?utm_source=chatgpt.com) — useful for specifications and voicing features, not detailed component-level circuit reconstruction.&#x20;
+
+  [image](https://www.google.com/s2/favicons?domain=https://www.zikinf.com\&sz=32)
+
+  ZIKINF
+
+
+
+Still needed: a legible original schematic with values for the BE/HBE gain stages, C45 and saturation modifications, tone stack, and negative-feedback loop.
+
+[Roland JC120' 82 | PDF | Analog Circuits | Audio Engineering](https://images.openai.com/static-rsc-4/LIa5isTxPATp2CNqJ3kD_0ePDdfdh-LGwidBjo8HTkm2JSbq3VJaLzHp_0qyXXQphizYn4WiIzMe6sQbJAkQ1x3i-5fAhUhzjs_lESxHTcJSvN2EtBh9Gi9tS9FZ2_YMagpTCNLAWXjlmYJ7FNxysyPgwGyiElU9l3Bmb7VtKaU?purpose=inline)
+
+3\. Roland JC-120
+
+Service schematics available
+
+- [1983 JC-120/JC-160 service notes PDF](https://www.synfo.nl/servicemanuals/Roland/ROLAND_JC-120_JC-160_SERVICE_NOTES_5th.pdf?utm_source=chatgpt.com) — contains circuit diagrams for the pre-main boards and power supply.&#x20;
+
+  [image](https://www.google.com/s2/favicons?domain=https://www.synfo.nl\&sz=32)
+
+  Synfo
+
+  +1
+
+- [1979 JC-120/JC-160 service notes](https://manuals.plus/m/a1edd48d9edef59f8d0944947631d25ecc9c61f002105c87d8080dde67ee4ad5?utm_source=chatgpt.com) — an alternative revision reference with specifications and waveform information.&#x20;
+
+  [image](https://www.google.com/s2/favicons?domain=https://manuals.plus\&sz=32)
+
+  Technical Specifications and Parts List
+
+
+
+For your simulator, prioritize the input buffer, solid-state preamp, tone stack, chorus/vibrato circuitry, and the two-channel power-amplifier response. The JC-120 is a solid-state design, so its power stage should not be modeled as a tube output stage.
+
+[Mesa Boogie Mark IV 3-Channel 85-Watt Guitar Amp Head | Reverb](https://images.openai.com/static-rsc-4/K8CwL5wRUiDHl3GTF-_7dX6l80CCDf3Brs70RQYIQgpVAgAqcnJ2TYYQRiX6a30okB9OAYARrsTdT2dyoW6x1g_jO0Yed9KPhVosGEivtkb8DjoU9yGcYMLF3ei3ze58g3Pmy0qpjJ21fxPl9XrOk_lY4VJ9mRwgcAp6jQkCxHw?purpose=inline)
+
+4\. Mesa/Boogie Mark IV — Lead channel
+
+Full schematic lead found
+
+\- [Mark IV schematic PDF](http://www.schematicheaven.com/boogieamps/boogie_mkiv.pdf?utm_source=chatgpt.com) — the long-circulated schematic link referenced in the Boogie forum.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://boogieforum.com\&sz=32)
+
+Mesa Boogie Amp Forum
+
+
+
+I haven't independently verified the resolution of that exact PDF, so check the component values at high zoom before treating it as authoritative.
+
+Focus: the Lead channel's cascaded gain stages, channel-switching LDRs, tone controls, and channel summing. The Mark IV's switching network is particularly important if you're trying to reproduce its channel-specific gain structure.
+
+## 2. Output-transformer data
+
+The most promising approach is to collect manufacturer datasheets first, then supplement them with measurements from actual vintage and modern guitar-amp transformers.
+
+### A. Real datasheets you can use now
+
+[Output transformer Hammond 1750E for Fender amps - Retroamplis](https://images.openai.com/static-rsc-4/cjBUsM1iwMzma8HMFTouczzUb-xUvWndIkFq89vyBa2N0yaYp1vpLpNlU_l03lrAuCR1qRyXcuoWkTAavxCd9WiWXqLpwFAv16wUjozsmXDgvuIFo4aDK_aDcoZDfAszea5m1jlskc_ZpRpmrMgNuXXFKC6b2JYizr589Ybmivg?purpose=inline)
+
+Hammond 1750D
+
+- [Manufacturer datasheet PDF](https://www.hammfg.com/files/parts/pdf/1750D.pdf?v=1697661946\&utm_source=chatgpt.com)
+- Rated power: 100 W
+- Published primary impedance: 2,350 Ω
+- Frequency response: 70 Hz–15 kHz, within the stated 0/−1 dB tolerance at 1 kHz
+- Includes winding configuration and a transformer test circuit.&#x20;
+
+  [image](https://www.google.com/s2/favicons?domain=https://www.hammfg.com\&sz=32)
+
+  Hammond Mfg.
+
+
+
+This is a useful starting point for a high-power transformer model. The published primary impedance is not a measurement of primary DC resistance.
+
+[Hammond Manufacturing 1750K Tube Guitar Amplifier Output Transformer - www.americancableassemblies.com](https://images.openai.com/static-rsc-4/z0VcA1Z1xsL7HRF3UzyBWFGCZV549BKUHGIA-lQ8NAUCEFMGNaVd1a-6sjSTJqsVIrwOTkddNJIbBzL2yRKyXNBgoqWfLHF2TSims14tzkrNn3BKmi5kZaWr-G20VFJyTz-_7SSl9UM6gnhTXyqMcoTH3-WVwbUbA9iFOQLPmN4?purpose=inline)
+
+Hammond 1750KA
+
+- [Manufacturer product/specification page](https://www.hammfg.com/part/1750KA?utm_source=chatgpt.com)
+- Rated power: 50 W
+- Published primary impedance: 4,150 Ω center-tapped
+- Published secondary impedance: 2 Ω.&#x20;
+
+  [image](https://www.google.com/s2/favicons?domain=https://www.hammfg.com\&sz=32)
+
+  Hammond Mfg.
+
+
+
+A useful contrasting data point for a different primary-impedance and power-handling configuration.
+
+[Tube Guitar Amplifier - Output Transformers (1750 Series) - Hammond Mfg.](https://images.openai.com/static-rsc-4/i-RPn6Xnoe4pDwqIX20ee7eolPUXWeDqHEtzkIV8Kd348ZG4a0SrA6nj81jY11uEjVZsmv4i2Hw_t2cAKcZkIpJ4FjbQqnUFT9RtTrBkiDeaRpaMmP4D8pWRE_tbIVxCflakXGYzr1I90CK4tbq4SwoXiTSRWWM9016Ii3zUlUo?purpose=inline)
+
+Hammond 1750ORF
+
+- [Manufacturer product/specification page](https://www.hammfg.com/part/1750ORF?utm_source=chatgpt.com)
+- Rated power: 35 W
+- Published primary impedance: 6,000 Ω center-tapped
+- Secondary taps: 8 Ω and 16 Ω.&#x20;
+
+  [image](https://www.google.com/s2/favicons?domain=https://www.hammfg.com\&sz=32)
+
+  Hammond Mfg.
+
+
+
+A useful lower-power comparison for the simulator's transformer response model.
+
+### B. Which parameters matter most?
+
+Aiken Amplification's [output-transformer technical explanation](https://www.aikenamps.com/index.php/output-transformers-explained?utm_source=chatgpt.com) distinguishes reflected impedance, primary inductance, leakage inductance, capacitance, and power handling. Those are the properties I'd prioritize for the power-stage model.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.aikenamps.com\&sz=32)
+
+aikenamps.com
+
+
+
+| Parameter                          | Why your amp sim needs it                                         | Best source                         |
+| ---------------------------------- | ----------------------------------------------------------------- | ----------------------------------- |
+| Primary impedance \\(Z_p\\)        | Sets the reflected speaker load and affects output-stage behavior | Amp schematic or manufacturer spec  |
+| Primary DC resistance \\(R_p\\)    | Models copper loss and winding voltage drop                       | Direct winding measurement          |
+| Secondary DC resistance \\(R_s\\)  | Helps model losses and damping                                    | Direct winding measurement          |
+| Primary inductance \\(L_p\\)       | Influences low-frequency response and core behavior               | LCR/impedance analyzer              |
+| Leakage inductance \\(L\_\ell\\)   | Influences high-frequency roll-off and transient ringing          | Short-circuit inductance test       |
+| Interwinding capacitance \\(C_w\\) | Influences high-frequency resonance and roll-off                  | Capacitance/impedance measurement   |
+| Core saturation characteristics    | Influences low-frequency compression and distortion               | Level-dependent testing             |
+| Rated power and core geometry      | Helps constrain low-frequency headroom and saturation             | Datasheet and physical measurements |
+
+One important distinction: primary impedance is not a fixed impedance inherent to the transformer. It's the load reflected through the turns ratio. A transformer can have a nominal 2,350 Ω primary impedance while its measured DC resistance is much lower.
+
+## 3. How I'd build a usable transformer dataset
+
+For each transformer, store the following fields, including the test conditions and whether the value is measured, specified, or estimated.
+
+### Suggested dataset schema
+
+One record per transformer, with source provenance and test conditions.
+
+```
+
+{
+  "manufacturer": "",
+  "part_number": "",
+  "amplifier_model": "",
+  "rated_power_w": null,
+  "primary_impedance_ohm": null,
+  "secondary_taps_ohm": [],
+  "primary_dc_resistance_ohm": null,
+  "secondary_dc_resistance_ohm": null,
+  "primary_inductance_h": null,
+  "leakage_inductance_h": null,
+  "interwinding_capacitance_f": null,
+  "frequency_response": [],
+  "saturation_data": [],
+  "measurement_conditions": "",
+  "data_source": "",
+  "confidence": "unverified"
+}
+  
+```
+
+For a useful first version, I would not hold up development waiting for every parameter. Start with published impedance, power rating, frequency response, and winding configuration. Then add measured DC resistance, inductance, leakage, and capacitance wherever credible measurements become available.
+
+Measurement note: leakage inductance depends on the measurement setup and which winding is shorted. Record the test frequency, shorted winding, and instrument conditions so values from different transformers can be compared meaningfully.
+
+## Recommended next steps
+
+1. VH4: resolve the readable preamp schematic and obtain the official component-level circuit documentation for the power section.
+2. Mark IV: verify the linked schematic's resolution and extract the Lead-channel signal path and switching logic.
+3. JC-120: use the service-note schematics to establish the solid-state preamp and power-stage architecture.
+4. BE-100: pursue a higher-resolution original schematic rather than substituting a generic modified-Marshall circuit.
+5. Transformers: build the first reference dataset from manufacturer datasheets, then seek measured winding and inductance data.
+
+The key gap remains the same: I found useful schematic leads for the VH4 and Mark IV, service schematics for the JC-120, and an existing low-quality BE-100 schematic reference, but I did not verify a complete, readable original BE-100 schematic or a full VH4 schematic with every component value. I also did not find verified DC-resistance and leakage-inductance measurements for the specific amplifiers' original output transformers in this search.

@@ -33,7 +33,7 @@ struct NamSlot
     void prepare (int maxBlock)
     {
         delayBuf.assign (1024, 0.0f);
-        dryBuf.assign ((size_t) std::max (512, maxBlock) + 16, 0.0f);
+        dryBuf.assign ((size_t) 2 * std::max (512, maxBlock) + 16, 0.0f);   // the stereo pedal path needs two blocks
         delayPos = 0;  dpos[0] = dpos[1] = 0;
         for (auto& d : dline) d.assign (256, 0.0f);
         wetA.assign ((size_t) std::max (512, maxBlock) + 16, 0.0f);

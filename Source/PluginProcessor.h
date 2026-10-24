@@ -15,9 +15,13 @@
 #include "NamSlot.h"
 #include "BoostStage.h"
 #include "ModFx.h"
+#include "FxExtra.h"
+#include "DiMatch.h"
+#include "Looper.h"
 #include "LoFi.h"
 #include "CircuitModels.h"
-#include "TubeAmps.h"
+#include "MetalPedals.h"
+#include "FuzzVerb.h"
 #include "StageShaper.h"
 #include "PassiveStack.h"
 #include "PowerSection.h"
@@ -38,6 +42,9 @@ inline constexpr const char* kEqIds[kEqBands] = { "eqB1", "eqB2", "eqB3", "eqB4"
 // Cab blocks: up to four, A to D.
 inline constexpr int kCabBlocks = 4;
 inline juce::String cabLetter (int blk) { return juce::String::charToString ((juce::juce_wchar) ('A' + juce::jlimit (0, kCabBlocks - 1, blk))); }
+// Hybrid amp mode: the share of the circuit-derived stage and power curves mixed with the classic ones (0 = classic, 1 = circuit)
+constexpr float kHybridShare = 0.5f;
+
 struct CabIds { const char *on, *level, *pan, *delay, *pol, *lowCut, *highCut, *amp; const char* eq[5]; const char *rso, *phs, *tilt; };
 inline constexpr CabIds kCabIds[kCabBlocks] =
 {
@@ -50,6 +57,12 @@ inline constexpr CabIds kCabIds[kCabBlocks] =
 // Cheap replacements for std::tanh / log2 / exp2 in per-sample code. They are accurate to
 // about 1e-4 (tanh) and 1e-4 (log2 / exp2), far below anything audible, and they compile to
 // plain arithmetic that the compiler can vectorise.
+// v0.2: hard symmetric clip (diodes, zeners, op-amp rails): linear up to about 0.7, then a sharp knee to 1. Same scale as fastTanh.
+inline float hardClip (float u)
+{
+    const float u2 = u * u;
+    return u / std::sqrt (std::sqrt (1.0f + u2 * u2));
+}
 inline float fastTanh (float x)
 {
     x = std::max (-4.97f, std::min (4.97f, x));
@@ -647,13 +660,15 @@ private:
 // The amp uses two of these (one before the amp, one after).
 //==============================================================================
 #include "Harmonizer.h"
+#include "GuitarSynth.h"
 #include "CabRealism.h"
 #include "RiffRecorder.h"
+#include "IrReverb.h"
 
 struct DelayParams
 {
     float timeMs, feedback, mix, lofi, warble;
-    int   mode;      // 0 Digital, 1 Analog, 2 Tape, 3 Lo-Fi
+    int   mode;      // 0 Digital, 1 Analog, 2 Tape, 3 Lo-Fi, 4 Oil-can, 5 Organ
     int   stereo = 0;        // 0 Stereo (each side on its own), 1 Ping-Pong (left first), 2 Ping-Pong (right first), 3 Dual (right side offset)
     float offset = 0.5f;     // Dual: the right delay is (1 + offset) times the left
     float spread = 1.0f;     // narrows the echoes toward the centre (1 = as is, 0 = mono)
@@ -720,11 +735,13 @@ public:
         //   Tape    : darker still (3.2 kHz), tape-style saturation, a lot of wow, flutter and drift
         //   Lo-Fi   : dark (2.6 kHz) plus reduced sample rate and bit depth, a little wobble
         struct ModeSet { float cutoffHz, drive, lofiBase, warbleBase; bool linear; };
-        static const ModeSet modes[4] = { { 16000.0f, 1.0f, 0.0f, 0.00f, true  },
+        static const ModeSet modes[6] = { { 16000.0f, 1.0f, 0.0f, 0.00f, true  },
                                           {  4500.0f, 1.8f, 0.0f, 0.12f, false },
                                           {  3200.0f, 2.6f, 0.0f, 0.50f, false },
-                                          {  2600.0f, 2.0f, 0.55f, 0.15f, false } };
-        const auto& mode   = modes[juce::jlimit (0, 3, p.mode)];
+                                          {  2600.0f, 2.0f, 0.55f, 0.15f, false },
+                                          {  2300.0f, 2.4f, 0.0f, 0.10f, false },
+                                          {  2600.0f, 2.0f, 0.0f, 0.05f, false } };   // Organ (short oil-can) + Oil-can: dark, warm, with a built-in heavy smooth wobble (below)
+        const auto& mode   = modes[juce::jlimit (0, 5, p.mode)];
         const float lofi   = mode.lofiBase + p.lofi   * (1.0f - mode.lofiBase);
         const float warble = mode.warbleBase + p.warble * (1.0f - mode.warbleBase);
         const bool  twoPole = p.mode != 0;
@@ -744,28 +761,32 @@ public:
         const float flutterInc   = 6.3f / sampleRate;
         const float driftCoef    = 1.0f - std::exp (-twoPi * 0.7f / sampleRate);
 
-        timeSmoothed.setTargetValue (p.timeMs);
+        timeSmoothed.setTargetValue (p.mode == 5 ? juce::jlimit (6.0f, 70.0f, p.timeMs * 0.05f) : p.timeMs);
 
         // v52 settings
         const bool  duckOn   = p.duck > 0.001f;
         const float duckAtk  = 1.0f - std::exp (-1.0f / (0.004f * sampleRate));
         const float duckRel  = 1.0f - std::exp (-1.0f / (0.001f * juce::jlimit (20.0f, 2000.0f, p.duckRelMs) * sampleRate));
-        const float modInc   = juce::jlimit (0.05f, 10.0f, p.modRate) / sampleRate;
-        const float modDepthS = p.modDepth * 0.006f * sampleRate;                 // up to +-6 ms
+        const bool  oilCan   = p.mode >= 4, organ = p.mode == 5;
+        // Organ: the delay time knob is squeezed into a short 6 to 70 ms range, with a deeper, faster wobble: a lush vibrato at 100% mix
+        const float modInc   = juce::jlimit (0.05f, 10.0f, organ ? std::max (1.5f, std::min (p.modRate, 6.0f)) : oilCan ? std::min (p.modRate, 2.5f) : p.modRate) / sampleRate;
+        const float modDepthS = (organ ? 0.6f + 0.4f * p.modDepth : oilCan ? 0.35f + 0.65f * p.modDepth : p.modDepth) * (organ ? 0.0018f : 0.006f) * sampleRate;                 // up to +-6 ms
         const bool  diffOn   = p.diffuse > 0.001f;
         const float apG      = 0.35f + 0.3f * p.diffuse;
         const float holdTarget = p.hold ? 1.0f : 0.0f;
         const float holdCoef = 1.0f - std::exp (-1.0f / (0.03f * sampleRate));
         // Multi-tap patterns: extra reads at fractions of the delay time (the main echo stays at the full time)
         struct TapSet { int n; float frac[4]; float gain[4]; };
-        static const TapSet tapSets[6] = {
+        static const TapSet tapSets[8] = {
             { 0, { 0, 0, 0, 0 },               { 0, 0, 0, 0 } },
             { 1, { 0.5f, 0, 0, 0 },            { 1.0f, 0, 0, 0 } },                     // 1/2 + 1
             { 2, { 1.0f/3, 2.0f/3, 0, 0 },     { 1.0f, 0.85f, 0, 0 } },                 // thirds
             { 3, { 0.25f, 0.5f, 0.75f, 0 },    { 0.9f, 0.8f, 0.7f, 0 } },               // quarters (four evenly spaced)
             { 2, { 0.25f, 0.75f, 0, 0 },       { 0.9f, 0.8f, 0, 0 } },                  // off-beat
-            { 3, { 0.375f, 0.5f, 0.875f, 0 },  { 0.9f, 0.7f, 0.8f, 0 } } };            // dotted-style cluster
-        const TapSet& tapSet = tapSets[juce::jlimit (0, 5, p.taps)];
+            { 3, { 0.375f, 0.5f, 0.875f, 0 },  { 0.9f, 0.7f, 0.8f, 0 } },              // dotted-style cluster
+            { 1, { 1.0f/3, 0, 0, 0 },          { 1.0f, 0, 0, 0 } },                     // magneto: heads 1 + 3 (heads spaced 1:2:3)
+            { 1, { 2.0f/3, 0, 0, 0 },          { 1.0f, 0, 0, 0 } } };                   // magneto: heads 2 + 3
+        const TapSet& tapSet = tapSets[juce::jlimit (0, 7, p.taps)];
         const bool  tapsOn = tapSet.n > 0 && p.tapLevel > 0.001f;
 
         // Reverse style: the signal is read backwards. Two read points slide back through the last stretch of sound
@@ -1197,9 +1218,10 @@ public:
 
     // Processes one channel in place.
     void process (float* x, int numSamples, bool engaged, int mode, int wave,
-                  float freqHz, float mix, float wobble, float rise, float speed)
+                  float freqHz, float mix, float wobble, float rise, float speed, float track = 0.0f)
     {
         const float twoPi       = juce::MathConstants<float>::twoPi;
+        const float detA        = 1.0f - std::exp (-twoPi * 900.0f / sampleRate);
         const float riseSeconds = 0.005f * std::pow (300.0f, rise);
         const float fadeCoef    = 1.0f - std::exp (-1.0f / (riseSeconds * sampleRate));
         const float freqCoef    = 1.0f - std::exp (-1.0f / (0.03f * sampleRate));   // 30 ms glide
@@ -1217,7 +1239,26 @@ public:
             amount += fadeCoef * (target - amount);
 
             lfoPhase += lfoInc;  if (lfoPhase >= 1.0f) lfoPhase -= 1.0f;
-            freqSmoothed += freqCoef * (freqHz - freqSmoothed);
+            if (track > 0.001f)
+            {
+                // Pitch follower: two low-pass stages, then the time between rising zero crossings (held between notes)
+                dLp1 += detA * (x[i] - dLp1);  dLp2 += detA * (dLp1 - dLp2);
+                ++sinceCross;
+                if (dLp2 > 0.01f && dArmed)
+                {
+                    dArmed = false;
+                    const float hz = sampleRate / (float) std::max (1, sinceCross);
+                    sinceCross = 0;
+                    if (hz > 45.0f && hz < 1300.0f) detHz += 0.35f * (hz - detHz);
+                }
+                else if (dLp2 < -0.01f) dArmed = true;
+                if (sinceCross > (int) (0.05f * sampleRate)) sinceCross = (int) (0.05f * sampleRate);
+            }
+            // Track: the carrier follows the note you play, Freq becoming a ratio (330 Hz = the same pitch as the note)
+            const float targetHz = track > 0.001f
+                ? std::exp ((1.0f - track) * std::log (freqHz) + track * std::log (detHz * freqHz / 330.0f))
+                : freqHz;
+            freqSmoothed += freqCoef * (targetHz - freqSmoothed);
 
             const float f = juce::jlimit (0.5f, 0.45f * sampleRate,
                                           freqSmoothed * std::exp2 (wobble * std::sin (twoPi * lfoPhase)));
@@ -1241,11 +1282,35 @@ public:
 private:
     float sampleRate = 44100.0f;
     float amount = 0.0f, carrierPhase = 0.0f, lfoPhase = 0.0f, freqSmoothed = 330.0f;
+    float dLp1 = 0.0f, dLp2 = 0.0f, detHz = 220.0f;
+    int   sinceCross = 0;
+    bool  dArmed = true;
 };
 
 //==============================================================================
 // A one-pole filter (6 dB per octave). Cheap, and fine for shaping fuzz tones.
 //==============================================================================
+// b20: fitted constants for the Factory fuzz; the test build (STARTERAMP_TUNE) can override them from the environment
+inline float ffTune (const char* name, float def)
+{
+   #ifdef STARTERAMP_TUNE
+    if (const char* e = std::getenv (name)) return (float) std::atof (e);
+   #else
+    (void) name;
+   #endif
+    return def;
+}
+#define FF_K1A ffTune ("FF_K1A", -1.0f)
+#define FF_K1B ffTune ("FF_K1B", 0.0f)
+#define FF_K2A ffTune ("FF_K2A", 8.0f)
+#define FF_K2B ffTune ("FF_K2B", 10.0f)
+#define FF_MA  ffTune ("FF_MA", -3.0f)
+#define FF_MB  ffTune ("FF_MB", 3.0f)
+#define FF_HP  ffTune ("FF_HP", 5.0f)
+#define FF_COMP ffTune ("FF_COMP", 4.0f)
+#define FF_FB  ffTune ("FF_FB", 1.0f)
+#define FF_BIAS ffTune ("FF_BIAS", 6.5f)
+#define FF_DR  ffTune ("FF_DR", 1.25f)
 struct OnePole
 {
     float a = 0.1f, z = 0.0f;
@@ -1334,7 +1399,7 @@ public:
         bool  muffTonePass = false;             // style 0: bypass the tone control
         float muffMids = 0.5f;                  // style 0: 0.5 = as before, lower scoops the mids more, higher fills them in
         float drift = 0.0f, hiss = 0.0f;        // all styles: temperature drift of the gain / bias, and transistor hiss
-        bool  octave = false;                   // all styles: an octave-up rectifier in front
+        float octave = 0.0f;                   // all styles: an octave-up rectifier in front
         // ---- v66: the Nuke (7) and Crusher (8) styles ----
         float shape = 0.5f;                     // Nuke: which wave-shaping curve (0 to 1 moves through five tables, blending neighbours)
         float crush = 0.0f;                     // Nuke: bit depth and sample rate reduced together (0 = off)
@@ -1345,11 +1410,19 @@ public:
         bool  buzzSoft = true, buzzHard = true; // the SOFT (feedback diodes) and HARD (shunt diodes) switches; both on = the classic circuit
         float buzzBlend = 0.0f;                 // clean copy of the input mixed in (0 = none)
         bool  buzzPol = false;                  // the clean copy inverted
+        // ---- v95: style 9 (power-chip distortion: Low and High reuse buzzLow / buzzHigh) and style 10 (octave + RAT-type + boost) ----
+        float lifeOct = 0.0f, lifeBoost = 0.0f;
+        // ---- v97: the metal pedal styles (11 to 14) ----
+        float verbMix = 0.4f, verbDecay = 4.0f, verbMod = 0.3f; int verbProgram = 0, verbOrder = 0; bool verbHold = false;
+        float lCut = 0.3f, lEq0 = 0.5f, lEq1 = 0.5f, lEq2 = 0.5f, lEq3 = 0.5f, lEq4 = 0.5f, lDepth = 0.5f;
+        float sub = 0.0f;                       // all styles: an octave-down (flip-flop divider) square in front, 0 = off
     };
 
     void prepare (double sampleRate, int maxBlockSize)
     {
-        baseRate = (float) sampleRate;
+        baseRate = (float) sampleRate;  verbReady = false;  vHp = vLp = 0.0f;
+        dryBuf.assign ((size_t) maxBlockSize + 16, 0.0f);      // so processing never has to grow it
+        fuzzVerb.prepare (baseRate); verbShifter.prepare (baseRate); verbShifter.setWindowMs (45.0f); verbShifter.setSemitones (-12.0f); verbReady = true;
         oversampling.initProcessing ((size_t) maxBlockSize);
         oversampling.reset();
         oversampling1.initProcessing ((size_t) maxBlockSize);
@@ -1357,13 +1430,15 @@ public:
 
         for (auto* f : { &inHp, &stage1Lp, &stageHp, &stage2Lp, &toneLow, &toneHigh,
                          &emphHp, &opAmpLp, &ratFilter, &fbHp, &fbLp, &dcBlock, &outTone,
-                         &bzLow, &bzHigh, &bzOut, &nLoad, &nHp1, &nLp1, &nMidA, &nMidB, &octLp, &hissLp, &dcBlock2 })
+                         &bzLow, &bzHigh, &bzOut, &nLoad, &nHp1, &nLp1, &nMidA, &nMidB, &octLp, &hissLp, &dcBlock2, &subLpA, &subLpB, &subOutLp })
             f->reset();
+        subEnv = 0.0f;  subState = 1.0f;  subArmed = true;  subCut = 450.0f;  subF = 300.0f;  subCount = 0;
 
         lpIc1 = lpIc2 = dcLow = holdCnt = heldV = 0.0f;
         yPrev = 0.0f;
         env = 0.0f;  drift1 = 0.0f;  drift2 = 1.7f;  driftGain = 1.0f;  driftBias = 0.0f;
         lastLevel = -1.0f;  muffCircuit.reset();  opAmpMuff.reset();  hm2.reset();  circFs = 0.0f;
+        powerChip.reset();  lifeCirc.reset();  chipFs = 0.0f;  metalPed.prepare (48000.0);
         lastMix = 1.0f;
         dryRing.fill (0.0f);
         random.setSeed (777);
@@ -1405,6 +1480,16 @@ public:
 private:
     void processWet (float* x, int numSamples, const Params& p)
     {
+        if (p.style != 12) { processWetCore (x, numSamples, p); return; }
+        FuzzVerb::Params vp;  vp.mix = p.verbMix;  vp.decaySec = p.verbDecay;  vp.mod = p.verbMod;  vp.program = p.verbProgram;  vp.hold = p.verbHold;
+        auto shift = [this] (float v) { return verbShifter.process (v); };
+        if (! verbReady) { fuzzVerb.prepare (baseRate); verbShifter.prepare (baseRate); verbShifter.setWindowMs (45.0f); verbShifter.setSemitones (-12.0f); verbReady = true; }
+        if (p.verbOrder == 1) { fuzzVerb.process (x, numSamples, vp, shift); processWetCore (x, numSamples, p); }
+        else                  { processWetCore (x, numSamples, p); fuzzVerb.process (x, numSamples, vp, shift); }
+    }
+
+    void processWetCore (float* x, int numSamples, const Params& p)
+    {
         osRate = baseRate * (p.stages >= 2 ? 4.0f : (p.stages == 1 ? 2.0f : 1.0f));
         configure (p);
 
@@ -1445,18 +1530,47 @@ private:
         {
             driftGain = 1.0f;  driftBias = 0.0f;
         }
-        if (p.hiss > 0.0001f || p.octave || p.drift > 0.0001f)
+        if (p.hiss > 0.0001f || p.octave > 0.001f || p.drift > 0.0001f || p.sub > 0.001f)
         {
+            subLpA.setCutoff (subCut, osRate);  subLpB.setCutoff (subCut, osRate);  subOutLp.setCutoff (320.0f, osRate);
+            const float subAtk = 1.0f - std::exp (-1.0f / (0.004f * osRate)), subRel = 1.0f - std::exp (-1.0f / (0.060f * osRate));
             const float hissAmp = p.hiss * 0.0015f * std::sqrt (osRate / 48000.0f);
             octLp.setCutoff (60.0f, osRate);
             hissLp.setCutoff (7000.0f, osRate);
             for (int i = 0; i < m; ++i)
             {
                 float x = d[i] * driftGain;
-                if (p.octave)
+                if (p.octave > 0.001f)
                 {
+                    // Octave up (full-wave rectifier). Same law as Octave down below: the dry note ducks as the amount rises
                     const float r = std::fabs (x);
-                    x = 0.3f * x + 2.0f * (r - octLp.lp (r));      // full-wave rectified: the octave up
+                    x = x * (1.0f - 0.6f * p.octave) + p.octave * 2.0f * (r - octLp.lp (r));
+                }
+                if (p.sub > 0.001f)
+                {
+                    // Octave down the old analogue way: a flip-flop toggled by each rising zero crossing of the (low-passed) note gives
+                    // a square wave an octave down, scaled by the playing level. It tracks single notes best and glitches on chords
+                    // and on the highest notes, which is part of the sound.
+                    const float a = std::fabs (x);
+                    subEnv += (a > subEnv ? subAtk : subRel) * (a - subEnv);
+                    const float s = subLpB.lp (subLpA.lp (x));
+                    const float thr = std::max (0.004f, 0.12f * subEnv);
+                    ++subCount;
+                    if (s > thr && subArmed)
+                    {
+                        subState = -subState;  subArmed = false;
+                        const float hz = osRate / (float) std::max (1, subCount);          // the pitch filter follows the note (1.4 x its pitch)
+                        subCount = 0;
+                        if (hz > 40.0f && hz < 1200.0f)
+                        {
+                            subF += 0.5f * (hz - subF);
+                            subCut = juce::jlimit (70.0f, 700.0f, 1.4f * subF);
+                            subLpA.setCutoff (subCut, osRate);  subLpB.setCutoff (subCut, osRate);
+                        }
+                    }
+                    else if (s < -0.5f * thr)          subArmed = true;
+                    const float sq = subOutLp.lp (subState) * std::min (1.0f, subEnv * 40.0f);
+                    x = x * (1.0f - 0.6f * p.sub) + p.sub * 1.7f * subEnv * sq;
                 }
                 if (hissAmp > 0.0f)
                     x += hissAmp * hissLp.lp (2.0f * (random.nextFloat() - 0.5f));
@@ -1464,14 +1578,53 @@ private:
             }
         }
 
-        if      (p.style == 0 && p.muffVersion >= 5 && p.muffVersion <= 7)
+        if      (p.style == 9)
+        {
+            if (std::fabs (chipFs - osRate) > 0.5f) { powerChip.prepare (osRate); lifeCirc.prepare (osRate); metalPed.prepare (osRate); chipFs = osRate; }
+            powerChip.configure (p.buzzLow, p.buzzHigh, std::pow (10.0f, (p.gain - 0.5f) * 1.5f));
+            for (int i = 0; i < m; ++i) d[i] = kPowerChipTrim * powerChip.process (d[i]);
+        }
+        else if (p.style == 10)
+        {
+            if (std::fabs (chipFs - osRate) > 0.5f) { powerChip.prepare (osRate); lifeCirc.prepare (osRate); metalPed.prepare (osRate); chipFs = osRate; }
+            Circuit::LifeCircuit::Params lp;
+            lp.dist = p.gain;  lp.filter = p.tone;  lp.octave = p.lifeOct;  lp.boost = p.lifeBoost;  lp.diode = p.muffDiode;
+            lifeCirc.configure (lp);
+            for (int i = 0; i < m; ++i) d[i] = kLifeTrim * lifeCirc.process (d[i]);
+        }
+        else if (p.style == 11)
+        {
+            if (std::fabs (chipFs - osRate) > 0.5f) { powerChip.prepare (osRate); lifeCirc.prepare (osRate); metalPed.prepare (osRate); chipFs = osRate; }
+            Circuit::MetalPedal::Params mp;
+            mp.style = 14;  mp.gain = p.gain;  mp.cut = p.lCut;  mp.eq[0] = p.lEq0;  mp.eq[1] = p.lEq1;  mp.eq[2] = p.lEq2;  mp.eq[3] = p.lEq3;  mp.eq[4] = p.lEq4;
+            mp.depth = p.lDepth;  mp.comp = p.comp;  mp.boost = p.lifeBoost;  mp.gate = p.gate;  mp.diode = p.muffDiode;
+            metalPed.configure (mp);
+            const float trim = kMetalTrim[3];
+            for (int i = 0; i < m; ++i) d[i] = trim * metalPed.process (d[i]);
+        }
+        else if (p.style == 12)
+        {
+            // Distortion for the fuzz + reverb style: a high-pass, gain, an asymmetric soft clip, then a tone low-pass. Gain at 0 is a clean pass.
+            const float g = 1.0f + 120.0f * p.gain * p.gain, norm = 1.0f / std::pow (g, 0.40f);
+            const float hpC = 1.0f - std::exp (-6.2831853f * 70.0f / osRate);
+            const float lpC = 1.0f - std::exp (-6.2831853f * (1400.0f + 7500.0f * p.tone * p.tone) / osRate);
+            for (int i = 0; i < m; ++i)
+            {
+                vHp += hpC * (d[i] - vHp);
+                const float x = (d[i] - vHp) * g;
+                const float y = std::tanh (x + 0.12f * x * x * (x > 0.0f ? 1.0f : 0.4f)) * norm * 3.0f;
+                vLp += lpC * (y - vLp);
+                d[i] = kVerbDistTrim * vLp;
+            }
+        }
+        else if (p.style == 0 && ((p.muffVersion >= 5 && p.muffVersion <= 7) || p.muffVersion == 9 || p.muffVersion == 10))
         {
             if (std::fabs (circFs - osRate) > 0.5f) { muffCircuit.prepare (osRate); opAmpMuff.prepare (osRate); circFs = osRate; }
             Circuit::MuffCircuit::Params cp;
             cp.sustain = p.gain;  cp.tone = p.tone;  cp.diode = p.muffDiode;  cp.opAmp = p.muffOpAmp;  cp.tonePass = p.muffTonePass;
-            cp.variant = p.muffVersion - 5;
+            cp.variant = p.muffVersion == 10 ? 4 : p.muffVersion == 9 ? 3 : p.muffVersion - 5;
             muffCircuit.configure (cp);
-            const float trim = kMuffCircuitTrim[p.muffVersion - 5];
+            const float trim = kMuffCircuitTrim[p.muffVersion == 10 ? 5 : p.muffVersion == 9 ? 4 : p.muffVersion - 5];
             for (int i = 0; i < m; ++i) d[i] = trim * muffCircuit.process (d[i]);
         }
         else if (p.style == 0 && p.muffVersion == 8)
@@ -1598,7 +1751,15 @@ private:
     static constexpr float kHm2Trim = 1.15f;
     Circuit::OpAmpMuffCircuit opAmpMuff;
     float circFs = 0.0f;
-    static constexpr float kMuffCircuitTrim[4] = { 1.45f, 1.45f, 1.45f, 1.05f };     // set from a measurement against the original Wall at the same settings
+    static constexpr float kMuffCircuitTrim[6] = { 1.45f, 1.45f, 1.45f, 1.05f, 0.78f, 1.29f };
+    Circuit::PowerChipCircuit powerChip;
+    Circuit::LifeCircuit lifeCirc;
+    Circuit::MetalPedal metalPed;
+    FuzzVerb fuzzVerb;  GuitarShifter verbShifter;  bool verbReady = false;  float vHp = 0.0f, vLp = 0.0f;
+    static constexpr float kVerbDistTrim = 1.4f;
+    static constexpr float kMetalTrim[4] = { 1.57f, 1.3f, 2.08f, 3.2f };    // set from measurement
+    float chipFs = 0.0f;
+    static constexpr float kPowerChipTrim = 0.34f, kLifeTrim = 1.3f;     // set from a measurement against the original Wall at the same settings
 
     static bool muffIsDefault (const Params& p)
     {
@@ -1634,9 +1795,8 @@ private:
         {
             stageGain1 = 4.0f * std::pow (15.0f, p.gain);     // 4 to 60
             stageGain2 = 3.0f * std::pow (3.3f,  p.gain);     // 3 to 10
-            stage1Lp.setCutoff (6000.0f, fs);
+            float lp1Hz = 6000.0f, lp2Hz = 4500.0f;
             stageHp.setCutoff  (70.0f, fs);
-            stage2Lp.setCutoff (4500.0f, fs);
             toneLow.setCutoff  (408.0f, fs);                  // the Muff tone control's
             toneHigh.setCutoff (1855.0f, fs);                 // two filter corners
             muffOut = 1.6f;
@@ -1650,10 +1810,15 @@ private:
                                                  { 1.25f, 1.1f, 45.0f, 5000.0f, 4000.0f, 360.0f, 2000.0f, 1.5f } };
                 const float* v = ver[juce::jlimit (0, 4, p.muffVersion)];
                 stageGain1 *= v[0];  stageGain2 *= v[1];
-                stageHp.setCutoff (v[2], fs);  stage1Lp.setCutoff (v[3], fs);  stage2Lp.setCutoff (v[4], fs);
+                stageHp.setCutoff (v[2], fs);  lp1Hz = v[3];  lp2Hz = v[4];
                 toneLow.setCutoff (v[5], fs);  toneHigh.setCutoff (v[6], fs);
                 muffOut = v[7];
             }
+            // v0.1: the inter-stage roll-offs follow Sustain. Real Muffs keep nearly the same tonal balance from low to high
+            // sustain (captures: under 2 dB of drift at 8 kHz), but more clipping alone adds top-end harmonics, so the top
+            // used to climb about 5 dB. The gain range itself is unchanged.
+            stage1Lp.setCutoff (lp1Hz * std::pow (0.6f, p.gain), fs);
+            stage2Lp.setCutoff (lp2Hz * std::pow (0.6f, p.gain), fs);
         }
         else if (p.style == 1)       // Tight
         {
@@ -1723,19 +1888,23 @@ private:
         else if (p.style == 6)       // Factory (v56): gate, comp, drive, stab, with a germanium or silicon transistor
         {
             const bool ge = p.germanium;
-            inHp.setCutoff (120.0f, fs);
-            nLoad.setCutoff (p.buffer ? 20000.0f : 7500.0f, fs);
+            inHp.setCutoff (FF_HP, fs);                                  // b20: was 120 Hz; the captures keep more low end
+            nLoad.setCutoff (p.buffer ? 20000.0f : 14000.0f, fs);        // b20: was 7.5 kHz (the captures are bright)
+            ffS1.setCutoff (1500.0f, fs);  ffS2.setCutoff (5000.0f, fs);
+            ffK1 = std::pow (10.0f, (FF_K1A + FF_K1B * p.stab) / 20.0f) - 1.0f;
+            ffK2 = std::pow (10.0f, (FF_K2A + FF_K2B * p.stab) / 20.0f) - 1.0f;
+            ffMake = std::pow (10.0f, (FF_MA + FF_MB * p.stab) / 20.0f);
             inGain = p.input * p.input;
-            ffDrive = (ge ? 5.0f : 6.5f) * std::pow (20.0f, p.gain);   // 5 to 100
-            ffBias  = p.gate * 3.0f;
+            ffDrive = FF_DR * (ge ? 5.0f : 6.5f) * std::pow (20.0f, p.gain);   // 5 to 100
+            ffBias  = p.gate * FF_BIAS;
             ffNoise = p.gate * 0.06f;
-            ffFeedback = (1.0f - p.stab) * 3.0f;
+            ffFeedback = (1.0f - p.stab) * FF_FB;
             fbHp.setCutoff (200.0f, fs);
             fbLp.setCutoff (2500.0f, fs);
-            outTone.setCutoff (1200.0f * std::pow (10.0f, p.tone), fs);
+            outTone.setCutoff (3000.0f * std::pow (10.0f, 1.2f * p.tone), fs);   // b20: 3 kHz to 48 kHz (was 1.2 to 12 kHz; the real pedal has no tone control)
             dcBlock.setCutoff (30.0f, fs);
             envC = 1.0f - std::exp (-1.0f / (0.004f * fs));            // a 4 ms level follower for Comp
-            compAmt = p.comp * 8.0f;
+            compAmt = p.comp * FF_COMP;
             outScale = ge ? 0.8f : 0.7f;
         }
         else                         // Gated
@@ -1817,7 +1986,9 @@ private:
         const float y = ge ? ((u >= 0.0f) ? hardKnee (0.8f * u) : 0.45f * fastTanh (0.6f * u))
                            : ((u >= 0.0f) ? hardKnee (1.0f * u) : 0.6f  * fastTanh (0.9f * u));
         yPrev = y;
-        return outScale * outTone.lp (dcBlock.hp (fastTanh (1.4f * y)));
+        float o = outTone.lp (dcBlock.hp (fastTanh (1.4f * y)));
+        o += ffK1 * (o - ffS1.lp (o));  o += ffK2 * (o - ffS2.lp (o));
+        return outScale * ffMake * o;
     }
 
     // The Muff stage: a diode-limited gain stage. Silicon is the original (tanh); LED has more headroom; germanium
@@ -1908,8 +2079,11 @@ private:
     OnePole emphHp, opAmpLp, ratFilter;                              // Tight
     OnePole fbHp, fbLp, dcBlock, outTone;                            // Gated
     OnePole bzLow, bzHigh, bzOut;                                    // Buzzsaw
+    OnePole subLpA, subLpB, subOutLp;                                // the octave-down divider (Sub)
+    float   subEnv = 0.0f, subState = 1.0f, subCut = 450.0f, subF = 300.0f;  int subCount = 0;  bool subArmed = true;
     OnePole nLoad, nHp1, nLp1, nMidA, nMidB, octLp, hissLp;          // v56: Face, Bender, Factory and the options
     OnePole dcBlock2;
+    OnePole ffS1, ffS2;  float ffK1 = 0.0f, ffK2 = 0.0f, ffMake = 1.0f;   // b20: Factory style, the Stab-dependent top-end lift and output level (fitted to the captures)
     juce::Random random;
 
     float baseRate = 44100.0f, osRate = 176400.0f, lastLevel = -1.0f, yPrev = 0.0f;
@@ -1952,7 +2126,7 @@ public:
     struct Params
     {
         float thresholdDb;
-        int   ratioIndex;      // 0 1:1, 1 2:1, 2 3:1, 3 4:1, 4 6:1, 5 10:1, 6 10:1 Soft, 7 20:1, 8 Limit
+        int   ratioIndex;      // 0 1:1, 1 2:1, 2 3:1, 3 4:1, 4 6:1, 5 10:1, 6 20:1, 7 Limit (b32: "10:1 Soft" was removed; the Opto style covers it)
         float attackMs, releaseMs;
         float makeupDb;
         float mix;
@@ -1969,7 +2143,7 @@ public:
         sampleRate = (float) newSampleRate;
         squared = grDb = detectorState = dcState = 0.0f;
         squared2 = grDb2 = parLow = tiltLow = xformLow = 0.0f;
-        memDb = 0.0f;
+        memDb = grOptoA = grOptoB = 0.0f;
         shownScale = 1.0f;
     }
 
@@ -1978,20 +2152,27 @@ public:
     // Processes one channel in place.
     void process (float* x, int numSamples, const Params& p)
     {
-        static const float ratios[9] = { 1.0f, 2.0f, 3.0f, 4.0f, 6.0f, 10.0f, 10.0f, 20.0f, 100.0f };
+        static const float ratios[8] = { 1.0f, 2.0f, 3.0f, 4.0f, 6.0f, 10.0f, 20.0f, 100.0f };
         static const float hpHz[4]   = { 0.0f, 80.0f, 160.0f, 320.0f };
         const float twoPi = juce::MathConstants<float>::twoPi;
 
-        const int   ratioIndex = juce::jlimit (0, 8, p.ratioIndex);
-        const int   style = juce::jlimit (0, 5, p.style);
-        const bool  opto  = (ratioIndex == 6);
-        const bool  push  = (ratioIndex == 8);
+        const int   ratioIndex = juce::jlimit (0, 7, p.ratioIndex);
+        const bool  thump = (p.style == 7);                       // b31: Thump = the Standard compressor plus Bloom, Smack and Clarity (they do nothing in the other styles)
+        const int   style = thump ? 0 : juce::jlimit (0, 5, p.style);
+        const bool  opto  = false;
+        const bool  push  = (ratioIndex == 7);
         float slope = 1.0f - 1.0f / ratios[ratioIndex];                // dB of gain reduction per dB over the threshold
         float knee  = push ? 0.0f : (opto ? 12.0f : 6.0f);
         // Styles 1 to 5 reshape the detector, knee, ratio and the attack and release behaviour. Style 0 is the original.
         float attackScale = 1.0f, attackFloorMs = 0.02f, levelMs = 1.5f;
-        if (style == 1)      { knee = push ? 0.0f : 2.0f;  attackScale = 0.25f; levelMs = 0.6f; }                                 // FET: fast, hard
-        else if (style == 2) { knee = push ? 0.0f : 14.0f; attackScale = 2.5f;  attackFloorMs = 6.0f; levelMs = 3.0f; }            // opto: soft, slow to grab
+        // FET: fast, hard. A published attack range for this kind of unit is 20 to 800 microseconds and the release 50 ms to 1.1 s, so the
+        // detector is a fast peak follower (50 us up, 2 ms down; the 0.6 ms averaging window it replaces was slower than the shortest attack),
+        // and the attack floor is 5 us, below the shortest published value, so the Attack knob (0.05 to 50 ms, times 0.25) spans 12.5 us to 12.5 ms.
+        if (style == 1)      { knee = push ? 0.0f : 2.0f;  attackScale = 0.25f; attackFloorMs = 0.005f; levelMs = 0.6f; }
+        // opto: soft, slow to grab. A published average attack for this kind of unit is 10 ms, so the default Attack knob (5 ms) times 2 gives it;
+        // the floor of 1.5 ms and the 50 ms top end (100 ms) put the real value well inside the range. The 1966 manual calls the attack "essentially
+        // instantaneous" and a vendor page says 10 ms, so only the vendor figure is used as the centre.
+        else if (style == 2) { knee = push ? 0.0f : 14.0f; attackScale = 2.0f;  attackFloorMs = 1.5f; levelMs = 3.0f; }
         else if (style == 3) { knee = push ? 0.0f : 18.0f; attackScale = 3.0f;  attackFloorMs = 3.0f; levelMs = 4.0f;
                                slope = 1.0f - 1.0f / (1.0f + (ratios[ratioIndex] - 1.0f) * 0.7f); }                             // variable-mu: gentle, deep curve
         else if (style == 4) { knee = push ? 0.0f : 8.0f;  attackFloorMs = 4.0f; levelMs = 2.0f;
@@ -2001,7 +2182,7 @@ public:
 
         // Bloom: the primary compressor works harder (up to 2.5x the gain reduction) and lets go up to
         // 3x slower, so notes swell back up after the squeeze.
-        const float bloom = juce::jlimit (0.0f, 1.0f, p.bloom);
+        const float bloom = thump ? juce::jlimit (0.0f, 1.0f, p.bloom) : 0.0f;
         const float grScale = 1.0f + 1.5f * bloom;
         shownScale = grScale;
 
@@ -2010,6 +2191,9 @@ public:
         const float fixedReleaseCoef = std::exp (-1.0f / (baseRelease * 0.001f * sampleRate));
         const float levelCoef   = 1.0f - std::exp (-1.0f / ((style == 0 ? 0.0015f : levelMs * 0.001f) * sampleRate));   // 1.5 ms level detector (style 0)
         const float memCoef     = 1.0f - std::exp (-1.0f / (1.2f * sampleRate));          // slow memory of how long it has been squeezing
+        const float optoFastCoef = std::exp (-1.0f / (0.020f * (baseRelease * (1.0f / 250.0f)) * sampleRate));   // first stage: 95 % of its half in 60 ms at the default
+        const float fetUpCoef   = 1.0f - std::exp (-1.0f / (0.00005f * sampleRate));       // FET peak follower: 50 us up, 2 ms down
+        const float fetDownCoef = 1.0f - std::exp (-1.0f / (0.002f * sampleRate));
 
         const float detHz   = hpHz[juce::jlimit (0, 3, p.detectorHp)];
         const float detCoef = detHz > 0.0f ? 1.0f - std::exp (-twoPi * detHz / sampleRate) : 0.0f;
@@ -2029,7 +2213,7 @@ public:
 
         // Second, parallel compressor ("Smack"): fixed settings, transparent and fast to grab, with the
         // lows lifted so the low end hits harder. Its level is the Smack knob.
-        const float smack = juce::jlimit (0.0f, 1.0f, p.smack);
+        const float smack = thump ? juce::jlimit (0.0f, 1.0f, p.smack) : 0.0f;
         const bool  smackOn = smack > 0.001f;
         const float atk2 = std::exp (-1.0f / (0.008f * sampleRate));       // 8 ms: the first moment of a note gets through
         const float rel2 = std::exp (-1.0f / (0.110f * sampleRate));
@@ -2038,7 +2222,7 @@ public:
         const float xfC  = 1.0f - std::exp (-twoPi * 160.0f / sampleRate);
 
         // Clarity: a tilt EQ around 900 Hz. Positive lifts the highs and trims the lows by the same amount.
-        const float clarity = juce::jlimit (-1.0f, 1.0f, p.clarity);
+        const float clarity = thump ? juce::jlimit (-1.0f, 1.0f, p.clarity) : 0.0f;
         const bool  tiltOn = std::abs (clarity) > 0.005f;
         const float tiltC = 1.0f - std::exp (-twoPi * 900.0f / sampleRate);
         const float gLow  = juce::Decibels::decibelsToGain (-4.5f * clarity);
@@ -2055,8 +2239,10 @@ public:
                 detectorState += detCoef * (in - detectorState);
                 det = in - detectorState;
             }
-            squared += levelCoef * (det * det - squared);
-            const float levelDb = 3.0103f * fastLog2 (squared + 1.0e-9f);
+            const float d2 = det * det;
+            squared += (style == 1 ? (d2 > squared ? fetUpCoef : fetDownCoef) : levelCoef) * (d2 - squared);
+            // (the peak follower reads a sine 3 dB higher than the averaging window did; take it off so the threshold means the same as before)
+            const float levelDb = 3.0103f * fastLog2 (squared + 1.0e-9f) - (style == 1 ? 3.0103f : 0.0f);
 
             // Gain computer: how many dB of gain reduction this level calls for
             const float over = levelDb - p.thresholdDb;
@@ -2075,8 +2261,8 @@ public:
                 memDb += memCoef * (grDb - memDb);
                 const float deep = juce::jlimit (0.0f, 1.0f, grDb / 10.0f), held = juce::jlimit (0.0f, 1.0f, memDb / 8.0f);
                 float f = 1.0f;
-                if (style == 1)      f = 0.35f + 0.65f * (1.0f - deep);              // FET: lets go quickly when it has squeezed hard
-                else if (style == 2) f = 0.6f + 1.2f * deep + 1.2f * held;           // opto: slower the deeper and longer it squeezed
+                if (style == 1)      f = 0.5f + 0.9f * held;                         // FET: program dependent: fast after a short peak, about 3 times slower after a long squeeze (the manual describes a fast release after transients and a slow one after sustained high-RMS signals)
+                else if (style == 2) f = 1.0f;                                       // opto: has its own two-stage release below
                 else if (style == 3) f = 1.0f + 1.5f * deep;                         // variable-mu: slow, smooth
                 else if (style == 4) f = 1.5f + 1.0f * held;                         // sustainer: long hold, notes bloom
                 else                 f = 0.6f + 0.9f * held;                         // bus: program-dependent glue
@@ -2087,8 +2273,24 @@ public:
                 const float releaseMs = baseRelease * (0.5f + 2.5f * juce::jlimit (0.0f, 1.0f, grDb / 10.0f));
                 releaseCoef = fastExp2 (-1.442695f / (releaseMs * 0.001f * sampleRate));
             }
-            const float coef = (target > grDb) ? attackCoef : releaseCoef;
-            grDb = target + coef * (grDb - target);
+            if (style == 2)
+            {
+                // Opto release in two stages, as published: about 60 ms for the first 50 %, then a slow tail whose length depends on how much and how
+                // long it was compressing (0.5 to 5 s for complete release in the 1966 manual, 1 to 15 s in a vendor page; the first is used and the
+                // Release knob, which scales both stages around its default of 250 ms, reaches the second). Each stage carries half of the gain reduction.
+                const float held2 = juce::jlimit (0.0f, 1.0f, memDb / 8.0f);
+                const float tgt = 0.5f * target;
+                const float x = 1.0f / ((0.11f + held2) * (baseRelease * (1.0f / 250.0f)) * sampleRate);      // 99 % in 0.5 s (short squeeze) to 5 s (long, deep squeeze) at 250 ms
+                const float slowCoef = 1.0f - x + 0.5f * x * x;                                              // exp (-x), x is tiny
+                grOptoA = tgt + (tgt > grOptoA ? attackCoef : optoFastCoef) * (grOptoA - tgt);
+                grOptoB = tgt + (tgt > grOptoB ? attackCoef : slowCoef)     * (grOptoB - tgt);
+                grDb = grOptoA + grOptoB;
+            }
+            else
+            {
+                const float coef = (target > grDb) ? attackCoef : releaseCoef;
+                grDb = target + coef * (grDb - target);
+            }
 
             float y = in * fastExp2 (-grDb * grScale * 0.166096f);    // 10^(-gr/20)
 
@@ -2161,6 +2363,7 @@ private:
     float sampleRate = 44100.0f;
     float squared = 0.0f, grDb = 0.0f, detectorState = 0.0f, dcState = 0.0f;
     float squared2 = 0.0f, grDb2 = 0.0f, parLow = 0.0f, tiltLow = 0.0f, xformLow = 0.0f, shownScale = 1.0f, memDb = 0.0f;
+    float grOptoA = 0.0f, grOptoB = 0.0f;        // the opto style's two release stages (dB of gain reduction each)
 };
 
 //==============================================================================
@@ -2289,8 +2492,9 @@ private:
 // This kind of chorus is two bucket-brigade delay lines, swept by a slow
 // triangle LFO, with the two lines moving in opposite directions. It has no knobs,
 // only buttons: I (slow), II (a little faster) and I+II (fast and shallow, a vibrato-ish
-// shimmer). The numbers below (about 0.5 Hz, 0.9 Hz and 9.75 Hz, delays of a few ms)
-// are the commonly quoted figures as I remember them, not measurements of a unit.
+// shimmer). The rates (0.513 Hz, 0.863 Hz and 9.75 Hz) and the delay ranges (1.66 to 5.35 ms for I and II, 3.3 to 3.7 ms for I+II)
+// are the figures a published analysis measured from recordings of a unit (the service notes list 0.5, 0.83 and 1 Hz, and the
+// analysis suspects the 1 Hz is a typo for about 10 Hz). I have not measured a unit myself.
 // It sits before the amp, so it is mono here (the two lines are summed); the extra
 // knobs (rate scale, depth, tone, hiss) are mine.
 //==============================================================================
@@ -2325,20 +2529,20 @@ public:
     void process (float* x, int numSamples, const Params& p)
     {
         static const float rates[3]   = { 0.513f, 0.863f, 9.75f };
-        static const float swingMs[3] = { 1.7f, 1.9f, 0.35f };   // how far each line sweeps either side of the centre
+        static const float swingMs[3] = { 1.845f, 1.845f, 0.2f };   // how far each line sweeps either side of the centre (I and II share one range; I+II is nearly static)
         const int mode = std::min (6, std::max (0, p.mode));
         if (mode >= 3) { processMulti (x, numSamples, p, mode); return; }
         const int m = mode;
         const float targetRate  = rates[m] * p.rateScale;
         const float targetSwing = swingMs[m] * p.depth;
         const float sr = (float) sampleRate;
-        const float centreMs = 3.5f;
+        const float centreMs = 3.505f;
 
         const float tone = std::min (p.toneHz, 0.45f * sr);
         if (std::abs (tone - lastTone) > 0.5f)
         {
             for (auto& f : lp)
-                f.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass (sampleRate, tone);
+                *f.coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass (sampleRate, tone);
             lastTone = tone;
         }
 
@@ -2385,7 +2589,7 @@ private:
         if (std::abs (tone - lastTone) > 0.5f)
         {
             for (auto& f : lp)
-                f.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass (sampleRate, tone);
+                *f.coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass (sampleRate, tone);
             lastTone = tone;
         }
         //                          Dimension  Tri   Ensemble  Detune
@@ -2449,12 +2653,16 @@ private:
 //==============================================================================
 // Wah pedal: a resonant band-pass filter whose centre frequency sweeps between a "heel" (low)
 // and a "toe" (high) setting. Manual = you set the Position; Envelope = how hard you play moves
-// it (auto-wah); LFO = it sweeps by itself. The filter is a standard state-variable filter. The
-// sweep range and Q are my own approximation of a classic wah, not a measured circuit.
+// it (auto-wah); LFO = it sweeps by itself. The filter is a standard state-variable filter.
+// Generic voice (circuit = 0): the sweep range and Q are my own approximation of a classic wah.
+// Classic circuit voice (circuit = 1): the position sets the loop gain T0 of the pedal's resonant feedback loop,
+// as in the published analyses (inductor 0.5 H and 10 nF give f0 = 2.25 kHz): the peak sits at f0 / sqrt (1 + T0),
+// its Q rises as Q0 * sqrt (1 + T0) (so it is narrow at the heel and wide at the toe, as measured), and its height falls
+// from about +18 dB at the heel to about +1 dB at the toe. The band-pass skirts are 6 dB per octave, as in the measured fit.
 class Wah
 {
 public:
-    struct Params { int mode; float pos, heelHz, toeHz, q, mix, sens, decayMs, rate, depth; };
+    struct Params { int mode; float pos, heelHz, toeHz, q, mix, sens, decayMs, rate, depth; int envDir = 0, envShape = 0; int circuit = 0; };   // v0.2: envDir 0 = up, 1 = down; envShape 0 = band-pass, 1 = low-pass, 2 = high-pass (Envelope Filter mode); circuit 1 = Classic circuit voice (heelHz / toeHz / q are then the knobs, scaled around the published values)
 
     void prepare (double sr) { sampleRate = sr; reset(); }
     void reset() { ic1 = ic2 = 0.0f; env = 0.0f; lfoPhase = 0.0f; posSmooth = 0.5f; first = true; }
@@ -2462,11 +2670,28 @@ public:
     void process (float* x, int numSamples, const Params& p)
     {
         const float sr = (float) sampleRate;
-        const float envAtk = 1.0f - std::exp (-1.0f / (0.003f * sr));
+        const float envAtk = 1.0f - std::exp (-1.0f / ((p.mode == 3 ? 0.002f : 0.003f) * sr));
         const float envRel = 1.0f - std::exp (-1.0f / (std::max (5.0f, p.decayMs) * 0.001f * sr));
         const float smooth = 1.0f - std::exp (-1.0f / (0.010f * sr));
-        const float k      = 1.0f / std::max (0.5f, p.q);
+        float k            = 1.0f / std::max (0.5f, p.q);
         const float ratio  = std::max (1.5f, p.toeHz) / std::max (50.0f, p.heelHz);
+        float gainBp       = 1.6f;                       // generic voice: the peak is always 1.6x (+4 dB)
+
+        // Classic circuit voice (not the Q-Tron-style Envelope Filter mode). Constants, all from the published analyses:
+        //   f0 = 1 / (2 pi sqrt (0.5 H * 10 nF)) = 2.25 kHz; the toe keeps a little loop gain (T0 = 0.98) so that the toe is 1.6 kHz and
+        //   the heel (T0 = 24) is 450 Hz; Q0 * f0 = 4000 (the mean of three measured Q * f points: 9.4 * 464, 4.0 * 838, 1.9 * 2252);
+        //   the peak is +18 dB at the heel and scales with T0 / sqrt (1 + T0) (about +1 dB at the toe); the pot is an audio taper (x^1.8).
+        // The Heel and Toe knobs scale the published 450 Hz and 1.6 kHz by (knob / default), Resonance scales the real Q by (knob / 5),
+        // so the defaults give the real pedal and the knob ranges reach well past it on both ends.
+        const bool  circuitOn = p.circuit != 0 && p.mode != 3;
+        constexpr float kT0Toe = 0.98f, kQ0 = 1.777f, kTaper = 1.8f, kPeakHeel = 7.943f;
+        const float heelEff = 450.0f * std::max (50.0f, p.heelHz) / 400.0f;
+        const float toeEff  = 1600.0f * std::max (50.0f, p.toeHz) / 2200.0f;
+        const float f0c     = toeEff * 1.40712f;         // sqrt (1 + kT0Toe)
+        const float rHeel   = f0c / heelEff;
+        const float t0Heel  = std::max (kT0Toe + 0.05f, rHeel * rHeel - 1.0f);
+        const float pkHeel  = t0Heel / std::sqrt (1.0f + t0Heel);
+        const float qMul    = std::max (0.05f, p.q) * 0.2f;
 
         // The exp / sin / pow / tan below only need to be refreshed every few samples (the sweep is
         // slow and smoothed), so they run once per 8 samples instead of every sample.
@@ -2478,12 +2703,12 @@ public:
             const bool  control = (i & 7) == 0;
             float target = p.pos;
 
-            if (p.mode == 1)            // envelope follower
+            if (p.mode == 1 || p.mode == 3)   // envelope follower (3 = the Q-Tron-style Envelope Filter: it starts at one end of the range and the playing level pushes it toward the other)
             {
                 const float a = std::abs (in);
                 env += (a > env ? envAtk : envRel) * (a - env);
                 if (control) shaped = 1.0f - std::exp (-env * p.sens * 20.0f);
-                target = p.pos + (1.0f - p.pos) * shaped;
+                target = p.mode == 3 ? (p.envDir == 0 ? shaped : 1.0f - shaped) : p.pos + (1.0f - p.pos) * shaped;
             }
             else if (p.mode == 2)       // LFO
             {
@@ -2499,7 +2724,18 @@ public:
 
             if (control)
             {
-                const float f = std::min (0.45f * sr, p.heelHz * std::pow (ratio, posSmooth));
+                float f;
+                if (circuitOn)
+                {
+                    const float t  = std::pow (std::max (0.0f, 1.0f - posSmooth), kTaper);    // 0 at the toe, 1 at the heel
+                    const float t0 = kT0Toe + (t0Heel - kT0Toe) * t;                          // loop gain of the resonant feedback
+                    const float sq = std::sqrt (1.0f + t0);
+                    f      = std::min (0.45f * sr, f0c / sq);
+                    k      = 1.0f / std::max (0.3f, kQ0 * sq * qMul);
+                    gainBp = kPeakHeel * (t0 / sq) / pkHeel;
+                }
+                else
+                    f = std::min (0.45f * sr, p.heelHz * std::pow (ratio, posSmooth));
                 const float g = std::tan (juce::MathConstants<float>::pi * f / sr);
                 a1 = 1.0f / (1.0f + g * (g + k));
                 a2 = g * a1;
@@ -2511,7 +2747,9 @@ public:
             ic1 = 2.0f * v1 - ic1;
             ic2 = 2.0f * v2 - ic2;
 
-            const float wet = 1.6f * k * v1;     // band-pass, 1.0 at its peak, with a little make-up
+            float wet = gainBp * k * v1;   // band-pass, 1.0 at its peak times gainBp (generic: 1.6, a little make-up; classic circuit: +18 dB at the heel down to about +1 dB at the toe)
+            if (p.mode == 3 && p.envShape == 1)      wet = 0.6f * v2;                // low-pass (a resonant peak is loud, so a little less)
+            else if (p.mode == 3 && p.envShape == 2) wet = 0.6f * (in - k * v1 - v2); // high-pass
             x[i] = in * (1.0f - p.mix) + wet * p.mix;
         }
     }
@@ -2540,6 +2778,28 @@ public:
         lampDown = 1.0f - std::exp (-1.0f / (0.030f * (float) sr));     // and cools in about 30 ms
         cellUp = 1.0f - std::exp (-1.0f / (0.004f * (float) sr));       // photocell lights quickly
         cellDown = 1.0f - std::exp (-1.0f / (0.045f * (float) sr));     // and recovers slowly
+    }
+
+    // v0.1 b7: just the pulse, as a dip from 0 (full level) to 1 (deepest), one value per sample. Used by the
+    // in-amp tremolo, which applies it between the preamp and the power stage. Mono; the depth is applied there.
+    void lfoDip (float* out, int n, int shape, float rateHz)
+    {
+        const float inc = rateHz / (float) sampleRate;
+        for (int i = 0; i < n; ++i)
+        {
+            float a;
+            if (shape == 3)
+            {
+                const float ph = phase - std::floor (phase);
+                const float dA = 0.5f * (1.0f + std::sin (juce::MathConstants<float>::twoPi * ph));
+                a = opticalStep (lampA, cellA, dA);
+            }
+            else
+                a = Tremolo::shape (phase, shape);
+            out[i] = 0.5f * (1.0f - a);
+            phase += inc;
+            if (phase >= 1.0f) phase -= 1.0f;
+        }
     }
 
     void process (float* l, float* r, int n, const Params& p)
@@ -2590,11 +2850,39 @@ private:
         const float s = std::sin (juce::MathConstants<float>::twoPi * ph);
         if (type == 1) return ph < 0.5f ? 4.0f * ph - 1.0f : 3.0f - 4.0f * ph;
         if (type == 2) return fastTanh (5.0f * s) / fastTanh (5.0f);
+        if (type == 4)
+        {
+            // Bias (amp-style): the dips are narrow and the full-level part is wide, as when a tremolo wobbles the power
+            // tubes' bias: they only get squeezed at the bottom of the swing. A shape I chose, not a measured circuit.
+            const float dip = std::pow (0.5f * (1.0f - s), 1.7f);
+            return 1.0f - 2.0f * dip;
+        }
         return s;
     }
     double sampleRate = 44100.0;
     float phase = 0.0f;
 };
+
+// v0.1 b7: the amp-style tremolo. 'dip' is the pulse (0 = full level, 1 = deepest) and 'envIn' the level of what
+// you play (about 0.25 = a hard pick), both per sample at the normal rate; they are applied to the oversampled signal
+// between the preamp and the power stage. Pick Response makes the pulse shallower as you play harder (a loud signal
+// squeezes the bias swing), so soft notes throb more than hard ones. The level is measured at the input because the
+// signal after the preamp is squashed to about the same level whatever you play.
+inline void applyAmpTrem (float* y, int m, const float* dip, const float* envIn, int nBase, float depth, float pick)
+{
+    if (nBase <= 0 || m <= 0) return;
+    const float ratio = (float) nBase / (float) m;
+    for (int i = 0; i < m; ++i)
+    {
+        const float pos = ((float) i + 0.5f) * ratio - 0.5f;
+        const int i0 = juce::jlimit (0, nBase - 1, (int) std::floor (pos));
+        const int i1 = std::min (nBase - 1, i0 + 1);
+        const float fr = juce::jlimit (0.0f, 1.0f, pos - (float) i0);
+        const float d = dip[i0] + fr * (dip[i1] - dip[i0]);
+        const float e = envIn[i0] + fr * (envIn[i1] - envIn[i0]);
+        y[i] *= 1.0f - (depth / (1.0f + pick * e * 2.0f)) * d;
+    }
+}
 
 class Wobble
 {
@@ -2750,7 +3038,7 @@ public:
             {
                 if (! g.active) continue;
                 float w = 0.5f - 0.5f * std::cos (juce::MathConstants<float>::twoPi * (float) g.age / (float) g.length);
-                if (p.shape != 0)
+                if (p.shape != 0 && p.shape != 4)
                 {
                     const float xw = (float) g.age / (float) g.length;
                     if (p.shape == 1)      w = 6.75f * xw * xw * (1.0f - xw);
@@ -2821,12 +3109,15 @@ private:
         for (auto& g : grains) if (! g.active) { slot = &g; break; }
         if (slot == nullptr) return;
 
-        const float len = sizeS * (0.8f + 0.4f * rand01());
+        const bool smear = p.shape == 4, glitch = p.shape == 5;
+        const float len = sizeS * (0.8f + 0.4f * rand01()) * (smear ? 2.5f : glitch ? 0.45f : 1.0f);
         float semis = p.pitch + p.pitchRand * (rand01() * 2.0f - 1.0f);
+        if (smear) semis += 0.12f * (rand01() * 2.0f - 1.0f);            // a few cents of drift per grain: the cloud smears and shimmers
+        if (glitch && rand01() < 0.2f) semis += rand01() < 0.5f ? -12.0f : 12.0f;
         if (p.scale != 0 && p.pitchRand >= 0.5f)
             semis = p.pitch + pickScaleOffset (p.scale, (int) std::floor (p.pitchRand));
         float inc = std::pow (2.0f, semis / 12.0f);
-        const bool reversed = rand01() < p.reverse;
+        const bool reversed = rand01() < (glitch ? std::max (p.reverse, 0.2f) : p.reverse);
         if (reversed) inc = -inc;
 
         // How far back to start. The grain's read point must not run into the write point
@@ -2840,6 +3131,10 @@ private:
         float d = p.posMs * 0.001f * sr + p.spray * rand01() * 1.5f * sr + p.scan * 1.2f * sr * (0.5f + 0.5f * std::sin (6.2831853f * scanPhase));
         d = std::min (std::max (d, dMin), std::max (dMin, dMax));
 
+        if (glitch)                                                  // stutter: often replay the same spot as the last grain
+        {
+            if (rand01() < 0.45f) d = lastD; else lastD = d;
+        }
         float start = (float) writePos - d;
         while (start < 0.0f) start += (float) bufLen;
 
@@ -2858,6 +3153,7 @@ private:
     int bufLen = 1, writePos = 0;
     std::vector<float> buf[2];
     Grain grains[48];
+    float lastD = 4800.0f;
     float spawnAcc = 0.0f, fbL = 0.0f, fbR = 0.0f, toneL = 0.0f, toneR = 0.0f, scanPhase = 0.0f;
     unsigned int rng = 1u;
 };
@@ -3034,12 +3330,20 @@ private:
     float sLow1 = 0.0f, sLow2 = 0.0f, lp3k = 0.0f, lp600 = 0.0f, bassLp1 = 0.0f, bassLp2 = 0.0f, hpState = 0.0f, hpPrev = 0.0f, apX1 = 0.0f, apY1 = 0.0f;
 };
 
+// The stages follow the published circuit of the classic four-stage phaser pedal: each is an op-amp all-pass (47 nF, a 2N5952 JFET in parallel with 24k, 10k / 10k),
+// output = 2 * high-pass (input) - input, so a stage swings from -1 at low frequencies to +1 at high ones. Because the JFET's conductance
+// is 2 * beta * (Vgs - Vp), the corner frequency follows the LFO voltage LINEARLY (not exponentially): with the published JFET and LFO
+// swing it runs from about 330 Hz to 3 kHz (first notch 0.41 * fc, second 2.41 * fc). Depth sets the sweep ends in octaves around Centre
+// (2.5 octaves per unit of depth either side, so the default 0.7 gives about 11:1, the real pedal's 10:1), the path between them is linear in Hz.
+// Feedback is the later pedals' 24k resistor ("R28"): the last stage's output goes into the INVERTING input of the 2nd stage. 'feedback' is its
+// conductance 10k / R28 (0.417 = the real 24k; up to 0.9 = about 11k, negative inverts it). That stage then has gain 2 + feedback from its
+// non-inverting side, which is the extra mid-range hump of the later pedals. The loop is solved exactly (no extra sample of delay).
 class Phaser
 {
 public:
-    struct Params { int stages, shape; float rate, depth, centreHz, feedback, mix, envAmount; };
+    struct Params { int stages, shape; float rate, depth, centreHz, feedback, mix, envAmount, lagMs = 0.0f; };
 
-    void prepare (double sr) { sampleRate = sr; reset(); }
+    void prepare (double sr) { sampleRate = sr; lagBuf.assign ((size_t) (0.012 * sr) + 8, 0.0f); lagPos = 0; reset(); }
 
     void reset()
     {
@@ -3047,18 +3351,25 @@ public:
         phase = 0.0f; fbState = 0.0f; env = 0.0f;
         rndCur = rndTarget = 0.0f;
         noiseState = 777u;
+        std::fill (lagBuf.begin(), lagBuf.end(), 0.0f); lagPos = 0;
     }
 
     void process (float* x, int numSamples, const Params& p)
     {
         const float sr = (float) sampleRate;
+        const float lagSamples = lagBuf.empty() ? 0.0f : std::min ((float) lagBuf.size() - 4.0f, std::max (0.0f, p.lagMs * 0.001f * sr));
         const int   n  = std::min (12, std::max (2, p.stages));
-        const float fb = std::min (0.9f, std::max (-0.9f, p.feedback));
-        const float wetScale = 1.0f - 0.6f * std::abs (fb);   // keeps resonant settings from getting loud
+        const float c  = std::min (0.9f, std::max (-0.9f, p.feedback));    // 10k / R28 into the 2nd stage's inverting input (0 = the first pedals, 0.417 = the later 24k)
+        const float h  = 0.5f * (2.0f + c);                                // half the 2nd stage's gain from its non-inverting side
         const float envAtk = 1.0f - std::exp (-1.0f / (0.005f * sr));
         const float envRel = 1.0f - std::exp (-1.0f / (0.120f * sr));
         const float twoPi = juce::MathConstants<float>::twoPi;
+        // Sweep ends: Centre is the geometric middle, Depth the half-width in octaves (2.5 per unit; the real pedal is about +-1.66, depth 0.66)
+        const float sweepOct = 2.5f * std::min (1.0f, std::max (0.0f, p.depth));
+        const float fLo = std::min (0.45f * sr, std::max (20.0f, p.centreHz * std::exp2 (-sweepOct)));
+        const float fHi = std::min (0.45f * sr, std::max (20.0f, p.centreHz * std::exp2 (sweepOct)));
         float a = 0.0f;
+        float xin[12], ain[12];
 
         for (int i = 0; i < numSamples; ++i)
         {
@@ -3077,7 +3388,7 @@ public:
             if (p.shape == 2)
                 rndCur += 0.002f * (rndTarget - rndCur) * (p.rate > 0.0f ? 1.0f : 0.0f);
 
-            // The sweep is slow, so the LFO shape, exp2 and tan only need refreshing every 4 samples.
+            // The sweep is slow, so the LFO shape and tan only need refreshing every 4 samples.
             if ((i & 3) == 0)
             {
                 float lfo;
@@ -3088,28 +3399,53 @@ public:
                 const float envPush = p.envAmount * (2.0f * std::min (1.0f, env * 8.0f) - 1.0f);
                 const float sweep = std::min (1.0f, std::max (-1.0f, lfo + envPush));
 
-                // All stages share one frequency (as in a classic phaser, where one control voltage moves them all)
-                const float fc = std::min (0.45f * sr, std::max (20.0f, p.centreHz * std::exp2 (sweep * p.depth * 2.0f)));
+                // All stages share one frequency (one control voltage moves them all). The JFET's conductance is linear in that voltage, so is the corner.
+                const float fc = fLo + (fHi - fLo) * (0.5f + 0.5f * sweep);
                 const float t  = std::tan (juce::MathConstants<float>::pi * fc / sr);
                 a = (t - 1.0f) / (t + 1.0f);
             }
 
-            float y = dry + fb * fbState;
-            for (int s = 0; s < n; ++s)
+            // Lag: the feedback arrives a few milliseconds late, which smears and slows the resonant peaks (0 = the plain phaser)
+            float fbIn = fbState;
+            if (lagSamples > 0.01f)
             {
-                const float out = a * y + z[s];
-                z[s] = y - a * out;
-                y = out;
+                const int sz = (int) lagBuf.size();
+                float rp = (float) lagPos - lagSamples;
+                if (rp < 0.0f) rp += (float) sz;
+                const int i0 = (int) rp;  const float fr = rp - (float) i0;
+                fbIn = lagBuf[(size_t) i0 % sz] * (1.0f - fr) + lagBuf[(size_t) (i0 + 1) % sz] * fr;
             }
-            fbState = fastTanh (y);
+            // Each stage is the inverting op-amp all-pass: y = -A (x), A = (a + z^-1) / (1 + a z^-1) (A = +1 at DC, -1 at high frequencies).
+            // The 2nd stage also takes -c * (last output): y2 = (c/2) x - h * A (x) - c * yN, with h = 1 + c/2.
+            // yN is affine in y2 (yN = P * y2 + O) through the stages after it, so the loop is solved in closed form.
+            float yv = dry;
+            xin[0] = yv;  ain[0] = a * yv + z[0];  yv = -ain[0];                    // 1st stage
+            xin[1] = yv;  ain[1] = a * yv + z[1];                                  // 2nd stage (takes the feedback)
+            const float base = 0.5f * c * yv - h * ain[1];
+            float ym;
+            if (lagSamples > 0.01f)
+                ym = base - c * fbIn;                                              // Lag: the feedback arrives late, no loop to solve
+            else
+            {
+                float P = 1.0f, O = 0.0f;
+                for (int s = 2; s < n; ++s) { P *= -a; O = -a * O - z[s]; }
+                ym = (base - c * O) / (1.0f + c * P);                              // |c * P| <= 0.9, so never singular
+            }
+            yv = ym;
+            for (int s = 2; s < n; ++s) { xin[s] = yv; ain[s] = a * yv + z[s]; yv = -ain[s]; }
+            for (int s = 0; s < n; ++s) z[s] = xin[s] - a * ain[s];
+            fbState = yv;
+            if (! lagBuf.empty()) { lagBuf[(size_t) lagPos] = fbState; if (++lagPos >= (int) lagBuf.size()) lagPos = 0; }
 
-            x[i] = dry * (1.0f - p.mix) + p.mix * wetScale * y;
+            x[i] = dry * (1.0f - p.mix) + p.mix * yv;
         }
     }
 
 private:
     double sampleRate = 44100.0;
     float z[12] {};
+    std::vector<float> lagBuf;
+    int lagPos = 0;
     float phase = 0.0f, fbState = 0.0f, env = 0.0f, rndCur = 0.0f, rndTarget = 0.0f;
     uint32_t noiseState = 777u;
 };
@@ -3127,7 +3463,7 @@ class FdnReverb
 {
 public:
     static constexpr int N = 8;
-    static constexpr int kTypes = 9;
+    static constexpr int kTypes = 16;
 
     void prepare (double sr)
     {
@@ -3156,7 +3492,7 @@ public:
     //   mod     0..1 : more movement in the tail (depth and speed of the line modulation)
     struct Extra { float diffuse = 0.5f, space = 1.0f, dragSemis = 0.0f, mod = 0.0f; };
 
-    // type 1..9 (0 is the classic reverb, handled elsewhere); size, damp 0..1
+    // type 1..11 (0 is the classic reverb, handled elsewhere): 10 Chorale (vowel formants sweep through the tail), 11 Nonlinear (gated); size, damp 0..1
     // decaySeconds: the time for the tail to fall by 60 dB. Longer decays also use longer delay
     // lines (up to 2.5x), so the space gets bigger as well as longer.
     void setParams (int type, float decaySeconds, float damp, float width, bool freezeOn) { setParams (type, decaySeconds, damp, width, freezeOn, Extra()); }
@@ -3187,7 +3523,10 @@ public:
         modDepth = c.modMs * 0.001f * sampleRate * (1.0f + 4.0f * ex.mod);
         modInc = 6.2831853f * c.modHz * (1.0f + ex.mod) / sampleRate;
         early = c.early;
-        static const float trims[kTypes] = { 0.55f, 0.65f, 0.45f, 0.60f, 0.75f, 0.60f, 0.50f, 0.65f, 0.60f };   // roughly equal loudness
+        chorale = type == 10;
+        gated = type == 11;
+        gateHold = (int) (sampleRate * std::min (0.9f, 0.12f + 0.22f * rt60));
+        static const float trims[kTypes] = { 0.55f, 0.65f, 0.45f, 0.60f, 0.75f, 0.60f, 0.50f, 0.65f, 0.60f, 0.42f, 0.55f, 0.42f, 0.38f, 0.60f, 0.60f, 0.55f };   // roughly equal loudness
         trim = trims[std::max (1, std::min (kTypes, type)) - 1];
         for (int i = 0; i < 4; ++i)
             apLen[i] = std::max (1, std::min ((int) (c.apMs[i] * 0.001f * sampleRate), (int) ap[i].buf.size() - 2));
@@ -3256,6 +3595,43 @@ public:
         const float mid = 0.5f * (l + r), side = 0.5f * (l - r) * wideness;
         outL = (mid + side) * trim;
         outR = (mid - side) * trim;
+
+        if (chorale)
+        {
+            // two band-pass formants that glide through a, o, u, i: the tail sings a slow vowel
+            fPhase += 0.09f / sampleRate;  if (fPhase >= 1.0f) fPhase -= 1.0f;
+            static const float f1[4] = { 730.0f, 570.0f, 300.0f, 270.0f }, f2[4] = { 1090.0f, 840.0f, 870.0f, 2290.0f };
+            const float pos = fPhase * 4.0f;
+            const int a = (int) pos & 3, b = (a + 1) & 3;
+            float t = pos - std::floor (pos);  t = t * t * (3.0f - 2.0f * t);
+            const float fc1 = f1[a] + t * (f1[b] - f1[a]), fc2 = f2[a] + t * (f2[b] - f2[a]);
+            const float g1 = 2.0f * std::sin (3.14159265f * fc1 / sampleRate), g2 = 2.0f * std::sin (3.14159265f * fc2 / sampleRate);
+            const float kq = 0.22f;
+            float in2[2] = { outL, outR }, res[2];
+            for (int ch = 0; ch < 2; ++ch)
+            {
+                float x = in2[ch], sum = 0.0f;
+                for (int f = 0; f < 2; ++f)
+                {
+                    auto& st = fs[ch][f];
+                    const float g = f == 0 ? g1 : g2;
+                    st.lo += g * st.bd;
+                    const float hi = x - st.lo - kq * st.bd;
+                    st.bd += g * hi;
+                    sum += kq * st.bd * (f == 0 ? 1.0f : 0.8f);
+                }
+                res[ch] = 0.4f * x + 2.4f * sum;
+            }
+            outL = res[0];  outR = res[1];
+        }
+        else if (gated)
+        {
+            // a gated tail: it holds at full level for a while after the last loud note, then drops away quickly
+            if (std::abs (in) > 0.02f) gateTimer = gateHold;
+            if (gateTimer > 0) { --gateTimer; gateGain += 0.01f * (1.0f - gateGain); }
+            else gateGain *= 0.9990f;
+            outL *= gateGain;  outR *= gateGain;
+        }
     }
 
 private:
@@ -3274,6 +3650,13 @@ private:
             { 14.0f, 2.40f, 11000.0f, 3000.0f, 0.80f, 0.35f, 0.60f, 0.00f, { 2.0f, 3.3f, 5.1f, 7.7f } },   // 7 Soft Plate: dense and moving
             { 18.0f, 2.00f,  6500.0f, 1800.0f, 0.12f, 0.60f, 0.25f, 0.12f, { 3.7f, 6.1f, 8.9f, 12.7f } },  // 8 Tumble: echoes that tumble over each other
             { 55.0f, 9.00f,  6000.0f,  900.0f, 0.75f, 1.10f, 0.15f, 0.00f, { 6.1f, 9.3f, 13.7f, 19.0f } }, // 9 Abyss: huge, dark, drifting
+            { 28.0f, 3.20f,  9000.0f, 3000.0f, 0.72f, 0.40f, 0.35f, 0.00f, { 3.7f, 6.3f, 9.1f, 13.3f } },  // 10 Chorale: a lush hall that sings vowels
+            { 15.0f, 1.20f, 12000.0f, 4500.0f, 0.82f, 0.08f, 0.30f, 0.08f, { 2.1f, 3.5f, 5.3f, 7.7f } },   // 11 Nonlinear: dense and bright, then gated
+            { 55.0f, 9.00f,  6000.0f,  900.0f, 0.75f, 1.10f, 0.15f, 0.00f, { 6.1f, 9.3f, 13.7f, 19.0f } }, // 12 (unused: the choice list has the IR Reverb here)
+            { 62.0f, 14.0f,  9500.0f, 2200.0f, 0.84f, 1.40f, 0.12f, 0.00f, { 4.9f, 8.3f, 12.7f, 17.9f } }, // 13 Black Hole: enormous, ultra-dense, slowly swirling
+            { 14.0f,  1.20f, 12000.0f, 4000.0f, 0.78f, 0.08f, 0.35f, 0.45f, { 2.3f, 3.7f, 5.9f, 8.3f } },  // 14 Reverse: a short dense plate that smooths the reversed grains
+            { 26.0f, 2.80f,  8500.0f, 2500.0f, 0.72f, 0.45f, 0.30f, 0.00f, { 3.5f, 5.9f, 8.7f, 12.3f } },  // 15 ModEcho: a lush hall behind the echoes
+            { 30.0f, 3.50f,  7000.0f, 1500.0f, 0.80f, 0.70f, 0.50f, 0.00f, { 4.3f, 7.1f, 10.3f, 14.9f } }, // 16 Mangled: dense and dark, the mangling happens around it
         };
         return table[std::max (1, std::min (kTypes, type)) - 1];
     }
@@ -3292,6 +3675,10 @@ private:
     bool lenInit = false, lenMoving = false;
     float dampCoef = 0.5f, diff = 0.6f, modDepth = 0.0f, modInc = 0.0f, phase = 0.0f, early = 0.0f, inGain = 1.0f, wideness = 1.0f, trim = 0.5f;
     float outLp[2] {};
+    bool chorale = false, gated = false;
+    float fPhase = 0.0f, gateGain = 0.0f;
+    int gateTimer = 0, gateHold = 1;
+    struct Formant { float lo = 0.0f, bd = 0.0f; } fs[2][2];
 };
 
 //==============================================================================
@@ -3446,8 +3833,73 @@ private:
     int attack = 0, sound = 0;
 };
 
+//==============================================================================
+// One reverb unit (b12): everything the reverb block keeps between blocks. The processor has two (Reverb 1 and Reverb 2).
+//==============================================================================
+struct ReverbUnit
+{
+    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> reverbPreDelay;
+    juce::SmoothedValue<float> reverbPreSmooth;                      // in samples
+    float revDrvHp = 0.0f, revDrvLp = 0.0f;                          // spring driver state
+    juce::dsp::IIR::Filter<float> revHp[2], revLp[2];                // low cut and high cut on the wet signal
+    float lastRevHp = -1.0f, lastRevLp = -1.0f;
+    float duckEnv = 0.0f;
+    float revWetSmooth = 0.0f;
+    juce::Reverb shimmerReverb;           // the "Classic" reverb type
+    FxExtra::SpringTank springTank;       // b32: the Spring (tank) type
+    FxExtra::SpringReturn springReturn;   // b33: the amp-style driver and return around either Spring type
+    FdnReverb fdnReverb;                  // the Room / Hall / Plate / Ambient / Cathedral / Spring ... types
+    int  lastRevType = -1;
+    bool revIdle = false;                 // true while the reverb is skipped (off, or mix at 0)
+    GuitarShifter shimmerShifters[2];     // the shimmer's two pitch voices
+    float shimmerLfo[2] { 0.0f, 0.37f };  // slow detune drift
+    bool  shimmerWasOn = false;
+    float shimmerLast = 0.0f, shimmerLpState = 0.0f, shimmerHpState = 0.0f;
+    std::vector<float> shimmerBelowBuf[2];  int shimmerBelowW = 0;      // v97: delay for the octave-down voice(s)
+    WetEnsemble wetEnsemble;
+    GuitarShifter symphShifter;           // the reverb's "symphony" layer (an octave or so of the tail)
+    bool symphWasOn = false;
+    float bloomGain = 1.0f;
+    float gravGain = 1.0f, gravT = 0.0f;  bool gravWasActive = false;     // Black Hole gravity
+    // b12: Reverse type (overlapping reversed grains of the send), wet drive, focus filter and wet tremolo
+    std::vector<float> revHist;  int revHistW = 0, revHistMask = 0;
+    int revGrainStart[2] { 0, 0 }, revGrainAge[2] { 0, 0 }, revGrainLen[2] { 1, 1 }, revHop = 0, revNextGrain = 0;
+    float crushHold = 0.0f;  int crushCount = 0;
+    float svf1[2] { 0.0f, 0.0f }, svf2[2] { 0.0f, 0.0f };
+    float tremPhase = 0.0f;
+    // b13: ModEcho (modulated feedback echo into the reverb) and Mangled (distorted feedback around the reverb)
+    std::vector<float> echoBuf;  int echoW = 0, echoMask = 0;
+    float echoLp = 0.0f, echoLfo = 0.0f;
+    float mangleFb = 0.0f, mangleHp = 0.0f, mangleLp = 0.0f, mangleHold = 0.0f;  int mangleCount = 0;
+    void prepareExtra (double sr)
+    {
+        int n = 1;
+        while ((double) n < 2.6 * sr) n <<= 1;
+        revHist.assign ((size_t) n, 0.0f);  revHistMask = n - 1;
+        { int e = 1; while ((double) e < 2.1 * sr) e <<= 1;  echoBuf.assign ((size_t) e, 0.0f);  echoMask = e - 1; }
+        shimmerBelowBuf[0].assign (32768, 0.0f);  shimmerBelowBuf[1].assign (32768, 0.0f);  shimmerBelowW = 0;
+        springTank.prepare (sr);
+        springReturn.prepare (sr);
+        resetExtra();
+    }
+    void resetExtra()
+    {
+        springTank.reset();
+        springReturn.reset();
+        std::fill (revHist.begin(), revHist.end(), 0.0f);
+        revHistW = 0;  revHop = 0;  revNextGrain = 0;
+        for (int g = 0; g < 2; ++g) { revGrainStart[g] = 0; revGrainAge[g] = 1; revGrainLen[g] = 1; }
+        crushHold = 0.0f;  crushCount = 0;
+        svf1[0] = svf1[1] = svf2[0] = svf2[1] = 0.0f;
+        tremPhase = 0.0f;
+        std::fill (echoBuf.begin(), echoBuf.end(), 0.0f);  echoW = 0;  echoLp = 0.0f;  echoLfo = 0.0f;
+        mangleFb = mangleHp = mangleLp = mangleHold = 0.0f;  mangleCount = 0;
+    }
+};
+
 class StarterAmpProcessor : public juce::AudioProcessor,
                             private juce::AsyncUpdater,
+                            private juce::Timer,
                             private juce::AudioProcessorValueTreeState::Listener
 {
 public:
@@ -3458,6 +3910,9 @@ public:
     void releaseResources() override {}
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    void processBlockChunk (juce::AudioBuffer<float>&, juce::MidiBuffer&);   // the real work; never more than the prepared block size
+    int preparedBlockSize = 512;
+    juce::MidiBuffer emptyMidi;
 
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
@@ -3479,7 +3934,7 @@ public:
     bool hasPendingRefresh() const
     {
         for (int s = 0; s < kCabBlocks; ++s) if (slotDirty[s].load()) return true;
-        return asyncBusy.load() || namDirty.load() || latencyDirty.load() || pendingProgram.load() >= 0;
+        return asyncBusy.load() || asyncWanted.load() || namDirty.load() || latencyDirty.load() || pendingProgram.load() >= 0;
     }
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
@@ -3491,6 +3946,8 @@ public:
     // 'allowAutoAlign' is true when the user loads a file (not when a session is restored),
     // so a restored session keeps the delay and polarity settings it was saved with.
     void loadIR (const juce::File& file, int slot, bool allowAutoAlign = false);
+    bool loadReverbIr (const juce::File& file, juce::String& message);      // v0.2: the IR reverb's own file (message thread)
+    juce::String getReverbIrName() const { return juce::File (apvts.state.getProperty ("reverbIrPath").toString()).getFileNameWithoutExtension(); }
     juce::String getIRName (int slot) const;
 
     // Phase alignment of the two IRs: finds the time offset and polarity at which
@@ -3548,6 +4005,19 @@ public:
         }
     };
     std::atomic<bool> toneListening { false };    // set by the tone-matching window while it is listening (fills preEqTap)
+    // b34: DI Match. The learned curve of your playing (measured before the Transpose) and a loaded reference DI live here; the editor
+    // starts and stops learning and loads references, the audio thread does the measuring and the correction.
+    std::atomic<bool> diLearn { false };          // set by the DI Match panel; the audio thread clears it again after about 25 seconds
+    std::atomic<int>  diFrames { 0 };             // frames measured so far in this learning run
+    std::atomic<int>  diStatus { 0 };             // DiMatch::Status of the current settings
+    bool diGetSource (DiMatch::Shape& s, float& lvl) const { const juce::SpinLock::ScopedLockType l (diLock); s = diSrc; lvl = diSrcLvl; return diHaveSrc; }
+    bool diGetReference (DiMatch::Shape& s, float& lvl, juce::String& name) const { const juce::SpinLock::ScopedLockType l (diLock); s = diRef; lvl = diRefLvl; name = diRefName; return diHaveRef; }
+    void diSetReference (const DiMatch::Shape& s, float lvl, const juce::String& name)
+    { const juce::SpinLock::ScopedLockType l (diLock); diRef = s; diRefLvl = lvl; diRefName = name; diHaveRef = true; ++diVersion; }
+    void diClearSource()    { const juce::SpinLock::ScopedLockType l (diLock); diHaveSrc = false; ++diVersion; }
+    void diClearReference() { const juce::SpinLock::ScopedLockType l (diLock); diHaveRef = false; diRefName = {}; ++diVersion; }
+    void diSaveToState (juce::ValueTree& state) const;
+    void diLoadFromState (const juce::ValueTree& state);
     std::atomic<bool> analyserWanted { false };   // set by the spectrum display while it is on screen
 
     // Level meters (the highest sample since the display last asked; the display reads and resets them),
@@ -3571,7 +4041,15 @@ private:
     // and room controls) and loaded the same way as a file IR.
     void parameterChanged (const juce::String& id, float) override;
     void handleAsyncUpdate() override;
+    void timerCallback() override;
+    // The audio thread must not call triggerAsyncUpdate() (it can block on the message system), so it sets a flag
+    // and a message-thread timer picks it up.
+    void requestAsync() noexcept { asyncWanted.store (true, std::memory_order_release); }
+    std::atomic<bool> asyncWanted { false };
+    std::atomic<int>  osModePub { 0 };
+    std::atomic<int>  osLatPub[2] { { 0 }, { 0 } };
     void refreshSlot (int slot, bool force);
+    std::atomic<bool> alignWanted { false };   // set when a cab block changed; handleAsyncUpdate then reruns Auto Align if it is on
     void refreshAllSlots();
     std::atomic<bool> slotDirty[kCabBlocks] {};
     std::atomic<bool> slotForce[kCabBlocks] {};
@@ -3582,13 +4060,22 @@ private:
     // about 150 values per block, so the result is cached per thread in a small table that is checked
     // by owner, address and spelling. If anything does not match, it falls back to the slow lookup.
     const std::uint64_t paramCacheId = []{ static std::atomic<std::uint64_t> n { 0 }; return ++n; }();   // unique per instance, so a new plugin at a reused address never sees stale entries
+    // Joins two short names in a caller-supplied buffer (no heap use), for building IDs such as "od2Gain" on the audio thread.
+    static const char* cat (char (&buf)[64], const char* a, const char* b)
+    {
+        std::size_t n = 0;
+        for (const char* s : { a, b }) for (; *s != 0 && n < 63; ++s) buf[n++] = *s;
+        buf[n] = 0;
+        return buf;
+    }
     float param (const char* id) const
     {
         struct Entry { std::uint64_t owner = 0; const char* key = nullptr; const std::atomic<float>* p = nullptr; char name[40] {}; };
         thread_local Entry table[512];
-        const auto h = (std::size_t) (((std::uintptr_t) id >> 3) * 2654435761u) & 511u;
-        Entry& e = table[h];
-        if (e.owner == paramCacheId && e.key == id && e.p != nullptr && std::strcmp (e.name, id) == 0)
+        std::uint32_t hv = 2166136261u;                       // hashed by spelling, so a name built on the stack each call still hits
+        for (const char* c = id; *c != 0; ++c) hv = (hv ^ (std::uint8_t) *c) * 16777619u;
+        Entry& e = table[hv & 511u];
+        if (e.owner == paramCacheId && e.p != nullptr && std::strcmp (e.name, id) == 0)
             return e.p->load();
         auto* raw = apvts.getRawParameterValue (id);
         if (std::strlen (id) < sizeof (e.name))
@@ -3634,12 +4121,19 @@ private:
 
     using Filter       = juce::dsp::IIR::Filter<float>;
     using Coeffs       = juce::dsp::IIR::Coefficients<float>;
+    using ArrCo        = juce::dsp::IIR::ArrayCoefficients<float>;     // same maths, no allocation when assigned into an existing Coefficients
     using StereoFilter = juce::dsp::ProcessorDuplicator<Filter, Coeffs>;
 
     PickupDeNoise deNoise;                // hum notches + dynamic hiss filter, ahead of the gate
     NoiseGate gate;
     juce::dsp::Convolution conv[kCabBlocks];                 // the cab: up to four blocks (IRs)
     juce::dsp::Convolution auditionConv;                     // v70: the IR library's audition path
+    juce::dsp::Convolution irRevConv;                        // v0.2: the IR reverb type (loaded file or generated response)
+    juce::AudioBuffer<float> irRevBuf, irRevRaw, irRevShaped;
+    std::vector<float> irRevPre;
+    double irRevRawRate = 48000.0;
+    juce::String irRevRawPath, irRevSig;                     // message thread only
+    void rebuildIrReverb();
     juce::AudioBuffer<float> auditionBuf;
     std::atomic<bool> auditionOn { false }, auditionLoaded { false };
     juce::AudioBuffer<float> cabBuffers[kCabBlocks];         // one scratch copy of the signal per block
@@ -3668,23 +4162,25 @@ private:
     juce::dsp::Reverb reverb;             // (no longer used: the reverb below does both normal and shimmer)
 
     // Reverb extras: pre-delay, wet filters, ducking
-    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> reverbPreDelay;
-    juce::SmoothedValue<float> reverbPreSmooth;                      // in samples
-    float revDrvHp = 0.0f, revDrvLp = 0.0f;                          // spring driver state
-    juce::dsp::IIR::Filter<float> revHp[2], revLp[2];                // low cut and high cut on the wet signal
-    float lastRevHp = -1.0f, lastRevLp = -1.0f;
-    float duckEnv = 0.0f;
-    float revWetSmooth = 0.0f;
 
     Doubler doubler;                      // after the textures, before the post-amp delay
     Widener widener;                      // after the reverb, before the output level
     bool dblWasOn = false, widWasOn = false;
     float lastWidLevel = 1.0f;
     Tremolo tremolo;                      // texture effects, after the Post EQ
+    FxExtra::FilterFx filterFx;  FxExtra::VolumePanFx volPanFx;  FxExtra::MultibandCompFx mbComp;  FxExtra::GateExpFx gateFx;   // b15
+    bool filtWasOn = false, vpWasOn = false, mbWasOn = false, gxWasOn = false;
+    Looper looper;                         // b16
+    float loopInPk = 0.0f, loopPrev[4] = {};
+    bool  loopPrimed = false;
+    int   loopParamIndex[4] = { -1, -1, -1, -1 };
     Wobble  wobble;
     Swell   swell;
     Granular granular;
     std::vector<float> swellGains;
+    Tremolo ampTrem;  std::vector<float> tremDip, tremEnvIn;  float tremEnvState = 0.0f;     // b7: tremolo inside the amp
+    juce::AudioBuffer<float> midSave;  bool ampTremWasOn = false;
+    bool tremInAmp = false;  float tremInDepth = 0.0f, tremInPick = 0.0f;
     bool tremWasOn = false, wobWasOn = false, swellWasOn = false, granWasOn = false;
 
     // LFO rate in Hz: its own Rate knob, or a note value at the tempo (the note's length is one LFO cycle).
@@ -3704,13 +4200,25 @@ private:
 
     // Shimmer mode: its own reverb (run one sample at a time, so the feedback
     // loop is sample-accurate) plus a pitch shifter in the feedback path.
-    juce::Reverb shimmerReverb;           // the "Classic" reverb type
     OutputLimiter limiter;
     Transposer transposer;                // pitch shift at the start of the chain
+    // b34: DI Match (after the Transpose)
+    DiMatch::Engine diEngine;
+    DiMatch::Analyzer diAnalyzer;
+    std::vector<float> diFrame = std::vector<float> ((size_t) DiMatch::Analyzer::size, 0.0f);
+    int diFrameFill = 0;  bool diWasLearn = false;
+    mutable juce::SpinLock diLock;
+    DiMatch::Shape diSrc {}, diRef {};  float diSrcLvl = -18.0f, diRefLvl = -18.0f;  bool diHaveSrc = false, diHaveRef = false;
+    juce::String diRefName;
+    std::atomic<uint32_t> diVersion { 1 };
     ChugGate chugGate;                    // fast gate after the preamp (modern metal controls)
 
     // Pitch pedal and octaver (v41)
     Transposer wowT, octV1, octV2;
+    GuitarSynth synth;  bool synWasOn = false;                // v0.2
+public:
+    int synthNote() const { return synth.shownNoteNumber(); }
+private:
     HarmonizerEngine harm;                       // v52
 public:
     RiffRecorder riff;                           // v52
@@ -3742,12 +4250,15 @@ private:
     // It is defined in PluginProcessor.cpp (it needs the voicing tables there).
     struct ParallelAmp;
     std::unique_ptr<ParallelAmp> ampB;
-    std::unique_ptr<Tube::LeadFiftyCircuit> circuitA;   // v79: whole-amp circuit model (see TubeAmps.h)
-    bool circuitWasActive = false;
     juce::AudioBuffer<float> ampBBuf;     // Amp B's output (mono)
+    std::unique_ptr<ParallelAmp> ampC, ampD;      // v0.2 Triple Blend (amp 31): parts two and three (part one is Amp A's own engine)
+    juce::AudioBuffer<float> ampCBuf, ampDBuf;
+    bool  blendWasOn = false;
+    float lastBlendGain = 1.0f;
     bool  ampBWasOn = false;
     float lastALevel = 1.0f;
     juce::AudioBuffer<float> tpBuf;       // scratch for the transposer's wet signal
+    std::vector<float> gateKey;  bool gateKeyOk = false;     // b34: the Gate pedal's input key
     StereoFilter fmtCut1, fmtBoost1, fmtCut2, fmtBoost2;   // the EQ-style "formant" shift
     StereoFilter metalFizz, metalDepth;   // modern metal: fizz low-pass and low-end depth
     float fmtGainDb = 0.0f;
@@ -3756,13 +4267,6 @@ private:
     std::atomic<int> tpLatency { 0 };
     std::atomic<int> limLatency { 0 };
     bool limWasOn = false;
-    FdnReverb fdnReverb;                  // the Room / Hall / Plate / Ambient / Cathedral / Spring types
-    int  lastRevType = -1;
-    bool revIdle = false;                 // true while the reverb is skipped (off, or mix at 0)
-    GuitarShifter shimmerShifters[2];     // the shimmer's two pitch voices
-    float shimmerLfo[2] { 0.0f, 0.37f };  // slow detune drift
-    bool  shimmerWasOn = false;
-    float shimmerLast = 0.0f, shimmerLpState = 0.0f, shimmerHpState = 0.0f;
 
     // v93: everything one drive pedal needs. Drive 1 (d1) is the original; Drive 2 (d2) is a full copy for stacking or running in parallel.
     // osA / osB are extra oversamplers (4x and 2x, like the amp's) used only when the drive runs on its own (Drive 2, or Drive 1 in parallel).
@@ -3778,6 +4282,7 @@ private:
         Circuit::NewPedals newPed;
         Circuit::KlonCircuit klon;
         Circuit::Ds1Circuit ds1;
+        Circuit::OcdCircuit ocd;
         float odCircPeak = 1.0f;
         bool  odCircRailMode = false;
         juce::dsp::Oversampling<float> osA { 1, 2, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true };
@@ -3791,7 +4296,7 @@ private:
     // Upsampled dry copy for the Mix knob (nullptr when Mix is 1). m = its length. Blends it into y (m samples): y = mix * y + (1 - mix) * dry.
     void blendDriveDry (DriveState& d, float* y, int m, int numSamples, float mix);
     juce::AudioBuffer<float> drivePar;     // scratch copy for the parallel route
-    int  frontDrive = 0;  bool frontOn = true, seriesBoth = false, parallelBoth = false;
+    int  frontDrive = 0;  bool frontOn = true, seriesBoth = false, parallelBoth = false;  bool driveMoved[2] = { false, false };
     void resolveDriveRoute();
     int  driveCode (int which);
     void updateDrive (int which);                                              // refresh one drive's filters and circuits from its parameters
@@ -3825,6 +4330,7 @@ private:
     std::vector<float> lastParamVals;
     bool paramsChanged();
     int  osLatencySamples() const;
+    std::atomic<bool> acousticNoOs { false };     // v0.2: the Acoustic amp does not run through the amp oversampler, so it reports no delay for it
 public:
     // Writes the current cab blend (the active blocks with their level, pan, delay, polarity, filters, EQ,
     // resonance and phase, and the cab-wide filters) as a stereo 24-bit WAV file at 48 kHz. Returns a message.
@@ -3867,12 +4373,30 @@ public:
     // blocks, numbered in the default order. The list says which block runs first, second, and so on.
     //   group 0: 0 Fuzz, 1 Compressor, 2 Wah, 3 Phaser, 4 Chorus, 5 Pre-amp delay
     //   group 1: 0 Post EQ, 1 Textures (tremolo, wobble, swell fade, granular), 2 Doubler, 3 Post-amp delay, 4 Reverb, 5 Widener
-    static constexpr int kFxBlocks = 6;
+    // b8: every effect below can sit Before the amp (group 0), After the cab (group 1) or In the amp's FX loop (group 2).
+    // Block numbers (the same in all three groups): 0 Fuzz, 1 Compressor, 2 Wah, 3 Phaser, 4 Chorus, 5 Pre-amp delay,
+    // 6 Mod FX A, 7 Mod FX B, 8 Post EQ, 9 Wobble + Swell, 10 Doubler (after the cab only), 11 Post-amp delay, 12 Reverb,
+    // 13 Widener (after the cab only), 14 Tremolo. A block runs in the group its location setting names; each group's
+    // list gives the order of the blocks that sit there.
+    static constexpr int kFxBlocks = 27;   // b23: 20 Lo-Fi, 21 Boost (movable); 22 Drive 1, 23 Drive 2 (not movable yet)
+    static constexpr int kFxGroups = 3;
+    Looper& getLooper() { return looper; }
+    int fxLocation (int block) const;                    // 0 = before the amp, 1 = after the cab, 2 = in the amp's loop
+    bool fxCanMove (int block) const { return block != 10 && block != 13; }
+    void moveFxBlockTo (int block, int toGroup, int visiblePosition, int row);   // cross-group move: sets the location and the place in that list
     static const char* fxName (int group, int block);
     std::array<int, kFxBlocks> getFxOrder (int group) const;
     void setFxOrder (int group, const std::array<int, kFxBlocks>& order);
     void moveFxBlock (int group, int fromPosition, int toPosition);
     void resetFxOrder();
+    // v0.1 pedalboard: each block can sit on the main rail (0) or a parallel rail (1) of its group; the rails are crossfaded by the group's Row Balance
+    int  getFxRow (int group, int block) const { return fxRow[juce::jlimit (0, kFxGroups - 1, group)][juce::jlimit (0, kFxBlocks - 1, block)].load(); }
+    void setFxRow (int group, int block, int row);
+    void placeFxBlock (int group, int block, int toPosition, int row);      // move to a position and set its rail in one step
+    // b9: a pedal on the lower rail is its own parallel branch (fed from the lane's input). Per-pedal level, polarity and (after the cab) pan.
+    static bool fxHasBranchControls (int block) { return block >= 0 && block < kFxBlocks && block != 10 && block != 13; }
+    static juce::String fxBranchId (const char* kind, int block) { return juce::String (kind) + juce::String (block); }   // kind: fxLvl, fxPan, fxPol
+    bool fxBlockOn (int block) const;
 
     // ---- Presets (a preset keeps the sound and the effect order, but not the MIDI mappings) ----
     void getPresetData (juce::MemoryBlock& destData);
@@ -3934,12 +4458,18 @@ private:
     BoostStage boost;
     juce::AudioBuffer<float> boostDry;       // v94: the dry copy for the Boost Mix knob
     bool boostWasOn = false;
-    ModFx modFx[2];
-    bool modWasOn[2] { false, false };
-    WetEnsemble wetEnsemble;
-    GuitarShifter symphShifter;           // the reverb's "symphony" layer (an octave or so of the tail)
-    bool symphWasOn = false;
-    float bloomGain = 1.0f;
+    ModFx modFx[4];                                  // b28: four mod slots (A to D)
+    bool modWasOn[4] { false, false, false, false };
+    Wobble modWobble[4];
+    bool modWobWasOn[4] { false, false, false, false };
+    BbdChorus chorusSlot[4];                         // b28: the Chorus, Phaser and Lo-Fi types of a slot have their own processors
+    Phaser phaserSlot[4];
+    LoFiWarble lofiSlot[4];
+    FxExtra::FilterFx filterSlot[4];                 // b29: the Filter and Slicer types of a slot
+    FxExtra::SlicerFx slicerSlot[4];
+    int modKind[4] { -1, -1, -1, -1 };
+    static constexpr const char* modOnId[4]   = { "mfAOn", "mfBOn", "mfCOn", "mfDOn" };
+    static constexpr const char* modTypeId[4] = { "mfAType", "mfBType", "mfCType", "mfDType" };
 
 
     // Last block's gains, so we can ramp smoothly (no zipper noise).
@@ -3947,7 +4477,28 @@ private:
     Circuit::DynaComp dyna;                 // v93: Comp style Dyna (OTA)
     AutoLeveler fuzzLeveler, fuzzLeveler2, eqLeveler;       // the Fuzz and Post EQ "Auto level" options
     // Effect order, A/B, undo
-    std::atomic<int> fxOrder[2][kFxBlocks];
+    std::atomic<int> fxOrder[kFxGroups][kFxBlocks];
+    std::atomic<int> fxRow[kFxGroups][kFxBlocks];
+    std::atomic<float>* fxLocPtr[kFxBlocks] = {};
+    std::atomic<float>* fxLvlPtr[kFxBlocks] = {};
+    std::atomic<float>* fxPanPtr[kFxBlocks] = {};
+    std::atomic<float>* fxPolPtr[kFxBlocks] = {};
+    std::atomic<float>* fxOnPtr[kFxBlocks][2] = {};
+    // b10: split / merge per lane (how the lower row is fed and merged)
+    std::atomic<float>* laneSplitPtr[kFxGroups] = {};
+    std::atomic<float>* laneXoverPtr[kFxGroups] = {};
+    std::atomic<float>* laneBLvlPtr[kFxGroups] = {};
+    std::atomic<float>* laneBPanPtr[kFxGroups] = {};
+    std::atomic<float>* laneBPolPtr[kFxGroups] = {};
+    std::atomic<float>* laneRegStartPtr[kFxGroups] = {};   // b25: where each lane's parallel section starts and ends
+    std::atomic<float>* laneRegEndPtr[kFxGroups] = {};
+    juce::dsp::LinkwitzRileyFilter<float> laneXover[kFxGroups];
+    bool laneXoverActive[kFxGroups] = {};
+    ReverbUnit revU[2];
+    std::atomic<bool> loopHopOn { false };       // b8: the amp is split in two (preamp, then the loop's effects, then the power stage)
+    juce::AudioBuffer<float> railIn, railMain;     // the parallel rails: the group's input, and the main rail's result
+    juce::String fxRowToString (int group) const;
+    void fxRowFromString (int group, const juce::String& text);
     juce::String fxOrderToString (int group) const;
     void fxOrderFromString (int group, const juce::String& text);
     void saveState (juce::MemoryBlock& destData, bool withMidi);
@@ -3977,6 +4528,7 @@ private:
     std::vector<float> autoRef;               // scratch: channel 0 before the effect being levelled
     float lastAmpGain1 = 1.0f, lastAmpGain2 = 1.0f, lastAmpGain3 = 1.0f, lastAmpTrim = 1.0f;
     float sagEnv[2] = { 0.0f, 0.0f };   // power-amp sag detector
+    std::vector<float> hybridScratch;   // Hybrid mode: the classic power curve's result
     PowerSection::Params psParamsA;  PowerSection::Chain psChainA;  PowerSection::Supply psSupplyA;  float psFbLastA = 0.0f;   // v83
     TweedTone tweedA;                     // v93: the tweed combo's single Tone control
     PassiveStack passiveA;                // v81: true passive tone stacks (Amp A)
@@ -3985,6 +4537,7 @@ private:
     // Acoustic / piezo model
     StereoFilter acHp, acQuack, acBright, acHollow, acBodyLp, acWarm, acSpark;
     StereoFilter acBody[5];
+    float acAirLp[2] = { 0.0f, 0.0f };
     std::vector<float> acRoomBuf[2];
     float acRoomLp[2] = { 0.0f, 0.0f };
     int   acRoomPos = 0;

@@ -11,7 +11,7 @@ cmake -B build -G Xcode
 cmake --build build --config Release
 ```
 
-Open `build/StarterAmpV92_artefacts/Release/Standalone/Starter Amp v92.app`. The VST3 and AU versions are in the same `StarterAmpV92_artefacts/Release` folder (`VST3` and `AU`). The build does not install them for you: copy the `.vst3` to `~/Library/Audio/Plug-Ins/VST3` and the `.component` to `~/Library/Audio/Plug-Ins/Components`, then rescan plug-ins in your DAW. If the build prints errors, copy them as they are and send them to me.
+Open `build/StarterAmp_artefacts/Release/Standalone/Starter Amp v0.1.app`. The VST3 and AU versions are in the same `StarterAmp_artefacts/Release` folder (`VST3` and `AU`). The build does not install them for you: copy the `.vst3` to `~/Library/Audio/Plug-Ins/VST3` and the `.component` to `~/Library/Audio/Plug-Ins/Components`, then rescan plug-ins in your DAW. If the build prints errors, copy them as they are and send them to me.
 
 **Before you play:** use headphones and keep the OUTPUT level low while you turn up the gain. The standalone app asks for your audio interface and microphone permission the first time.
 
@@ -30,12 +30,12 @@ Open `build/StarterAmpV92_artefacts/Release/Standalone/Starter Amp v92.app`. The
 
 Open the **AMP** tab.
 
-1. **Pick the amp** (the top menu of the AMP panel). Fourteen electric amps plus an acoustic model. Quick guide:
-   - Clean tones: **Clean**, **Glass Clean**, **Vintage Chime**
-   - Crunch and classic rock: **Classic Rock**, **Low-Watt Combo**, **Boutique Lead**
-   - Modern high gain: **Precision High-Gain**, **Tight Metal**, **Creamy Lead**, **Modern High-Gain**
-   - Extreme styles (thall, industrial, doom, slam): **Digital Extreme**, **Doom Stack**
-2. **Pick the voicing** (the second menu, "Voicing: ..."). Every amp has three. For the two new amps: *Precision High-Gain*: Tight, Lead, Crunch. *Digital Extreme*: Thall, Industrial, Cavern.
+1. **Pick the amp** (the top menu of the AMP panel). About thirty electric amps, an acoustic model and Triple Blend (three amps in one); the amp list in the menu is the full set. Quick guide:
+   - Clean tones: **Clean**, **Jade Chorus**, **Chime Thirty**
+   - Crunch and classic rock: **Club Crunch**, **Tweedle Dee**, **Bumble Lead**
+   - Modern high gain: **Revved Up**, **5555 Block**, **Marque Dream**, **Modern Maul**
+   - Extreme styles (thall, industrial, doom, slam): **Digital Dread**, **Citrus Doom**
+2. **Pick the voicing** (the second menu, "Voicing: ..."). Every amp has three. For the two new amps: *Revved Up*: Tight, Lead, Crunch. *Digital Dread*: Thall, Industrial, Cavern.
 3. **Set Gain.** 0.4 to 0.6 is the sweet spot for most rhythm playing. Turn **AUTO LEVEL** on so changing amps or gain does not change the loudness.
 4. **Shape the tone** with Bass, Low Mid, High Mid, Treble and Presence. 0 dB is each amp's own neutral point, not flat.
 
@@ -69,11 +69,11 @@ Open the **DELAY** and **POST FX** tabs: a delay and a reverb are ready. Raise t
 
 | You want | Amp / voicing | Gain | Also do |
 |---|---|---|---|
-| Tight modern rhythm | Precision High-Gain / Tight | 0.5 | Tight 0.3, Gate -56 dB, Focus 2 for drop tunings, Cab: B on, ALIGN NOW |
-| Singing lead | Precision High-Gain / Lead | 0.6 | Post-amp delay at a dotted-eighth note value, mix about 0.2; reverb mix about 0.14 |
-| Thall chug | Digital Extreme / Thall | 0.6 | Focus 4, Tight 0.4, Chug Gate 0.4, Gate -52 dB |
-| Industrial grind | Digital Extreme / Industrial | 0.55 | Mid Boost 0.3 (MODERN METAL, ADV), cab High Cut about 8 kHz to tame the fizz |
-| Doom slam | Digital Extreme / Cavern, or Doom Stack / Wall | 0.55 | Focus 6, big reverb (0.2), Gate -50 dB |
+| Tight modern rhythm | Revved Up / Tight | 0.5 | Tight 0.3, Gate -56 dB, Focus 2 for drop tunings, Cab: B on, ALIGN NOW |
+| Singing lead | Revved Up / Lead | 0.6 | Post-amp delay at a dotted-eighth note value, mix about 0.2; reverb mix about 0.14 |
+| Thall chug | Digital Dread / Thall | 0.6 | Focus 4, Tight 0.4, Chug Gate 0.4, Gate -52 dB |
+| Industrial grind | Digital Dread / Industrial | 0.55 | Mid Boost 0.3 (MODERN METAL, ADV), cab High Cut about 8 kHz to tame the fizz |
+| Doom slam | Digital Dread / Cavern, or Citrus Doom / Wall | 0.55 | Focus 6, big reverb (0.2), Gate -50 dB |
 
 ## 9. If something is not right
 

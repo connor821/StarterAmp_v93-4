@@ -1,0 +1,284 @@
+For StarterAmp, this is a worthwhile next step: speaker impedance curves and Thiele–Small (T/S) parameters can make the speaker and power-amp interaction more realistic, particularly when the simulated output stage has finite output impedance or negative feedback.
+
+One important distinction: a speaker's T/S parameters describe its low-frequency electromechanical behavior, but they do not fully characterize its guitar-speaker sound. The V30's midrange emphasis, a Greenback's breakup, and a Celestion Blue's cone compression require additional frequency-response, nonlinear, and level-dependent data.
+
+I'd build a speaker dataset with three layers:
+
+1. Electrical/mechanical parameters: \\(R_e, L_e, F_s, Q\_{es}, Q\_{ms}, Q\_{ts}, V\_{as,}\\) and, where available, \\(B\ell, M\_{ms}, C\_{ms}\\), and \\(S_d\\).
+2. Measured impedance versus frequency: complex impedance, including resistance and reactance, rather than just nominal 8 Ω or 16 Ω.
+3. Guitar-speaker behavior: on-axis/off-axis response, breakup modes, compression, and response changes with drive level.
+
+## 1. Manufacturer data I could verify
+
+### Celestion: V30, Greenback, G12H, and Blue
+
+Celestion's official product pages provide nominal impedance, DC resistance, resonant frequency, sensitivity, power rating, and frequency-response graphs. However, the pages I verified do not publish the complete T/S parameter set or downloadable complex impedance-versus-frequency data. Their frequency-response graphs are acoustic response, not impedance plots.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://celestion.com\&sz=32)
+
+12 inch 60W Guitar Speaker
+
++3
+
+
+
+| Speaker          | Version / impedance | \\(R_e\\) (DC resistance) | \\(F_s\\) | Sensitivity | Power |
+| ---------------- | ------------------- | ------------------------- | --------- | ----------- | ----- |
+| Vintage 30       | 8 Ω                 | 7.3 Ω                     | 75 Hz     | 100 dB      | 60 W  |
+| Vintage 30       | 16 Ω                | 12.9 Ω                    | 75 Hz     | 100 dB      | 60 W  |
+| G12M Greenback   | 8 Ω                 | 6.7 Ω                     | 75 Hz     | 98 dB       | 25 W  |
+| G12M Greenback   | 16 Ω                | 13.1 Ω                    | 75 Hz     | 98 dB       | 25 W  |
+| G12H Anniversary | 8 Ω                 | 6.7 Ω                     | 85 Hz     | 100 dB      | 30 W  |
+| G12H Anniversary | 16 Ω                | 13.1 Ω                    | 85 Hz     | 100 dB      | 30 W  |
+| Celestion Blue   | 8 Ω                 | 6.4 Ω                     | 75 Hz     | 100 dB      | 15 W  |
+| Celestion Blue   | 15 Ω                | 11.8 Ω                    | 75 Hz     | 100 dB      | 15 W  |
+
+Sources: [V30](https://celestion.com/product/vintage-30/?utm_source=chatgpt.com), [G12M Greenback](https://celestion.com/product/g12m-greenback/?utm_source=chatgpt.com), [G12H Anniversary](https://celestion.com/product/g12h-anniversary/?utm_source=chatgpt.com), [Celestion Blue](https://celestion.com/product/Celestion-Blue/?utm_source=chatgpt.com).&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://celestion.com\&sz=32)
+
+12 inch 60W Guitar Speaker
+
++3
+
+
+
+A few important distinctions:
+
+- Greenback is not one unique speaker specification. The original 20 W G12M, later 25 W G12M, Heritage G12M, and 55 Hz cone versions differ. The Heritage G12M (55) is listed with \\(F_s=55\\) Hz, versus 75 Hz for the standard Heritage G12M.&#x20;
+
+  [image](https://www.google.com/s2/favicons?domain=https://celestion.com\&sz=32)
+
+  Celestion
+
+  +2
+
+- G12H also has 55 Hz and 75 Hz versions. The Heritage G12H (55) is listed with \\(F_s=55\\) Hz, while the G12H Anniversary is listed at 85 Hz. Treat them as separate profiles.&#x20;
+
+  [image](https://www.google.com/s2/favicons?domain=https://celestion.com\&sz=32)
+
+  Celestion
+
+  +1
+
+- Celestion Blue is a low-power Alnico speaker. Its compression and breakup under drive are important; a linear T/S model alone won't reproduce those characteristics.&#x20;
+
+  [image](https://www.google.com/s2/favicons?domain=https://celestion.com\&sz=32)
+
+  Celestion
+
+  +1
+
+
+
+The most useful public Celestion resource beyond the individual pages is its [2026 guitar-speaker catalogue PDF](https://celestion.com/wp-content/uploads/2026/01/J196-Guitar-Catalogue-2026-WEB-SINGLES.pdf?utm_source=chatgpt.com). It contains acoustic frequency-response plots for numerous models, including the Blue and several G12M/G12H variants.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://celestion.com\&sz=32)
+
+Celestion
+
+
+
+### Jensen: substantially better published T/S data
+
+Jensen is especially useful for your speaker-dynamics implementation because its current product specification sheets publish much more of the T/S parameter set.
+
+Here are three useful starting profiles:
+
+| Parameter           | Jensen C12N, 8 Ω | Jensen P12N, 8 Ω | Jensen C12K, 8 Ω |
+| ------------------- | ---------------- | ---------------- | ---------------- |
+| \\(R_e\\)           | 6.05 Ω           | 6.03 Ω           | 6.75 Ω           |
+| \\(F_s\\)           | 113 Hz           | 90 Hz            | 115 Hz           |
+| \\(Q\_{ms}\\)       | 7.52             | 4.36             | 16.4             |
+| \\(Q\_{es}\\)       | 1.18             | 0.94             | 0.86             |
+| \\(Q\_{ts}\\)       | 1.02             | 0.77             | 0.82             |
+| \\(M\_{ms}\\)       | 29.9 g           | 30.9 g           | 33.4 g           |
+| \\(C\_{ms}\\)       | 66 µm/N          | 101 µm/N         | 57 µm/N          |
+| \\(B\ell\\)         | 10.46 T·m        | 10.62 T·m        | 13.7 T·m         |
+| \\(V\_{as}\\)       | 22.6 L           | 34.6 L           | 19.6 L           |
+| \\(L_e\\), at 1 kHz | 0.90 mH          | 0.87 mH          | 0.84 mH          |
+| \\(S_d\\)           | 490.9 cm²        | 490.9 cm²        | 490.9 cm²        |
+
+Sources: [Jensen C12N full specification](https://www.jensentone.com/specification-sheet/16?utm_source=chatgpt.com), [Jensen P12N full specification](https://www.jensentone.com/specification-sheet/38?utm_source=chatgpt.com), [Jensen C12K full specification](https://www.jensentone.com/specification-sheet/15?utm_source=chatgpt.com).&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.jensentone.com\&sz=32)
+
+Jensen Loudspeakers
+
++2
+
+
+
+These values are for the 8 Ω versions; don't transfer them unchanged to the 4 Ω or 16 Ω versions. Jensen publishes separate parameter columns for those variants.
+
+Other Jensen models worth collecting include:
+
+- C12K-2: a later ceramic model with different suspension and cone characteristics from the C12K. [Specification sheet](https://www.jensentone.com/specification-sheet/481?utm_source=chatgpt.com).&#x20;
+
+  [image](https://www.google.com/s2/favicons?domain=https://www.jensentone.com\&sz=32)
+
+  Jensen Loudspeakers
+
+- P12Q: a lower-power Alnico profile, useful as another vintage Fender-style reference.
+
+- C10R / C10Q: 10-inch ceramic speakers that help cover smaller combo amps.
+
+- P10R / P10Q: 10-inch Alnico options for vintage combo voicings.
+
+- C15N / C15K: 15-inch speakers for larger Fender-style combos.
+
+Start from Jensen's [official vintage ceramic catalogue](https://www.jensentone.com/vintage-ceramic?utm_source=chatgpt.com) and [vintage Alnico catalogue](https://www.jensentone.com/vintage-alnico?utm_source=chatgpt.com) to find the individual specification sheets.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.jensentone.com\&sz=32)
+
+Jensen Loudspeakers
+
++1
+
+
+
+A useful caveat: these are current Jensen-branded products. They're not automatically identical to every vintage Jensen speaker installed in a 1960s or 1970s amplifier.
+
+## 2. How to get actual impedance-versus-frequency curves
+
+For the Celestions, I would not try to infer a complete curve from the published \\(F_s\\) and \\(R_e\\) values alone. Instead, pursue three routes.
+
+[How to measure speaker impedance](https://images.openai.com/static-rsc-4/djjL__VIowOcZMHMVDCWp66VXs9Dd5y9Cm0aIjFOfpLtDkP1tUM37eAqmtVYI34lmiZa4WsGOB-BlyI-nAw5UWgS5p-brfH-b_hFwE80VZNr-fgdeXJnqKoXKQ0Rukv5seYp8VWn2wuoCnYF3Fy-6gsL0EgheoTfm_6A9CaczK0?purpose=inline)
+
+Route A — measure a physical speaker
+
+Highest confidence
+
+Measure complex impedance across roughly 20 Hz–20 kHz using a calibrated impedance fixture or analyzer. Save both real and imaginary components, not only magnitude. If possible, measure multiple samples of each model.
+
+A useful technical reference is Analog Devices' [AN-843 speaker impedance measurement application note](https://www.analog.com/media/en/technical-documentation/application-notes/236037846AN_843.pdf?utm_source=chatgpt.com).&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.analog.com\&sz=32)
+
+analog.com
+
+
+
+[Celestion Seventy 80 guitar speaker measurements](https://images.openai.com/static-rsc-4/yFErc_bpkS2n29PHJirOjL4cLElbkG-kVWKxaJoQbEUODmPAWNNomhbq1M9tvfwQQondo3LdvCcDmHIL9Fqnrmbu8VMzrUy7ETy8K9iG3_KYfsMGZsq_soWHp6Rb5zgneGKwZNL61Vgu3m2K7zteOyN2WfdpKjO9JCLwpp7IGcU?purpose=inline)
+
+Route B — obtain manufacturer measurement files
+
+Contact Celestion and request the impedance magnitude/phase or complex impedance data for the exact speaker revision and impedance version. Ask for the raw data behind the published graphs, if available.
+
+Ask Jensen for the same, since its public T/S data provides a stronger starting point. Manufacturer data is particularly valuable for verifying whether a modeled curve is representative of a production unit.
+
+[Dôme acoustique : Matériel pour les mesures d'un HP ou d'une enceinte](https://images.openai.com/static-rsc-4/Nz3A-sT2sBxCrMXTfLbtYtod3D9suQ7VlH2c7nL6OlnJXCX4SlrWN4d9Fnnnv0onYYiWqxl8cOsnBd4HSxftueDei9qXn2vvfChJqjxgHzhXfE_ZpizT07UP5cCSOj9gyWhfBb3zbe6Csk_kMzkKnsFnDLrQ3slgrEIluJNkuDg?purpose=inline)
+
+Route C — fit a model to published parameters
+
+Where physical measurements aren't available, build a low-frequency electromechanical model from published T/S parameters and fit a high-frequency electrical model to measured or published impedance data.
+
+Mark these profiles as estimated until validated. A fitted curve can be a useful engineering approximation without being an original factory measurement.
+
+One important limitation: a single small-signal impedance sweep will not capture the full dynamic behavior of a guitar speaker driven hard. You will eventually want measurements at multiple drive levels and, ideally, different temperatures.
+
+## 3. How I'd model the speaker in StarterAmp
+
+I'd separate the electrical load model from the acoustic speaker model. They interact, but they serve different purposes.
+
+Tube or solid-state output stage
+
+Output impedance, feedback, power-stage clipping
+
+Complex speaker-load model
+
+Impedance peak · voice-coil inductance · phase · cabinet loading
+
+Electromechanical speaker dynamics
+
+Cone displacement · motor force · suspension · compression · breakup
+
+Cabinet, microphone, and acoustic response
+
+Frequency response · directivity · enclosure behavior · IR processing
+
+### A. Electrical load model
+
+At minimum, represent the speaker impedance as a complex, frequency-dependent load:
+
+\\[ Z(f)=R(f)+jX(f) \\]
+
+For the low-frequency resonance, the T/S equivalent circuit is a useful starting point. Above resonance, voice-coil inductance and losses become increasingly important. For guitar speakers, additional resonances and cone modes may require a fitted network or measured data.
+
+This model lets the output stage respond to the load instead of seeing a fixed resistor. That can change output-stage frequency response, damping, and the amount of feedback correction.
+
+### B. Nonlinear speaker behavior
+
+Add these features in increasing order of complexity:
+
+1. Voice-coil heating, which increases resistance under sustained power.
+2. Power compression, calibrated from measurements rather than a generic compressor curve.
+3. Suspension and motor nonlinearity at larger excursions.
+4. Cone breakup modes, including their level-dependent behavior.
+5. Alnico-related compression behavior where supported by measurements.
+
+For the Blue, pay particular attention to level-dependent compression. For the V30, don't reduce its signature midrange to a single EQ bump; its acoustic response and breakup behavior are part of its identity.
+
+### C. Cabinet and multiple-speaker loading
+
+Don't treat the impedance curve of a single speaker as the impedance curve of every cabinet containing it.
+
+- Four identical speakers in parallel have one-quarter the impedance of a single speaker at each frequency, assuming identical loading.
+- Four in series have four times the impedance.
+- Mixed speaker cabinets need each speaker's electrical and acoustic contribution modeled separately.
+- A sealed cabinet changes the low-frequency system behavior; an open-back combo has a different acoustic loading and radiation pattern.
+
+The electrical load seen by the amp also depends on the wiring configuration and the cabinet, not just the speaker model.
+
+## 4. Recommended data format
+
+I'd store one record per exact speaker model, revision, and nominal impedance, rather than one generic record per family.
+
+```
+
+{
+  "model": "Celestion Vintage 30",
+  "revision": "unspecified",
+  "nominal_impedance_ohm": 8,
+  "power_rating_w": 60,
+  "sensitivity_db_1w_1m": 100,
+  "small_signal": {
+    "re_ohm": 7.3,
+    "fs_hz": 75,
+    "qes": null,
+    "qms": null,
+    "qts": null,
+    "vas_l": null,
+    "le_mh": null,
+    "bl_tm": null,
+    "mms_g": null,
+    "cms_um_n": null,
+    "sd_cm2": null
+  },
+  "impedance_data": {
+    "format": "frequency_hz, real_ohm, imag_ohm",
+    "source": null,
+    "measured": false
+  },
+  "acoustic_data": {
+    "frequency_response_source": "manufacturer_graph",
+    "off_axis_data": null,
+    "level_dependent_data": null
+  },
+  "confidence": "partial_manufacturer_data"
+}
+
+```
+
+The `null` values are intentional: they should remain unknown until you find credible data or measure them. Don't fill in the missing Celestion parameters using Jensen data or another speaker's specifications.
+
+## My recommended order of work
+
+1. Implement the electrical load model and allow each amp profile to interact with it.
+2. Add the complete published T/S profiles for Jensen C12N, P12N, and C12K as your first fully parameterized test cases.
+3. Add the Celestion V30, Greenback, G12H, and Blue profiles with their verified \\(R_e\\) and \\(F_s\\), then obtain or measure the remaining parameters.
+4. Validate the electrical load interaction with a representative tube amp and a solid-state amp.
+5. Add power compression and nonlinear cone behavior only after the small-signal behavior is credible.
+6. Keep the acoustic cabinet and microphone IR system separate so the same speaker dynamics can be tested with different cabinets and microphone positions.
+
+The key payoff: your speaker models could affect the simulated amplifier's response before the cabinet/microphone stage. That's much more convincing than applying a speaker EQ curve after the amp. For a hybrid amp simulator, it is also a meaningful differentiator from products that use a fixed load assumption and rely entirely on static cabinet IRs.

@@ -1,0 +1,85 @@
+For StarterAmp, rectifiers should be modeled as load-dependent nonlinear power-supply components, not as a fixed voltage drop. The important behavior is how B+ voltage falls as the amplifier draws more current, and how that voltage recovers when the signal's demand decreases.
+
+The GZ34 and 5AR4 are equivalent type designations. The 5U4 family generally has greater voltage drop and requires a different heater-current budget. The rectifier's own characteristics interact with transformer winding resistance, the first filter capacitor, and the amplifier's changing current demand.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.r-type.org\&sz=32)
+
+R-Type
+
++3
+
+
+
+## 1. Tube rectifiers: reference data
+
+| Parameter                                   | GZ34 / 5AR4                  | 5U4GB                                                               |
+| ------------------------------------------- | ---------------------------- | ------------------------------------------------------------------- |
+| Rectifier type                              | Indirectly heated, full-wave | Directly heated, full-wave                                          |
+| Heater supply                               | 5 V, 1.9 A                   | 5 V, 3.0 A                                                          |
+| Typical voltage-drop behavior               | Relatively low               | Higher                                                              |
+| Example published drop at specified current | Depends on operating point   | 44 V at 225 mA per conducting plate; 50 V at 275 mA; 54 V at 300 mA |
+| Maximum inverse voltage                     | 1,550 V                      | 1,550 V                                                             |
+
+Sources: original GZ34/5AR4 data and 5U4GB data sheets.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.r-type.org\&sz=32)
+
+R-Type
+
++3
+
+
+
+Important: the 5U4GB voltage-drop figures above are specified at the individual conducting plate's current, not the amplifier's average DC output current. They cannot be used directly as a simple B+ voltage-drop lookup table.
+
+## 2. Use the actual voltage-versus-current curves
+
+The most useful source is the original Philips GZ34 data sheet. It provides output-voltage curves over multiple transformer voltages and effective source resistances, with a 60 µF capacitor-input filter.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://frank.pocnet.net\&sz=32)
+
+Frank's Electron Tube Data Sheets
+
++1
+
+
+
+- [Philips GZ34 data sheet — direct PDF](https://frank.pocnet.net/sheets/030/g/GZ34.pdf?utm_source=chatgpt.com)
+- [Amperex 5AR4 data sheet — operating curves](https://www.drtube.com/datasheets/5ar4-amperex1958.pdf?utm_source=chatgpt.com)
+- [5U4GB data sheet — ratings and characteristic charts](https://frank.pocnet.net/sheets/127/5/5U4GB.pdf?utm_source=chatgpt.com)
+
+For the simulator, digitize these curves into lookup tables, then interpolate by transformer voltage, load current, and effective source resistance. Don't approximate the whole rectifier with one constant resistance: its conduction is pulsed, and the filter capacitor charges only during part of each AC cycle.
+
+## 3. Silicon diode rectifiers
+
+These are useful reference components for diode-rectified amps and for comparing solid-state rectification with tube rectification.
+
+| Part   | Average forward current | Repetitive reverse voltage | Forward drop at specified current |
+| ------ | ----------------------- | -------------------------- | --------------------------------- |
+| 1N4007 | 1 A                     | 1,000 V                    | Up to 1.1 V at 1 A                |
+| UF4007 | 1 A                     | 1,000 V                    | Up to 1.7 V at 1 A                |
+| 1N5408 | 3 A                     | 1,000 V                    | Up to 1.0 V at 3 A                |
+
+Sources: [Vishay 1N4007 family](https://www.vishay.com/en/product/88503/?utm_source=chatgpt.com), [onsemi UF4007 data sheet](https://www.onsemi.com/download/data-sheet/pdf/uf4007-d.pdf?utm_source=chatgpt.com), and [onsemi 1N5408 family](https://www.onsemi.com/pub/Collateral/1N5400-D.PDF?utm_source=chatgpt.com).&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://webapp-stg.vishay.com\&sz=32)
+
+Vishay
+
++2
+
+
+
+The forward-drop numbers are specified at different currents, so they aren't a direct ranking of the parts. For audio modeling, reverse recovery is generally less important than the rectifier's conduction behavior and the power supply's impedance, although it can matter for detailed switching-transient simulations.
+
+## 4. Recommended StarterAmp implementation
+
+I'd separate the model into three interacting pieces:
+
+1. Rectifier device: tube or diode current-voltage behavior, conduction limits, and device-specific characteristics.
+2. Power transformer: secondary voltage, winding resistance, and source impedance.
+3. Filter and load: reservoir capacitance, series resistance, choke if present, and time-varying current drawn by the power amp.
+
+Then expose a user-facing control for sag amount or rectifier type, while retaining the underlying circuit parameters internally.
+
+One subtle but important point: the GZ34 and 5AR4 should share a nominal device model, with optional vintage/manufacturer variation. The 5U4 should have its own characteristic curves and heater requirements. That will give StarterAmp meaningfully different supply compression and recovery behavior instead of merely lowering the B+ voltage by an arbitrary amount.

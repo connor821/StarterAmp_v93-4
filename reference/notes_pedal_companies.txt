@@ -1,0 +1,605 @@
+For StarterAmp, I would study these six companies for two different reasons: Analog Man and EarthQuaker Devices are particularly useful for circuit-inspired drive and fuzz; Walrus Audio and Old Blood Noise Endeavors are excellent references for unusual effect combinations and creative modulation; Strymon and Eventide are especially valuable for polished, high-quality time-based DSP.
+
+The goal shouldn't be to copy every pedal. It should be to extract the effect architectures, controls, signal-routing tricks, and sonic behaviors that will make your amp simulator feel more complete than a conventional collection of amp models and generic stompboxes.
+
+I'll separate three things throughout: the products worth studying, the underlying effect ideas to implement, and which features are likely to add the most value to your plugin. Current product lineups change, and some older pedals are discontinued, so the official catalogs are the best starting points.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.walrusaudio.com\&sz=32)
+
+Walrus Audio
+
++4
+
+
+
+## 1. Walrus Audio — versatile drives, modulation, and modern ambience
+
+[Walrus Audio Ages Black Pedal FX Overdrive de cinco estados | Bax Music](https://images.openai.com/static-rsc-4/wdtHhS8DzMKYM-HO4lmCwQA24oH0i2Wt9eUBZAtdsNa_xgN_u8gFXIP8qeojRK1BJjVY6yGxo58w48PIo_JQhq2cNE8urOMgkNnrUFgFFypFwfbM-za96hwzIHaYgmWXKqhdW2aRFnKlHPT-GVRDRlo3Po6YPeKyHjypxbz0kKM?purpose=inline)
+
+[Walrus Audio Eons Five-State Fuzz Effect Pedal, Black](https://images.openai.com/static-rsc-4/klWHDqgvdXZJsOMTiEo-uwzvJ9Pt0HcQds30UHvtfDx8gkGqTh58arHK8uMNtTf9u58lmNZ-a0HozgLlQE0WR23QEEvj0goW1pIW9ZDcdSPRi5kC0dGu_xasTFz-ddCVq7YjDqXC_-COHD4ELt6Ib0Y_W2UeyJQDq6hpgeng_0w?purpose=inline)
+
+[Walrus Audio Julia Analog Chorus and Vibrato Pedal V2 - Black | Cream City Music](https://images.openai.com/static-rsc-4/RnsanfaacIWKgk1HRAU9y2wEs1Kc3qR2A_tvSWz2bNAcB7bYP5NZf5ANYWA0cJwj5jwcpLx0nTJc3HWusmlv2oBJZbbRk_Wwozo5DcRkzcdDliXa93pvbDYNA2Bf8NvRut_5fR6i8aSL0_Jrw9WVRXyk0eIHgsccbMjC4AwkJvs?purpose=inline)
+
+Walrus Audio's range spans multi-voicing analog-style drives, fuzz, chorus, tremolo, delay, reverb, granular sound design, and integrated multi-effects. Its official catalog is organized around Core, Mako, Fundamental, and other series.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.walrusaudio.com\&sz=32)
+
+Walrus Audio
+
++1
+
+
+
+### Products and ideas worth extracting
+
+| Product               | What makes it interesting                                   | What I'd build into StarterAmp                                                                 |
+| --------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Ages                  | Five selectable overdrive configurations                    | Multi-mode drive with different clipping arrangements and clean-signal blend                   |
+| Eons                  | Multiple fuzz voices and variable-voltage behavior          | Fuzz with clipping modes, bias/starvation controls, and low-voltage character                  |
+| Eras                  | Several high-gain distortion configurations                 | Switchable distortion topologies and EQ voicings                                               |
+| Iron Horse            | RAT-style, op-amp-centered distortion                       | LM308-style distortion, clipping options, filter response, and gain staging                    |
+| 385 / 385 MkII        | Projector-inspired overdrive concept                        | Characterful preamp coloration with input-stage saturation and interactive tone shaping        |
+| Voyager               | Preamp/overdrive with substantial tonal shaping             | A boost/preamp that can sit before or after the amp                                            |
+| EB-10                 | Boost, EQ, and preset-style voicing                         | Three-band or multi-band EQ combined with gain and selectable tone curves                      |
+| Julia / Julianna      | Chorus/vibrato with flexible modulation                     | Blendable chorus/vibrato, independent dry signal, waveform and lag controls                    |
+| Polychrome            | Analog-flanger-inspired modulation                          | Flanger with feedback, manual sweep, envelope-like movement, and multiple tonal modes          |
+| Monument / Monumental | Harmonic tremolo and stereo variations                      | Harmonic tremolo that modulates frequency bands differently rather than simply changing volume |
+| ARP-87                | Multi-character delay                                       | One delay engine with digital, analog-like, lo-fi, and slapback modes                          |
+| Mako D1 / R1 / M1     | High-fidelity multi-algorithm delay, reverb, and modulation | A unified effects architecture with several high-quality algorithms per effect category        |
+| Slö / Slöer, Fathom   | Modulated and ambient reverb                                | Reverb with modulation, damping, long tails, and selectable textures                           |
+| Lore, Fable, Lüm      | Reverse, granular, and texture-oriented processing          | Experimental ambience, granular delay, reverse buffers, and evolving textures                  |
+| Melee                 | Distortion combined with reverb                             | A deliberately integrated wall-of-sound effect, with order and blend controls                  |
+| Qi Etherealizer       | Chorus, delay, granular processing, and reverb in one unit  | A performance-oriented multi-effect for ambient and post-rock tones                            |
+
+The product names and broad feature categories are grounded in Walrus's catalog and product listings; these are design recommendations, not claims that you should reproduce the original circuits exactly.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.walrusaudio.com\&sz=32)
+
+Walrus Audio
+
++2
+
+
+
+Highest-value lessons from Walrus:
+
+- Give drives several meaningfully different modes, rather than five versions of the same gain curve.
+- Make blend controls useful. A clean-signal blend can retain attack and low-end definition under fuzz or distortion.
+- Let modulation and reverb produce recognizable character, not just a generic wet signal.
+- Make one effect capable of both ordinary and extreme settings.
+
+For your product, I would prioritize an Ages-inspired configurable overdrive, an Eons-inspired fuzz, a flexible chorus/vibrato, harmonic tremolo, and a modern multi-mode delay/reverb.
+
+## 2. EarthQuaker Devices — circuit character, unusual distortion, and experimental effects
+
+[EarthQuaker Devices Plumes Small Signal Shredder Overdrive Pedal | eBay](https://images.openai.com/static-rsc-4/I6C3sAoDZ8Az1LxY2wj8yOK2Pq0O7VWMYmHoTrseDe-rnGdF_yRW0proGOTuqrFU-vr16umdBQbKOhoE0x4JNAzl4unirC3-vfcjJuYh-EG3CrWgh5Rp-NK6Btgdbuv43Uq8rYStlPZ6QC2PWf3iWvX863JbBmd6IXI6oBVeiKg?purpose=inline)
+
+[EarthQuaker Devices Sunn O))) Life v3 Pedal  – Chicago Music Exchange](https://images.openai.com/static-rsc-4/WLgQCKItQnH2-ULRHoOAE9Rd2V4E93CtPmNUzjxIerMpCvMJF-dxnOTThyw9ouQniyPC4R5RGwCD0B937lLqDmSfNE-cFiYkLiHbrMotyL40uD62H4mmEyh7jl_j7sPvlcamarBdKBmtMQilcoBTiPmRKGos6K5RHY_oWnr7kfc?purpose=inline)
+
+[EarthQuaker Devices Hizumitas « Guitar Effect](https://images.openai.com/static-rsc-4/9UYuD8hk2-sS-ctqEGFEJoY8il8dYV7PXtMzFaJuZUMwU9ifEVDcTsR4t6owsD9imnGeN2sqAH0tdC80M1-uMdTHRFZK3ZijnAPyRqtKDXdsUANfmzWllmTRxnhjsIv_cFQFU_I0fMjTnZ7hC6R9e1mlv6IX_pYjAjorfFG6_b4?purpose=inline)
+
+EarthQuaker Devices (EQD) is particularly relevant to your project because it covers both recognizable guitar circuits and effects that depart from standard stompbox categories. Its official catalog includes overdrives, fuzzes, filters, pitch effects, delay, reverb, modulation, and combination pedals.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.earthquakerdevices.com\&sz=32)
+
+EarthQuaker Devices
+
++1
+
+
+
+### Drives and distortion
+
+[Heid Music | EarthQuaker Devices Plumes Small Signal Shredder Overdrive Pedal](https://images.openai.com/static-rsc-4/pcWRkoNjJ0qomRYS8WlqLOrFTGpklQd_1Pjbz7i4C2IUhvtVLG9K6k3l6EJffeH12GN1N1__nvaJ6g4IJu3SlCuCDONKzGjfP9kYmOv04J-rStDfpytvh4q9sKcM7XKXbtn8XiyATPzdxHYkVnHeeeyE0N9Yytcq6IhVFbt2T3Q?purpose=inline)
+
+Plumes — three-mode overdrive
+
+Study how changing the clipping configuration changes the feel of an overdrive while preserving the same basic control layout. For StarterAmp, offer distinct clipping modes, input filtering, and a tone stage whose response changes naturally with gain.
+
+[Earthquaker Devices Special Cranker | Deutschland](https://images.openai.com/static-rsc-4/Q7R6sb5Qu5vCuHfbiTGzH1wpB5kQNU_05k1orG15a86suk9xNIMHeXpTWtHE5po8prcI342amQ6oC5559g82Z05Rlx2eCzrAfTPXkvTB0Oe1l845_Sh8Ch36JQ0J9sBUiZokLE5bresmqeTqflYG0mfijOuqmPRw8IS4iQQu5A4?purpose=inline)
+
+Special Cranker — dynamic drive
+
+Useful as a reference for a relatively straightforward drive that emphasizes playing dynamics and adds harmonic content. The important design goal is making low-gain settings sound useful instead of like a quieter version of hard clipping.
+
+[Earthquaker Devices Acapulco Gold V2](https://images.openai.com/static-rsc-4/myS4kelV4mlucQFkWHDhPlnCH2TSRjZW3Fc0aVXxfn-yi_C7o8KrEP4oLVemQKeHzFlYPd68RLipRc6VsxGzT5hmTDscPOj404oDYelPVT0Trjmm-sCl2WbJyWshqNYrZ--_NCml7bN_9bbvdyf92ZbmWiofSUIMBXMzbCmXVps?purpose=inline)
+
+Acapulco Gold — power-amp-style distortion
+
+A particularly useful concept for an amp simulator: a pedal that evokes the sound of driving a power amp hard. Build a dedicated power-amp saturation effect with compression, frequency-dependent clipping, and speaker-load interaction, rather than simply adding another preamp distortion.
+
+[EarthQuaker Devices Sunn O))) Life V3 Distortion, Octave Up & Booster Pedal - Andertons Music Co.](https://images.openai.com/static-rsc-4/UJlizuac4sUvAwhesQwUAL_JAUuK3Xdgz6t39C5kWUqLMSMbTDSHc_lME8TxrD6WyxlfikndUHBAY6VL4h016lyg6BCXvxwsZWaoJQGdBgo49Hg2K5whHAgIB0lBARgiP9q7chEDcnlp307m3J8JSytna4FrDRQQCiRtRG-tlE8?purpose=inline)
+
+Sunn O))) Life Pedal — octave distortion
+
+A strong reference for combining heavy distortion, octave-up generation, and low-frequency shaping. Implement octave generation as its own stage, then let users choose the order relative to clipping and EQ.
+
+### Fuzz, pitch, and modulation
+
+| EQD pedal        | Design idea for StarterAmp                                                                      |
+| ---------------- | ----------------------------------------------------------------------------------------------- |
+| Hoof             | Hybrid fuzz voicing with adjustable tone shaping; a useful complement to vintage germanium fuzz |
+| Hizumitas        | Dense, sustaining fuzz with pronounced midrange and low-frequency character                     |
+| Data Corrupter   | Phase-locked-loop-inspired pitch multiplication and monophonic synth-like tracking              |
+| Bit Commander    | Analog-octave-synth behavior, including square-wave-like tones and suboctaves                   |
+| Rainbow Machine  | Intentionally unnatural pitch modulation, detuning, and feedback                                |
+| Spatial Delivery | Envelope-controlled filtering and sample-and-hold movement                                      |
+| Grand Orbiter    | Multi-stage phaser with a wide sweep range                                                      |
+| Pyramids         | Multi-mode flanging, including rhythmic and resonant effects                                    |
+| Hummingbird      | Choppy, repeat-style tremolo rather than just smooth amplitude modulation                       |
+| Sea Machine      | Flexible chorus with unusual modulation shapes                                                  |
+| Zoar             | Dynamic distortion with a more interactive EQ/gain character                                    |
+
+### Reverb and delay
+
+- Afterneath: complex, diffuse echoes that can sound almost like a network of short delays rather than a conventional room.
+- Dispatch Master: the practical combination of delay and reverb in a compact, immediately usable effect.
+- Avalanche Run: stereo delay and reverb with performance-oriented controls.
+- Astral Destiny: octave-enhanced reverberation.
+- Time Shadows: resonant, subharmonic, and multi-delay textures.
+- Ledges: multiple reverb styles with flexible control over the character of the space.
+
+These are represented in EQD's official device catalog; check its manuals for the exact mode sets and control behavior of each revision.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.earthquakerdevices.com\&sz=32)
+
+EarthQuaker Devices
+
++1
+
+
+
+What I would pull from EQD: a proper power-amp-distortion block, an octave-fuzz combination, a PLL/synth effect, envelope filtering, a rhythmic tremolo, and a reverb engine capable of unusual delay-network behavior.
+
+For your progressive-metal use case, the most distinctive options are the octave-distortion combination, the synth/PLL effect, and the power-amp-style distortion. They're less redundant with a conventional amp-and-effects collection than another generic overdrive.
+
+## 3. Old Blood Noise Endeavors — experimental signal routing and texture
+
+[OBNE Beam Splitter | Bax Music](https://images.openai.com/static-rsc-4/hjmLhx9IVAZ_AGT3Jwc1SNbnQzpTqKqcx9wr1ZOZZ8pE2-5lSiFkp_yHUlZ_0BsZ6KgRbCUGlRRE7rIoDatTV4fCNfbrBftPatY_m2YLJ95TFnBkHaI-DF18aTHY2OcVOtrsDhuLJRT1fVIs7jZJCztqQdrF01BUp6baF562K6E?purpose=inline)
+
+[Old Blood Noise Endeavors Excess V2 | Italia](https://images.openai.com/static-rsc-4/Uh8tNOEUl5c8UnpoRYy59HpTa4lUenOQTuZrpe49PMZXL1EiDtIvpl5fcLogfkE-DDdjD_oNgNwVvtHH4PCoHsQFxYkggz-XQfngyd4JYnuiux36J3r9s7HfwPB6_-eOuNRQV441bJh-7OFkPCy6yKzCpSEpShS1ytMIe2escQM?purpose=inline)
+
+[Old Blood Noise Endeavors Dark Star | Deutschland](https://images.openai.com/static-rsc-4/S7kur9g7PvUWXRCQogEWfvaR5YLvKhbKsGT3ua2EC8kLTzyZosFaXbls9aqNSPCe_CYiFvCeQhGCJuI0a6QlQSNh_a2I6T-i7SLX5p1-_xSOzJPw1i33G-IfKkdKZ26MbiDXnP3JhM-S9wBp2zXdLyoEocl2phf7Yak3oP-o19w?purpose=inline)
+
+7
+
+OBNE is worth studying for how effects are combined and controlled. Its current catalog includes parallel overdrive, distortion with modulation, reverse delay, lo-fi and ambient reverbs, dual filters, and unusual delay/reverb networks.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://oldbloodnoise.com\&sz=32)
+
+OBNE
+
++1
+
+
+
+| Pedal               | What to extract                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| Beam Splitter V2    | Parallel multi-voice overdrive, with different saturation character per path                     |
+| Excess V2           | Distortion combined with modulation and delay-like effects                                       |
+| Fault V2            | A boost that can feed a stronger distortion stage; interactive gain staging                      |
+| Alpha Haunt / Haunt | Gated fuzz, adjustable dynamics, and a controllable noise-floor character                        |
+| Pardner             | Fuzz with an additional overdrive path                                                           |
+| Float               | Multiple filter responses with envelope/LFO modulation                                           |
+| Visitor             | Parallel modulation paths, enabling combinations that a single chorus or phaser cannot reproduce |
+| Flat Light          | Flanger-like movement with pitch and resonance-oriented texture                                  |
+| Black Fountain      | Oil-can-style delay character                                                                    |
+| Setback             | Reverse delay with deliberately unusual repeat behavior                                          |
+| Dark Star           | Lo-fi, pad-like reverberation and nontraditional reverb textures                                 |
+| Sunlight            | Dynamic, modulated reverb and evolving movement                                                  |
+| Bathing             | All-pass/delay-based ambience with a distinct spatial texture                                    |
+| Parting             | Glitch and multi-texture delay behavior                                                          |
+| Signal Blender      | Parallel effects routing, dry/wet recombination, and phase-aware blending                        |
+| Expression Ramper   | Automatic parameter movement over time, rather than requiring a physical expression pedal        |
+
+The exact current product descriptions are available in [OBNE's official pedal catalog](https://oldbloodnoise.com/pedals?utm_source=chatgpt.com).&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://oldbloodnoise.com\&sz=32)
+
+OBNE
+
++1
+
+
+
+### The big feature I'd borrow: parallel processing
+
+Beam Splitter is the clearest reference for an effect that produces several saturated versions of a signal in parallel. This is especially useful for dense metal tones: one branch can provide the main distortion, another can supply upper-mid attack, and a third can contribute body or harmonic grit.
+
+I'd build a flexible routing system that supports:
+
+- Parallel distortion branches with independent gain, filtering, and blend.
+- Parallel clean and processed signals.
+- Modulation in parallel or in series.
+- Per-branch delay and polarity control.
+- Parameter smoothing to avoid clicks when changing routing or blend.
+- Stereo routing where it genuinely adds width rather than merely duplicating the mono signal.
+
+You don't need to reproduce Beam Splitter's exact internal design to capture the general capability.
+
+### A second standout: automatic parameter motion
+
+OBNE's expression-ramping concept suggests a powerful software feature: assign any automatable effect parameter to a ramp, LFO, envelope follower, or tempo-synced motion pattern. That could control reverb size, delay feedback, filter cutoff, fuzz bias, or the blend between parallel paths.
+
+A plugin can make this much more flexible than a physical pedal because it can synchronize multiple parameters and save all movement settings with the preset.
+
+## 4. Analog Man — vintage circuit behavior and component variation
+
+[Pre-Owned Analogman King of Tone V4                      – Guitar Gallery of Alabama](https://images.openai.com/static-rsc-4/iEp4siHxVU-JNPADEmiUdVOVx_G--nbP42KmQYpkXwcUJVuRxFUeewfrPuhqqpiX8P2UsUyJvU4qYgkUoka_ebP2qPujvxbbF3gQJErVBHBbvQmNzzTY8NvfutvS9vReV4Vy5Ewk8M6d2WJDZogA1MttTmN5pNT0LJ0g4bi8OpM?purpose=inline)
+
+[Analogman Sun Face RCA Germanium Fuzz  – Chicago Music Exchange](https://images.openai.com/static-rsc-4/OhAIgsTCurSMYlf-T0ZK_dSlHws-J353MDJlly__UXJQ26dtvPjdKzWFuOkHBJV54dGQjEiufy2w8_d9fyo5MKt2miLOh_YVzx3gbzgrPZkqC-wRJfwWbw1YXdaPV2zaXdOpeSKr-oXfvqB5z5qnpwJioXHpWQBpKPnHsFDCaIo?purpose=inline)
+
+[AnalogMan Peppermint Fuzz – Motor City Guitar](https://images.openai.com/static-rsc-4/NLoEW4wTcjvWgVdOqmXWRGwJxaeqL7xeVRHUfTRZKtjSr3Z1vrSRiCv_OqrS_WwpgvnI0Sh0jnN9QlY0f4bl58_fThGGeoQiSS6BwgPwYPEAoFkK9xlIJKBCD2Am1rMN5VNjsFFdUvBz_snhVUieQwmHVBO7pw37bsjak1T1OTw?purpose=inline)
+
+6
+
+Analog Man is probably the most valuable of these companies for understanding why a circuit diagram alone does not fully determine how a vintage-style pedal behaves. The company builds, modifies, and repairs vintage-oriented effects, including overdrives, fuzzes, compressors, boosts, chorus, and delay.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.analogman.com\&sz=32)
+
+Who are we?
+
++1
+
+
+
+### The products I'd investigate
+
+| Product         | Core concept                                                                    | StarterAmp implementation                                                                                |
+| --------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| King of Tone    | Dual-channel, low-to-medium gain overdrive                                      | Two independently configurable drive stages; channel order, clipping, and gain structure                 |
+| Sun Face        | Fuzz Face family with selectable transistor types and careful device selection  | Germanium/silicon transistor models, bias adjustment, input-impedance interaction, guitar-volume cleanup |
+| Peppermint Fuzz | More aggressive vintage fuzz architecture with extra control over its character | Fuzz topology with adjustable bias, gating, and a buzzy-to-smoother transition                           |
+| Astro Tone      | Vintage-style fuzz                                                              | Distinct fuzz circuit and EQ behavior rather than just a different gain setting                          |
+| Beano Boost     | Rangemaster-style treble boost                                                  | Frequency-selective boost with input impedance and transistor operating-point behavior                   |
+| Sun Lion        | Fuzz and boost combination                                                      | Fuzz plus a separate boost stage, with selectable order if appropriate                                   |
+| CompROSSor      | Compressor influenced by classic Ross-style compression                         | Envelope-dependent gain reduction, attack/release behavior, and tonal coloration                         |
+| Bi-Chorus       | Analog-style chorus with expanded tonal control                                 | Multi-voice chorus with different modulation rates and stereo width                                      |
+| ARDX20          | Analog delay                                                                    | Band-limited, progressively darkening repeats with feedback saturation                                   |
+
+The [Analog Man product overview](https://www.analogman.com/whoarewe.htm?utm_source=chatgpt.com) and [Sun Face documentation](https://www.analogman.com/fuzzface.htm?utm_source=chatgpt.com) are particularly useful starting points.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.analogman.com\&sz=32)
+
+Who are we?
+
++1
+
+
+
+### The most important lesson: fuzz is a circuit, not a preset
+
+Analog Man explicitly describes how germanium Fuzz Face performance depends on transistor gain, leakage, noise, and device-to-device variation. It also notes the sensitivity of classic fuzz circuits to guitar volume and the effects placed before them.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.analogman.com\&sz=32)
+
+Analog Man
+
++1
+
+
+
+That suggests several features for your existing transistor-modeling work:
+
+- Per-device parameters: gain, leakage, saturation current, and temperature response.
+- Bias controls: allow the operating point to change the amount of sustain, compression, and gating.
+- Pickup and guitar-volume interaction: don't model fuzz as though it always receives a fixed, low-impedance signal.
+- Input-impedance interaction: preserve the way a vintage fuzz responds differently to a guitar pickup versus a buffered effect.
+- Component tolerances: allow meaningful differences between individual simulated units.
+
+You don't need to simulate every transistor's microscopic physics at maximum complexity. A carefully calibrated reduced-order transistor model can give you the behavior that matters without overwhelming the CPU.
+
+My priority: implement a strong Fuzz Face-style circuit model with germanium and silicon variants, then build several distinct vintage fuzz topologies on the same transistor-modeling foundation. That gives you more value than adding a dozen superficial fuzz presets.
+
+## 5. Strymon — tape, bucket-brigade delay, modulation, and reverb DSP
+
+[Strymon El Capistan Tape Echo Effects Pedal Black | Guitar Center](https://images.openai.com/static-rsc-4/TIJkux4Npg0JdJjDQqtRqMTEEpuRszPKM_Fk50L_QaB2Qmhu08TRLYaKz6zUkPkXfsaxWtM6amGLNJhwpRRVNMbWdEnum16Yn7QUjeEFUxAmeFwt8x_IuphIDcOzU9mZhVKiEEvX-9T_sbvglkOyVzpOs6erIOp9sxRnxOwYHDk?purpose=inline)
+
+[Strymon Deco Tape Saturation & Doubletracker Pedal](https://images.openai.com/static-rsc-4/F-mUx5x5ziWqWu9rw8BkzyNATKS6qUuhAgiaPcxk76vZG2QJc2RJOlRZJvlcJIhI9dnsbHAtwKwRGikhKWLeuxpL0dzzsXmneXybsxhKYEzJqlAaUoZ3JfzmhQjLdXO3eV6HZLKDm_ZoRG41-ciHtL8JjEEUR0oOk2Tj8i94m88?purpose=inline)
+
+[Strymon | VOLANTE | Magnetic Echo Machine | Stereo Multi-Head Delay & Vintage Spring Reverb - Gsus4](https://images.openai.com/static-rsc-4/t9bBP70TJPkeUC9jYWI7o2YVIh8AtIpJYwuCdLsZ2uCues40hPhUdfao1tlrioL1cl5PeEsxZjZnqXz9OGI5MlE_Fz5n00ECpOnmLTJEKS2NMx57cMh-7jthnxD0hbLL-KVk8sobcVzExeVPKuvKHua6EdI_p4HGZCT6E1WEEB8?purpose=inline)
+
+Strymon is the strongest reference here for making effects sound polished, coherent, and studio-ready. Its current range covers multiple delay architectures, sophisticated reverb, modulation, analog-style drive, and dedicated amp/cab processing.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.strymon.net\&sz=32)
+
+Strymon
+
++1
+
+
+
+### Delay and tape effects
+
+| Product                | What to study                                                                   | What to implement                                                                                            |
+| ---------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| El Capistan            | Tape echo, selectable tape-head behavior, adjustable degradation, spring reverb | Tape delay with wow/flutter, saturation, head configurations, feedback filtering, and optional spring reverb |
+| Volante                | Multi-head magnetic echo                                                        | Independently timed echo heads, head-specific level/pan, repeat feedback, and wear                           |
+| DIG                    | Two simultaneous digital delays and flexible routing                            | Dual delays with series, parallel, and ping-pong configurations                                              |
+| Brig / Brigadier       | Bucket-brigade delay character                                                  | BBD-style bandwidth loss, clock-dependent coloration, and progressively darker repeats                       |
+| Deco                   | Tape saturation and double tracking                                             | A dedicated tape-style saturation block plus short-delay double tracking and flanging                        |
+| EC-1                   | Vintage tape echo character                                                     | A simpler echo model with tape coloration and adjustable modulation                                          |
+| Olivera                | Vintage oil-can echo                                                            | Distinctive delay coloration, modulation, and bandwidth shaping                                              |
+| TimeLine / TimeLine MX | Multi-algorithm delay                                                           | A shared delay platform with several distinct algorithms, tap tempo, presets, and complex routing            |
+
+Strymon's own delay comparison explains the differences between its digital dual delay, BBD-style delay, and tape-echo approaches.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.strymon.net\&sz=32)
+
+Strymon
+
++2
+
+
+
+### Reverb and modulation
+
+| Product            | Design lesson                                                                                         |
+| ------------------ | ----------------------------------------------------------------------------------------------------- |
+| BigSky / BigSky MX | A broad reverb collection, including long decays, complex spatial effects, and dual-reverb processing |
+| Cloudburst         | A conventional reverb core expanded with evolving, ensemble-like ambience                             |
+| blueSky            | High-quality plate, room, and spring-style reverb foundations                                         |
+| Flint              | Tremolo and reverb combined in one effect, with vintage amp-inspired character                        |
+| Mobius             | A broad modulation collection built around distinct algorithms                                        |
+| Lex                | Rotary-speaker simulation with speed changes and stereo movement                                      |
+| Zelzah             | Multi-stage phasing with more complex modulation options                                              |
+| Ultraviolet        | Uni-vibe-style movement and vintage modulation character                                              |
+| NightSky           | Reverb used as a sound-design instrument, with pitch, modulation, and synthesis-like control          |
+
+These families are listed in Strymon's official catalog.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.strymon.net\&sz=32)
+
+Strymon
+
++1
+
+
+
+### What I would build
+
+A. A proper tape-echo engine. Don't merely low-pass each repeat. Include a feedback path, saturation in the loop, modulation, head configuration, and time-dependent coloration. Those interactions are what make the effect feel like a tape machine.
+
+B. A double-tracker. This is particularly useful for rhythm guitars and studio-style widening. Model a short, controllable delay with pitch drift and saturation. Make it possible to transition from subtle thickening to obvious flanging.
+
+C. A family of delay engines. Use distinct algorithms rather than one algorithm with a dropdown of presets:
+
+- Clean digital delay
+- Dual digital delay
+- BBD-style analog delay
+- Tape echo
+- Multi-head drum echo
+- Reverse delay
+- Modulated delay
+- Granular or glitch delay
+
+D. A high-quality reverb suite. Prioritize spring, plate, room, hall, shimmer, and evolving ambience. Spring should be a dedicated model, not a generic reverb with a spring preset label.
+
+E. Stereo that is genuinely stereo. Use independent delay times, modulation, early reflections, or reverb structures where the effect calls for them. Avoid simply duplicating a mono signal with a few milliseconds of offset.
+
+For a plugin, the Strymon-inspired feature I would put near the top of the roadmap is a tape/double-tracking block. It can be useful with clean, crunch, and high-gain amps alike, without needing to change the amp model.
+
+## 6. Eventide — pitch processing, advanced delay, and reverb
+
+[Eventide H90 HARMONIZER Multi-FX Pedal with 62 Studio-Qua...](https://images.openai.com/static-rsc-4/0-ZlJZYBNXDRheOQQjXmolLuZW3sMIqDawi0fV7KD6e2baYUIYVm4tZ-zBZCrR-bi4bC1E95nRtQGLtbTRKtcZ11CJp4S40euiH063d5t1vGKF9Iyz1cEcdNnCN5cDV_xDR3_VrWqhS4ofhhFLAzEeLOVlo-irPbF0MlRIf5nms?purpose=inline)
+
+[MicroPitch Delay | Eventide Pitch Shifting + Delay Effects Pedal](https://images.openai.com/static-rsc-4/ou96MgTKmbIfcK6jZqfgIo-lDkjXE5pdsuSf_Urigo1zvj6Jbpp7ecKLjsFlKz_-XpE1ab8dDsaMeksqZP1WErXzV5piEzsB4CXqIefvpMhKeWZzMLT5TCLkSPIpMuA-k1Yn1aE3dPNepwENM4YHOIq9QdzKA96Zkmzwgyq9kx4?purpose=inline)
+
+[Eventide TriceraChorus Pedal – Motor City Guitar](https://images.openai.com/static-rsc-4/E6whYnv9F2rKW_PyBYHEdeCH_0GmE_M6B_0tyo9UwW3bEQeM3wDl6p8kkOzy78bnpJiUHvr46Ok8bb3VHv9BiYsISOQY482SbV-zHc93MB6_UfbrY5JP1Q_sjB11o19QbFb9_JfTkEgZ1VjbyQandYfVS4EI3qHcgVCdYSeue40?purpose=inline)
+
+Eventide is a major reference for studio-style effects, especially pitch shifting, stereo widening, multi-tap delay, modulation, and expansive reverberation. Its current pedal catalog includes the H90 and H9 multi-effects platforms, Blackhole, MicroPitch, UltraTap, TriceraChorus, Rose, and other dedicated effects.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.eventideaudio.com\&sz=32)
+
+Eventide Audio
+
++1
+
+
+
+### The products I would study first
+
+| Product       | Signature capability                                        | What to implement                                                                                      |
+| ------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| H90 / H9      | Large collection of algorithms, flexible routing, presets   | A modular effect framework with reusable algorithms, flexible routing, and preset recall               |
+| MicroPitch    | Subtle pitch detuning and delay for stereo width            | Dual pitch-shifted voices, independently adjustable cents, delay offsets, and stereo placement         |
+| PitchFactor   | Harmony and pitch-shift effects                             | Pitch shifting, harmonization, and pitch-plus-delay combinations                                       |
+| TriceraChorus | Multi-voice chorus with tri-stereo movement                 | Multiple independently modulated voices, stereo spread, and chorus/vibrato combinations                |
+| UltraTap      | Multi-tap rhythmic delay and modulation                     | Independently shaped taps, rhythmic patterns, variable tap count, and reverb-like feedback             |
+| Rose          | Modulated delay with reverse behavior and extensive control | Delay with selectable modulation sources, reverse operation, pitch movement, and analog-style dry path |
+| Blackhole     | Large, otherworldly reverb spaces                           | Reverb with unusual decay behavior, modulation, feedback, and freeze-like operation                    |
+| Space         | Broad range of reverb algorithms                            | A library of different reverb structures, from conventional spaces to experimental effects             |
+| TimeFactor    | Twin delay and looping                                      | Two independently configured delays with flexible routing and rhythmic synchronization                 |
+| ModFactor     | Multi-algorithm modulation                                  | A unified platform for chorus, flanging, phasing, tremolo, and related effects                         |
+| Knife Drop    | Sub-octave fuzz and analog-synth-inspired processing        | Fuzz combined with suboctave generation and synth-like filtering                                       |
+| Riptide       | Uni-vibe-inspired modulation plus distortion                | Integrated modulation and dirt with control over how they interact                                     |
+
+Eventide's official descriptions document the current pedal families, while the H90 page describes its multi-algorithm architecture, two-algorithm programs, and series/parallel routing.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.eventideaudio.com\&sz=32)
+
+Eventide Audio
+
++2
+
+
+
+### My top Eventide-inspired features
+
+1\. MicroPitch-style stereo widening
+
+This is particularly useful for modern high-gain guitar. Use two pitch-shifted voices, for example one slightly flat and one slightly sharp, with small independent delays. The values should be adjustable rather than fixed.
+
+Include:
+
+- Independent left/right detuning.
+- Independent delay times.
+- Wet/dry balance.
+- Stereo width.
+- Optional modulation.
+- Mono compatibility controls to reduce unwanted cancellation when summed.
+
+This is more flexible than a simple chorus and can create a wide lead tone without obvious cyclic movement.
+
+2\. UltraTap-style rhythmic delay
+
+A multi-tap delay can create rhythmic subdivisions, repeated attacks, and dense textures without needing several separate delay plugins. Add per-tap level and pan, a tap-count control, feedback, and a smooth transition between ordinary echoes and diffuse, reverb-like textures.
+
+3\. Polyphonic pitch shifting
+
+If your current pitch effects are monophonic or octave-only, this is one of the more valuable upgrades. Prioritize:
+
+- Octave up/down.
+- Two- and four-part harmonies.
+- Diatonic harmony modes.
+- Pitch bend and whammy-style control.
+- Detuning and stereo doubling.
+- Fast tracking with low latency.
+
+Polyphonic pitch shifting is computationally demanding, so it should be an independently optimized module with its own latency and quality options.
+
+4\. Freeze and infinite sustain
+
+Allow a reverb or granular buffer to capture a moment and sustain it while the player continues performing. This works especially well for ambient intros, instrumental metal transitions, and layered guitar arrangements.
+
+5\. Modular effect routing
+
+The H90 model is worth studying at the architectural level: two effects in a program, with series or parallel routing and the ability to insert other processing into the chain. You can implement a more plugin-native version using your existing effect modules.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.eventideaudio.com\&sz=32)
+
+Eventide Audio
+
+
+
+## 7. How I'd translate all six brands into your effects roadmap
+
+The following is my recommendation for StarterAmp, not a claim that these are the only worthwhile products from each company.
+
+Priority 1 — circuit-driven effects
+
+Analog Man · EarthQuaker Devices · Walrus Audio
+
+- Multiple overdrive topologies: soft clipping, hard clipping, clean boost, asymmetric clipping.
+- A configurable RAT-style distortion.
+- Germanium and silicon fuzz, with bias, leakage, and transistor-gain variation.
+- Treble boost, clean boost, and an EQ/boost combination.
+- Power-amp-style distortion.
+- Octave fuzz and suboctave distortion.
+
+These complement your amp modeling rather than duplicating it.
+
+Priority 2 — core modulation and delay
+
+Walrus Audio · Strymon · Eventide
+
+- Chorus/vibrato with independent dry and wet paths.
+- Phaser with selectable stage count.
+- Flanger with positive/negative feedback and through-zero capability.
+- Smooth and harmonic tremolo.
+- Tape echo, BBD-style delay, and dual digital delay.
+- Multi-tap delay with tempo synchronization.
+- Tape saturation and double tracking.
+
+These are the workhorse effects that make a large amp-and-cab collection useful in real productions.
+
+Priority 3 — premium spatial and pitch effects
+
+Eventide · Strymon · Old Blood Noise Endeavors
+
+- High-quality spring, plate, room, and hall reverb.
+- Shimmer, reverse, granular, and evolving reverb.
+- MicroPitch-style widening.
+- Polyphonic harmonizer and whammy-style pitch shifting.
+- Freeze/infinite sustain.
+- Experimental PLL/synth and resonant-filter effects.
+- Integrated distortion-plus-reverb and other combination effects.
+
+These add distinctive capabilities that help differentiate your plugin from amp simulators focused primarily on conventional stompboxes.
+
+## 8. The most important effects to get technically right
+
+For your hybrid DSP/circuit-modeling approach, I'd separate the effects into three implementation classes.
+
+| Effect class                   | Best implementation approach                        | Critical details                                                                             |
+| ------------------------------ | --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Analog-inspired drive and fuzz | Nonlinear circuit model or calibrated nonlinear DSP | Clipping topology, frequency-dependent feedback, bias, input impedance, gain staging         |
+| Vintage modulation and delay   | Purpose-built DSP algorithms                        | Delay-line filtering, modulation, feedback-path saturation, clock/time behavior              |
+| Modern spatial effects         | High-quality algorithmic DSP                        | Diffusion, feedback matrices, stereo decorrelation, modulation, damping, parameter smoothing |
+
+A few specific engineering points matter more than adding more product names to the interface:
+
+- Oversampling: prioritize nonlinear distortion, fuzz, clipping, and saturation paths. Use suitable filtering and measure aliasing.
+- Feedback loops: put the intended filtering, saturation, and modulation inside the loop where the reference effect requires it. Applying a filter only to the final output won't reproduce the same behavior.
+- Automation: smooth parameter changes and avoid allocating memory in the audio callback. This is especially important for delays, granular effects, and changing effect configurations.
+- Latency: document latency introduced by pitch-shifting and look-ahead algorithms. Provide quality/latency trade-offs where needed.
+- Stereo: implement genuine stereo processing where it improves the effect, and test mono summing.
+- Preset design: expose useful musical controls by default, with optional advanced parameters for people who want deeper control.
+
+## 9. What I would actually ship first
+
+If I were deciding what to add to StarterAmp next, I'd prioritize this list:
+
+## Effects implementation checklist
+
+0 of 9
+
+Configurable overdrive and clipping engine
+
+Clean boost, soft/hard/asymmetric clipping, tone shaping
+
+Vintage fuzz engine
+
+Germanium/silicon variants, bias, gating, guitar-volume interaction
+
+RAT-style distortion and power-amp drive
+
+Distinct distortion architectures, not just gain presets
+
+Tape saturation and double tracking
+
+Studio-style thickening, flange, and tape-like coloration
+
+Analog/tape/digital delay suite
+
+Separate delay engines with their own feedback and filtering
+
+Chorus, phaser, flanger, and harmonic tremolo
+
+Flexible modulation with tempo sync and stereo options
+
+Spring, plate, hall, and ambient reverb
+
+Conventional spaces plus creative tails and modulation
+
+MicroPitch-style widening and harmonizer
+
+Detuning first, then full polyphonic pitch shifting
+
+Granular, reverse, freeze, and experimental effects
+
+A distinctive premium sound-design section
+
+## 10. A final caution about research and product identity
+
+Use these pedals as references for what an effect does and how it is controlled. Don't assume a marketing description tells you the actual circuit topology, component values, or DSP implementation. Manuals, schematics, patents, teardown photographs, and controlled audio comparisons provide different levels of evidence.
+
+For example, EQD's [Plumes documentation](https://www.earthquakerdevices.com/plumes?utm_source=chatgpt.com) explicitly describes three clipping modes, while Analog Man's [King of Tone documentation](https://www.analogman.com/kingtone.htm?utm_source=chatgpt.com) distinguishes clean, overdrive, and harder distortion modes. Those are concrete behavioral references.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.earthquakerdevices.com\&sz=32)
+
+EarthQuaker Devices
+
++1
+
+&#x20;Strymon's [delay-family guide](https://www.strymon.net/delay-pedal-family-page/?utm_source=chatgpt.com) is similarly useful for understanding why tape, BBD, and dual-digital delay should be treated as different algorithms.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.strymon.net\&sz=32)
+
+Strymon
+
+
+
+You can build compatible sounds and effect categories without reproducing proprietary code or presenting your implementations as the original manufacturers' products.
+
+My overall recommendation: prioritize circuit authenticity for drives and fuzz, algorithmic quality for delay and reverb, and genuinely useful parallel routing and automation across the entire effects chain. Those three strengths would give StarterAmp more value than a much larger list of generic effects.

@@ -1,0 +1,105 @@
+Yes — but reliable high-gain amp transformer data is much harder to find than schematic data. For your amp simulator, the key distinction is between:
+
+- Documented transformer specifications — primary impedance, turns ratio, winding resistance, inductance, and power rating.
+- Measured transformer behavior — frequency-dependent impedance, leakage inductance, capacitance, saturation, and losses.
+- Original manufacturer data — often incomplete for guitar amps, particularly for discontinued models.
+
+For high-gain amps like the Peavey 5150, Mesa/Boogie Dual Rectifier, Soldano SLO-100, Diezel VH4, and ENGL Savage, I would not assume that a schematic or a replacement-transformer listing gives you enough information to reproduce the original output-transformer response. The most useful data tends to come from transformer manufacturers, service documentation, and measurements of original hardware.
+
+## Best high-gain transformer references
+
+[Tube-Town Store - TT-Slo100 Soldano® SLO 100 Watt Output Transformer](https://images.openai.com/static-rsc-4/C8aXwP0G6j9yutPp4EvBtKZG2VpGa1PYSoPitbMqEoOGxY8pdTn_l-Tr-iQJEQZnDE7pY63Rt7Y46oDtP2SHIoLHNI5eTlxWU9_FX4-5MJH53PmIipiGmpjKD1b-8iipyZoPBOFo6wqZB-QCJxDRk4Ogjf0zibNM5HH4Pj5WQJg?purpose=inline)
+
+1\. Soldano SLO-100 — strongest published starting point
+
+Best data found
+
+Tube-Town publishes a replacement transformer with a 2.2 kΩ primary impedance, 18.5 H primary inductance, 4/8/16 Ω outputs, and 100 W rating. Sowter also lists an SLO-100 replacement with a 2.2 kΩ primary and 20 Hz–100 kHz bandwidth specification. These are useful engineering references, but they are replacement designs—not proof of the original factory transformer's exact parameters.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.tubetown.net\&sz=32)
+
+Soldano
+
++1
+
+
+
+Links: [Tube-Town specifications](https://www.tubetown.net/ttstore/en/components-10662/transformer/outputtransformer/soldano/?utm_source=chatgpt.com) · [Sowter SLO-100 transformer](https://www.sowter.co.uk/acatalog/E_A_Sowter_Ltd_CLASSIC_AMPS_13.html?utm_source=chatgpt.com)
+
+[Peavey 5150 Guitar Amplifier Electro-Harmonix Power Tubes Operation Confirmed | eBay](https://images.openai.com/static-rsc-4/eYD-xlZBgQVN_1xI1MVyiLDi8CKqiech8DcV6YtaPOQ-uLxSI9pNSDTbbPGMyyeKP8GzDC3ftcFgpHuBMyH9oCVbxw_VXFvBaJwK1I4OOh4IfYvrfu_aS2anP9vtH3u8tBT7aMg8kcp8tcHV8CNe4d-1QBHHhLXyI5IdqYXnNQI?purpose=inline)
+
+2\. Peavey 5150 / 6505 — good model-specific leads
+
+Exact electrical parameters not published on the pages found
+
+Mercury Magnetics lists separate output-transformer replacements for the original 5150 and 6505, including four-tube head versions with 4/8/16 Ω taps. Its product pages are useful leads for identifying the right model-specific hardware, but they don't provide enough electrical data to recreate the original transformer's transfer behavior.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.mercurymagnetics.com\&sz=32)
+
+Mercury Magnetics
+
++1
+
+
+
+Links: [5150 output transformer](https://www.mercurymagnetics.com/product/p5150-o/?utm_source=chatgpt.com) · [6505 transformer listings](https://www.mercurymagnetics.com/model/6505/?utm_source=chatgpt.com)
+
+[90s Dual Rectifier - Mesa Boogie 90s Dual Rectifier - Audiofanzine](https://images.openai.com/static-rsc-4/nBK-qav8WyyIOX8xAzasLVPrnvplRHeNyPPCNlziJ77qKf_OJu0PtK0bEoCE4F40L6P49PQGuJaUMCDeaiqNAXav6PI0W3L176DVtX4NohJLflWIKC08FNZJbn4e96AZWn3iX1Z7-zOf6moPf0IG50y16FSo5mP1jeXC-Rmiw_0?purpose=inline)
+
+3\. Mesa/Boogie Dual Rectifier — limited original data
+
+Mesa documents the amp's 50/100 W operation, power-tube configuration, and selectable rectification, but the public product information I found does not give a detailed output-transformer parameter set.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://rosette.mesaboogie.com\&sz=32)
+
+MESA/Boogie®
+
+
+
+For this one, I'd use the correct schematic and output-stage operating conditions to constrain a model, then seek measured data from an original transformer rather than borrowing the SLO's values.
+
+[VH4 - Diezel Amplification](https://images.openai.com/static-rsc-4/jOU3o2ZyWHAhYViFdsHg1T-I2Xz-uKLMBuStEyD0Sb9SWB5gG17x1gi5eWqQ7BGpCj98ncYqDHGJJ8nQ5krFT1OscIrCaD2wjQkwoPuveQRhDkSq0AXkkirkmN_i0-GdAaMB3DGhFVgHzdllzTQkW6kpU1grBlIZ_5J90KqjB_c?purpose=inline)
+
+4\. Diezel VH4 and ENGL Savage — weakest public parameter data
+
+Official documentation confirms the VH4's 100 W, four-power-tube design and the Savage 120's output configuration, but I didn't find a verified public datasheet containing original-transformer inductance, winding resistance, leakage inductance, and capacitance.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://diezelusa.com\&sz=32)
+
+VH4
+
++1
+
+
+
+Links: [VH4 documentation](https://diezelusa.com/support/DiezelVH4%26VH4SManual26102016.pdf?utm_source=chatgpt.com) · [ENGL Savage 120 specifications](https://www.engl-usa.com/products/32551-savage-120-mark-ii-e610ii?utm_source=chatgpt.com)
+
+## What I would implement in StarterAmp
+
+You don't need complete factory data for every amp to build a useful transformer model. I'd use a hierarchy of confidence:
+
+| Model family             | Recommended approach                                                            |
+| ------------------------ | ------------------------------------------------------------------------------- |
+| SLO-100                  | Start from published replacement-transformer values; label as a proxy           |
+| 5150 / 6505              | Separate profile, constrained by the specific output stage; measure if possible |
+| Dual Rectifier           | Separate profile; account for operating point and output-stage configuration    |
+| VH4 / Savage             | Start with estimated parameters and calibrate against recordings or hardware    |
+| Generic modern high-gain | Parameterized transformer family with documented assumptions                    |
+
+For each profile, prioritize:
+
+1. Turns ratio and reflected primary impedance — including the intended speaker tap.
+2. Primary winding resistance and magnetizing inductance — both affect low-frequency response and output-stage loading.
+3. Leakage inductance and winding capacitance — important for high-frequency behavior and resonances.
+4. Core saturation and hysteresis — particularly when driving high output levels and low frequencies.
+5. Output-stage negative feedback — because the transformer, speaker load, and feedback loop interact.
+
+A useful reference for the equivalent-circuit approach is this [Mercury Magnetics transformer-model explanation](https://www.mercurymagnetics.com/wp-content/uploads/woocommerce_uploads/2018/06/EVJ-Mercury-Upgrade-V2-3-PCB-Manual-V2.pdf?utm_source=chatgpt.com), which illustrates primary and secondary resistance, magnetizing and leakage inductance, capacitances, and core-loss terms.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.mercurymagnetics.com\&sz=32)
+
+Mercury Magnetics
+
+
+
+My recommendation: treat the SLO-100 as your first data-backed high-gain transformer profile, but don't call its parameters an original factory specification. For the 5150, Rectifier, VH4, and Savage, I would keep the profiles distinct while marking their transformer parameters as estimated until measured or documented data becomes available. A shared generic transformer model with different parameters is a better foundation than inventing supposedly exact specifications for each amp.

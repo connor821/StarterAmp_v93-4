@@ -1,0 +1,123 @@
+# Output-transformer modeling for StarterAmp
+
+You're right: a generic output-transformer model leaves out some of the power amp's most distinctive behavior. For StarterAmp, I'd replace it with transformer-specific electrical parameters plus a nonlinear core model, using measured transformer data wherever it is available.
+
+One important distinction: the nominal primary impedance (for example, 3.4 kΩ plate-to-plate) is the intended reflected load, not the transformer's actual impedance at every frequency. Winding resistance, magnetizing inductance, leakage inductance, capacitance, core saturation, and the speaker load determine its real behavior.
+
+## 1. Useful reference data
+
+These are documented transformer specifications and measurements—not universal values for every production version of each amplifier.
+
+| Amp family / reference                                  | Primary impedance        | Primary DC resistance         | Leakage inductance |
+| ------------------------------------------------------- | ------------------------ | ----------------------------- | ------------------ |
+| Fender Twin Reverb 100 W replacement, Hammond 1750W     | 2.0 kΩ CT                | 22.8 Ω end-to-end             | 1.31 mH            |
+| Vox AC30 reissue, Hammond 1750T                         | 4.0 kΩ CT                | 114 Ω end-to-end              | 4.61 mH            |
+| Vox AC30 vintage, Hammond 1750V                         | 4.0 kΩ CT                | 140.7 Ω end-to-end            | 5.14 mH            |
+| Marshall 50 W JMP/JCM800 replacement, Hammond 1750N     | 3.2 kΩ CT                | See individual datasheet      | Not yet verified   |
+| Marshall 50 W JCM900 replacement, Hammond 1750P         | 3.4 kΩ CT                | See individual datasheet      | Not yet verified   |
+| Marshall 100 W JMP/JCM800 replacement, Hammond 1750U    | 1.7 kΩ CT                | See individual datasheet      | Not yet verified   |
+| Hiwatt DR201 original transformer, reported measurement | Approximately 2.25 kΩ CT | Approximately 36 Ω end-to-end | Not reported       |
+
+Sources: Hammond's transformer catalog and individual data sheets, plus reported measurements of the Hiwatt DR201 transformer.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.hammfg.com\&sz=32)
+
+Hammond Mfg.
+
++4
+
+
+
+A correction worth emphasizing: the Twin Reverb's 2 kΩ figure above is for a 100 W replacement transformer. Do not automatically apply it to the classic 85 W black-panel Twin Reverb; the correct transformer and operating conditions depend on the specific amp revision.
+
+The AC30 data also illustrates why a single generic transformer won't suffice: the vintage and reissue units have different measured winding resistances and leakage inductances, despite sharing the same nominal 4 kΩ primary specification.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://hammond-store.com\&sz=32)
+
+Hammond Store
+
++1
+
+
+
+## 2. Additional documented transformer sources
+
+[Tube Guitar Amplifier - Output Transformers (1750 Series) - Hammond Mfg.](https://images.openai.com/static-rsc-4/m1oFyDqgZ5RfixJ828Pd_uIvaQJgw7puCz-vDRF_tku60WhgTaN0bZN6r-oKZ1rnntCOnfn6dsbrVU40dM7ryyMz6qrk870RTYi1okveHGEZcB-kLMnWxBf8QS2awT538Ls1KYPf6xs02ySCjP58C4bJ_qOD43Sr2gB3KuaxOj4?purpose=inline)
+
+Marshall 50 W — Hammond 1750M
+
+A useful measured reference for a 4.2 kΩ, 50/60 W transformer. Its datasheet lists 68 Ω primary DCR, 5.60 H primary inductance at 1 kHz, and 8.03 mH leakage inductance.
+
+[Open complete transformer datasheet](https://www.hammfg.com/files/parts/pdf/1750M.pdf?utm_source=chatgpt.com)&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.hammfg.com\&sz=32)
+
+Hammond Mfg.
+
+
+
+[Hammond 1750WR - Output Transformer - Canada](https://images.openai.com/static-rsc-4/sU2XxMJeZlAoZtEmwR0M-XYj7JVhvhbbQSoDwbdWawehLET1aYGQePTkvpqJiiyzuqZ74ErkPnwSyoB7KSi0zhIt7zuLbK_sON5bAOv26BN3XwWPGdm5eXyEqitjAW7zk1lKnDMYpeNFmA8oIvO6PNgPBO1er11FS2BhOhcFErs?purpose=inline)
+
+Fender 135 W — Hammond 1750WR
+
+Lists 2 kΩ primary impedance, 65.7 Ω and 66.3 Ω primary half-winding DCR, 12.64 H primary inductance, and 2.28 mH leakage inductance.
+
+[Open complete transformer datasheet](https://www.hammfg.com/files/parts/pdf/1750WR.pdf?utm_source=chatgpt.com)&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.hammfg.com\&sz=32)
+
+Hammond Mfg.
+
+
+
+[Output Transformer for Hiwatt Custom 100, DR103, TG5479](https://images.openai.com/static-rsc-4/MzB-EETl-FDC_QMSdvSdywkqKZjHfBwehMie5w4BkUmP3DU7KhnJMj9fNi2frg2OwaerQsfYzTWaH7cD3azCXQD6eVRd3iaJ_nUNjaTOVczdB6QDcj1mpcQehljJvbXQjiq62Yxcb6GqmQrW7Qy0IsIuO3OuvBUYVxYwq-taksM?purpose=inline)
+
+Hiwatt DR103 / DR201 — original Partridge transformers
+
+MHuss's Hiwatt technical archive includes turns-ratio measurements for a 1971 DR201 transformer and reports approximately 36 Ω primary resistance. This is more useful for establishing a vintage reference than substituting a generic Marshall transformer.
+
+[Open Hiwatt technical archive](https://www.hiwatt.org/tech.html?utm_source=chatgpt.com)&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.hiwatt.org\&sz=32)
+
+Tech Info
+
+
+
+For the original Mesa/Boogie and Peavey 5150 transformers, I haven't established sufficiently reliable measurements for primary DCR and leakage inductance. I'd leave those fields marked unknown rather than invent values.
+
+## 3. What StarterAmp's transformer model should contain
+
+I'd use this parameter set for each transformer profile:
+
+| Parameter                         | Why it matters                                                                       |
+| --------------------------------- | ------------------------------------------------------------------------------------ |
+| Primary impedance and turns ratio | Establishes reflected speaker load and voltage/current scaling                       |
+| Primary half-winding DCR          | Models copper losses, asymmetry, and voltage drop                                    |
+| Secondary DCR                     | Models load-dependent loss and damping                                               |
+| Magnetizing inductance            | Controls low-frequency response and contributes to saturation behavior               |
+| Leakage inductance                | Affects high-frequency roll-off and phase response                                   |
+| Interwinding capacitance          | Helps reproduce high-frequency resonance and roll-off                                |
+| Core saturation and hysteresis    | Determines low-frequency distortion, compression, and recovery                       |
+| Winding and core losses           | Shape frequency response and damping                                                 |
+| Feedback takeoff and polarity     | Determines how transformer response interacts with the amplifier's negative feedback |
+
+The primary inductance needs special care: a value measured at 1 kHz and low signal level is not necessarily valid at 50 Hz or near core saturation.
+
+## 4. Recommended implementation plan
+
+Stage 1 — Measured linear transformer
+
+Implement turns ratio, winding resistance, magnetizing inductance, leakage inductance, and capacitance. Validate small-signal frequency response and phase against measured curves.
+
+Stage 2 — Nonlinear core
+
+Add a saturation model and frequency-dependent losses. Test with low-frequency sine waves at increasing levels, measuring harmonic distortion and compression.
+
+Stage 3 — Amp-specific integration
+
+Couple the transformer to the actual power-tube model, output feedback loop, and speaker/cabinet impedance. A transformer profile should not be evaluated in isolation from its circuit.
+
+My priority for your next build: start with the Fender Twin, AC30, Marshall 50 W, Marshall 100 W, and Hiwatt profiles. Those give you several well-documented starting points. Then add Mesa/Boogie and 5150 profiles once you have trustworthy measurements or transformer datasheets for the exact variants.
+
+The key is to make the transformer profiles genuinely different electrically—not simply assign each one a different high-frequency cutoff.

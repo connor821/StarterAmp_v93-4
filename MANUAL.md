@@ -1,4 +1,4 @@
-# Starter Amp v93: User Manual
+# Starter Amp v0.1: User Manual
 
 Starter Amp is a guitar amp simulator and effects rack built from hand-written DSP (no neural captures needed, although it can also load neural amp models). It runs as a standalone app, a VST3 and an AU plug-in. This manual covers every part of it. If you only want to get playing, read `QUICKSTART.md` first.
 
@@ -24,7 +24,7 @@ Starter Amp is a guitar amp simulator and effects rack built from hand-written D
    - SCAPES
    - POST FX
    - Reordering effects
-6. The amps in depth (all fifteen, with all four voicings)
+6. The amps in depth (all of them, with all four voicings)
 7. Presets, A/B, undo and the browser
 8. MIDI and controllers
 9. Tuner, metronome, riff recorder and tone matching
@@ -49,13 +49,13 @@ cmake -B build -G Xcode
 cmake --build build --config Release
 ```
 
-The products are in `build/StarterAmpV72_artefacts/Release/`:
+The products are in `build/StarterAmp_artefacts/Release/`:
 
 | Format | Where | Install by |
 |---|---|---|
-| Standalone | `Standalone/Starter Amp v93.app` | Double-click, or drag to Applications |
-| VST3 | `VST3/Starter Amp v93.vst3` | Copy to `~/Library/Audio/Plug-Ins/VST3` |
-| AU | `AU/Starter Amp v93.component` | Copy to `~/Library/Audio/Plug-Ins/Components` |
+| Standalone | `Standalone/Starter Amp v0.1.app` | Double-click, or drag to Applications |
+| VST3 | `VST3/Starter Amp v0.1.vst3` | Copy to `~/Library/Audio/Plug-Ins/VST3` |
+| AU | `AU/Starter Amp v0.1.component` | Copy to `~/Library/Audio/Plug-Ins/Components` |
 
 The build does not copy the plug-ins for you. After copying, rescan plug-ins in your DAW. A self-built, unsigned plug-in may be blocked the first time: right-click it in Finder and choose Open, or allow it in System Settings, Privacy and Security.
 
@@ -102,7 +102,7 @@ Ten page tabs run under the top bar: INPUT, GAIN, MOD, PITCH, AMP, CAB, EQ, DELA
 The window is styled like a pedalboard and an amp stack:
 
 - **Pedals** (fuzz, compressor, overdrive, wah, phaser, chorus, delays and so on) are coloured enclosures with a title band, a small line-art illustration, a screw in each top corner and a faint watermark of the same art. The colour and art are decoration only. They help you find a pedal at a glance.
-- **Amp panels** take on the look of the amp you choose: tolex, piping, faceplate and grille cloth change with the model. The AMP page also shows a large illustration of the selected amp head on a four-speaker cab, which follows the model (and Amp B's model on the Amp B tab).
+- **Amp panels** take on the look of the amp you choose: tolex, piping, faceplate and grille cloth change with the model. (The big amp illustration that used to sit beside the controls was removed in v0.2: it did nothing the controls did not.)
 - **Rack panels** (input, EQ, output and so on) are plain dark cards.
 - The accent colour of knobs and highlights follows the amp you are playing.
 
@@ -127,7 +127,7 @@ IN -> input select -> pickup de-noise -> gate -> high-pass -> transpose
    -> output level -> optional limiter -> OUT
 ```
 
-Fixed stages (the ORDER window cannot move them): noise pedal, transpose, pitch pedal, octaver, lo-fi warble, boost, NAM pedals, overdrive, the amps and the cab. "Textures" in the ORDER window means tremolo, wobble, the swell fade and the granular cloud together.
+Fixed stages (the ORDER window cannot move them): noise pedal, transpose, pitch pedal, octaver, lo-fi warble, boost, NAM pedals, overdrive, the amps and the cab. "Textures" in the ORDER window means the swell fade and the granular cloud together.
 
 ## 5. The pages, one by one
 
@@ -166,7 +166,7 @@ Two identical slots (**A** and **B**). Each can be a flanger, through-zero flang
 **PITCH PEDAL** (an expression pedal: heel and toe pitch with modes such as octave up, two octaves, octave down and a custom mode; the MIDI pitch wheel moves it by default), **OCTAVER**, and the **HARMONIZER** with Interval or Scale modes and three tracking choices: Single note (fast, for leads), Chords (follows up to six notes, about 85 ms of delay) and Chords fast (about 43 ms).
 
 ### AMP
-The AMP page has three tabs: **AMP A**, **AMP B** (the parallel second amp) and **NAM** (neural model slots). On the right is the amp illustration.
+The AMP page has three tabs: **AMP A**, **AMP B** (the parallel second amp) and **NAM** (neural model slots). The controls use the full page width (the decorative amp illustration and grille-cloth panel were removed in v0.2).
 
 **AMP A panel, always visible:**
 - **Model menu** (fourteen electric amps plus Acoustic). Section 6 describes each one.
@@ -178,9 +178,9 @@ The AMP page has three tabs: **AMP A**, **AMP B** (the parallel second amp) and 
 
 **Behind ADV:** the preamp tube (12AX7, 12AT7, 12AY7), the power tube (As voiced, EL34, 6L6, 6V6, EL84, KT88), DEEP (a low-end boost), the amp's oversampling quality (Best 4x, Balanced 2x, Lowest latency), and the knobs Bias, Power Drive, Resonance and Sag.
 
-**Focus** tightens the low end and trims bass and gain so low-tuned guitars stay clear. Turn it up by about 1 for each semitone below E standard. It works on Saturated Lead, Modern High-Gain, Tight Metal, Creamy Lead, Precision High-Gain and Digital Extreme. (Digital Extreme is already very tight, so Focus tightens it about half as strongly as the others.)
+**Focus** tightens the low end and trims bass and gain so low-tuned guitars stay clear. Turn it up by about 1 for each semitone below E standard. It works on Slow Burn, Modern Maul, 5555 Block, Marque Dream, Revved Up and Digital Dread. (Digital Dread is already very tight, so Focus tightens it about half as strongly as the others.)
 
-**MODERN METAL panel** (it appears under the amp for Hot-Rod, Saturated Lead, Modern High-Gain, Tight Metal, Creamy Lead, Precision High-Gain and Digital Extreme):
+**MODERN METAL panel** (it appears under the amp for Hot-Rod, Slow Burn, Modern Maul, 5555 Block, Marque Dream, Revved Up and Digital Dread):
 - **Tight:** raises the high-passes between the gain stages (up to about 2.8x) so low palm mutes stay clear and fast.
 - **Sag:** power-amp squash and bloom. The middle is the amp's own, 0 is stiff, 1 is double.
 - **Chug Gate:** a fast gate after the preamp that cuts the gain's hiss between palm mutes. Too high cuts quiet notes.
@@ -233,7 +233,7 @@ Tip: for a loaded impulse response that sounds a little harsh on some notes, try
 ### SCAPES
 Shoegaze, ambient and special-effect tools.
 
-Shoegaze and ambient tools: **GRANULAR CLOUD** (with scale, grain shape, scan and tone), **TREMOLO / AUTO-PAN**, **WOBBLE** (tremolo-arm style vibrato) and **SWELL** (a volume fade-in that turns a pick attack into a violin-like swell).
+Shoegaze and ambient tools: **GRANULAR CLOUD** (with scale, grain shape, scan and tone), **TREMOLO**, **WOBBLE** (tremolo-arm style vibrato) and **SWELL** (a volume fade-in that turns a pick attack into a violin-like swell).
 
 **NOISE PEDAL.** A pitch-mangling pedal for harsh, dissonant sounds: octave up, two octaves up, Clash (clashing pitch-shifted voices) and a ring modulator. The four footswitches are momentary by default (on only while held); light **LATCH** to make one latching. NOISE PEDAL ON is a master switch. The tabs (OCTAVE, CLASH, RING MOD) only choose which settings you see.
 
@@ -256,23 +256,26 @@ All fourteen electric amps share the same machinery: cascaded clipping stages, e
 - **Tone knobs** add to each amp's built-in tone shape. 0 dB is the amp's neutral setting, not flat. The American, British and Neutral tone stack choices change how much of that built-in shape is used.
 - **Auto Level** is calibrated per amp and per voicing (section 10).
 
-### The newest amp: Master-Volume Rock
+### Five amps added in v95
+Harmonic Haze (Low / mid gain folder) and Diesel Fuel, Wreck Stack, Power Brawl and Cutaway (High gain folder). They are in the amp menu after Master Cranker, so older sessions are unchanged. Appendix A lists their voicings. They are new and have not been tuned by ear; if one sounds wrong, the Tight, Mid and Sag knobs and the tone stack choice are the quickest fixes.
+
+### The newest amp before that: Master Cranker
 
 An 80s hard-rock amp built around a master volume: a cascaded preamp that is tight, bitey and compressed. It has no Modern Metal controls or Focus.
-- **Stock:** the classic sound: three gain stages, a tight low end, a forward upper mid and a bright, edgy top. It is exactly the sound that was Classic Rock's third voicing before the Master-Volume Rock amp existed.
+- **Stock:** the classic sound: three gain stages, a tight low end, a forward upper mid and a bright, edgy top. It is exactly the sound that was Club Crunch's third voicing before the Master Cranker amp existed.
 - **Modded:** the same kind of amp with a modification for more gain: an extra cascaded stage, a tighter low end, a cut in the lower mids and a hotter upper mid. It is smoother, more compressed and more saturated, with a lot of sustain.
 - **Cranked:** the master volume wide open. The preamp is gentler (two stages) and the power stage does the clipping, so it is looser, saggier, darker and louder.
 
-Sessions and presets saved with Classic Rock on its third voicing load as this amp's Stock voicing, so they sound the same.
+Sessions and presets saved with Club Crunch on its third voicing load as this amp's Stock voicing, so they sound the same.
 
-### Precision High-Gain and Digital Extreme
+### Revved Up and Digital Dread
 
-**Precision High-Gain (tight, modern).** A modern boutique high-gain amp: very tight and articulate, a firm low end, a scooped low mid, a focused upper mid and a smooth, detailed top. It has the Modern Metal panel and Focus. It is built to stay clear under fast palm-muted rhythm and to sing on leads, in the spirit of modern boutique high-gain heads and the tones of contemporary progressive players.
+**Revved Up (tight, modern).** A modern boutique high-gain amp: very tight and articulate, a firm low end, a scooped low mid, a focused upper mid and a smooth, detailed top. It has the Modern Metal panel and Focus. It is built to stay clear under fast palm-muted rhythm and to sing on leads, in the spirit of modern boutique high-gain heads and the tones of contemporary progressive players.
 - **Tight:** the main high-gain channel. Three stages, tight lows, a scooped low mid, a 1.8 kHz bite and moderate sag so held notes bloom a little.
 - **Lead:** more gain and sustain, a vocal mid hump near 1.3 kHz, more sag and a rounder top so single notes sing.
 - **Crunch:** an open, dynamic, lower-gain channel (two stages) that cleans up with your guitar's volume knob. It compresses much less than the other two (measured: about 5 dB of gain compression against about 10 dB).
 
-**Digital Extreme (brutal, digital).** A modern digital-style amp for extreme styles: thall and djent, deathcore and metalcore, industrial and doom. It has very high gain, almost no sag, hard and symmetrical clipping, and extreme tightness. It has the Modern Metal panel and Focus.
+**Digital Dread (brutal, digital).** A modern digital-style amp for extreme styles: thall and djent, deathcore and metalcore, industrial and doom. It has very high gain, almost no sag, hard and symmetrical clipping, and extreme tightness. It has the Modern Metal panel and Focus.
 - **Thall:** ultra-tight (the highest high-passes of any amp), a firm sub-low, a deep cut at about 350 Hz and a sharp 2.4 kHz edge. Chugs stay pinned and clear at low tunings. It is the most upper-mid-forward of the three (measured).
 - **Industrial:** a harsh, gritty, wide-open voicing with fuzzier clipping, some even harmonics, strong upper mids and more top-end fizz, for aggressive, abrasive riffs, synth-like leads and sound-design guitar. Pair it with the cab's High Cut and Fizz Tamer to control the top.
 - **Cavern:** a huge, slow, dark wall with giant lows, a smooth rolled-off top and a lot of sag and headroom behind the clipping. Built for 7 and 8-string, drop-tuned doom and slam. Raise Focus as you tune down.
@@ -282,20 +285,25 @@ Sessions and presets saved with Classic Rock on its third voicing load as this a
 | Amp | 4th voicing | Character |
 |---|---|---|
 | Clean | Studio | Hi-fi: more headroom, smoother low mid, brighter top, less sag |
-| Vintage Chime | Jangle | Brighter, more open, less compression |
-| British Hot-Rod | Mid push | Forward nasal upper mid, less bass |
-| Saturated Lead | Sustain | More gain and sag, rolled-off top |
-| Modern High-Gain | Chunk | Tighter, firm lows, forward upper mid |
-| Classic Rock | Bright | More gain and presence, a little tighter |
-| Boutique Lead | Blues | Earlier breakup, forward upper mids, more sag |
-| Tight Metal | Buzz | Tighter, more gain, scooped low mid, edgy top |
-| Low-Watt Combo | Gritty | Cranked, dark, saggy breakup |
-| Glass Clean | Shimmer | Very bright, scooped and glassy |
-| Creamy Lead | Singing | Smoother, rounder, vocal |
-| Doom Stack | Fuzz | Fuzzy, dark, very saturated, more bias |
-| Precision High-Gain | Polished | Changed in v77: starts from the open Crunch channel instead of Tight. Hi-fi, clear and dynamic, with more headroom, less sag and a bright, extended top; it cleans up as you play softer |
-| Digital Extreme | Lead | The scoop filled in, a touch less tight |
-| Master-Volume Rock | Boosted | Boosted preamp: tighter, more gain, forward upper mid |
+| Chime Thirty | Jangle | Brighter, more open, less compression |
+| Brown Eye | Mid push | Forward nasal upper mid, less bass |
+| Slow Burn | Sustain | More gain and sag, rolled-off top |
+| Modern Maul | Chunk | Tighter, firm lows, forward upper mid |
+| Club Crunch | Bright | More gain and presence, a little tighter |
+| Bumble Lead | Blues | Earlier breakup, forward upper mids, more sag |
+| 5555 Block | Buzz | Tighter, more gain, scooped low mid, edgy top |
+| Tweedle Dee | Gritty | Cranked, dark, saggy breakup |
+| Jade Chorus | Shimmer | Very bright, scooped and glassy |
+| Marque Dream | Singing | Smoother, rounder, vocal |
+| Citrus Doom | Fuzz | Fuzzy, dark, very saturated, more bias |
+| Revved Up | Polished | Changed in v77: starts from the open Crunch channel instead of Tight. Hi-fi, clear and dynamic, with more headroom, less sag and a bright, extended top; it cleans up as you play softer |
+| Digital Dread | Lead | The scoop filled in, a touch less tight |
+| Master Cranker | Boosted | Boosted preamp: tighter, more gain, forward upper mid |
+| Harmonic Haze | Boost | More gain and a push in the upper mids |
+| Diesel Fuel | Open | Less compression, more presence |
+| Wreck Stack | Smooth | Rounder, less bite, a lower top |
+| Power Brawl | Bottom | More low end, a little looser |
+| Cutaway | Brilliant | A chimey, bright clean |
 
 Each starts from one of the amp's first three voicings and is level-matched to the amp's first voicing at Gain 0.5.
 
@@ -356,17 +364,17 @@ These are starting points. Set the cab (Block A on, and B on with a different mi
 
 | Style | Amp / voicing | Settings to try |
 |---|---|---|
-| Progressive rhythm | Precision High-Gain / Tight | Gain 0.5, Tight 0.3, Focus to match your tuning, Gate about -56 dB, a short plate reverb |
-| Progressive lead | Precision High-Gain / Lead | Gain 0.6, Lead boost off (the voicing already adds gain), post-amp delay at a dotted eighth, reverb 0.14 |
-| Clean-ish crunch | Precision High-Gain / Crunch | Gain 0.4, roll your guitar's volume knob down to clean up |
-| Djent and thall | Digital Extreme / Thall | Gain 0.6, Focus about 4, Tight 0.4, Chug Gate 0.4, Gate about -52 dB, very little reverb |
-| Metalcore with synths | Digital Extreme / Industrial | Gain 0.55, Mid Boost about 0.3, cab High Cut 7 to 9 kHz, a pre-amp delay or Mod FX for movement |
-| Industrial and aggressive | Digital Extreme / Industrial | Raise Gain, Fizz Tamer up a little, a Distortion-style overdrive in front for grit |
-| Doom, slam and 8-string | Digital Extreme / Cavern | Gain 0.55, Focus 6, Tight low, big reverb, cab Block A on a 4x12 |
-| Stoner and sludge | Doom Stack / Stoner | Gain 0.55, a fuzz in front (Wall style), Power Drive up |
-| Classic rock | Classic Rock / Crunch, or Master-Volume Rock / Stock | Gain 0.5, a little room and spring-style reverb |
-| Funk and clean | Glass Clean / Funk | Gain 0.4, compressor on, a little chorus |
-| Ambient | Glass Clean / Warm, Granular and Shimmer on the SCAPES / POST FX pages | Low gain, long delay and reverb |
+| Progressive rhythm | Revved Up / Tight | Gain 0.5, Tight 0.3, Focus to match your tuning, Gate about -56 dB, a short plate reverb |
+| Progressive lead | Revved Up / Lead | Gain 0.6, Lead boost off (the voicing already adds gain), post-amp delay at a dotted eighth, reverb 0.14 |
+| Clean-ish crunch | Revved Up / Crunch | Gain 0.4, roll your guitar's volume knob down to clean up |
+| Djent and thall | Digital Dread / Thall | Gain 0.6, Focus about 4, Tight 0.4, Chug Gate 0.4, Gate about -52 dB, very little reverb |
+| Metalcore with synths | Digital Dread / Industrial | Gain 0.55, Mid Boost about 0.3, cab High Cut 7 to 9 kHz, a pre-amp delay or Mod FX for movement |
+| Industrial and aggressive | Digital Dread / Industrial | Raise Gain, Fizz Tamer up a little, a Distortion-style overdrive in front for grit |
+| Doom, slam and 8-string | Digital Dread / Cavern | Gain 0.55, Focus 6, Tight low, big reverb, cab Block A on a 4x12 |
+| Stoner and sludge | Citrus Doom / Stoner | Gain 0.55, a fuzz in front (Wall style), Power Drive up |
+| Classic rock | Club Crunch / Crunch, or Master Cranker / Stock | Gain 0.5, a little room and spring-style reverb |
+| Funk and clean | Jade Chorus / Funk | Gain 0.4, compressor on, a little chorus |
+| Ambient | Jade Chorus / Warm, Granular and Shimmer on the SCAPES / POST FX pages | Low gain, long delay and reverb |
 | Acoustic with a piezo | Acoustic | Body Dreadnought, Piezo Fix 0.6, a touch of Squeeze and room |
 
 ## 12. Quality, CPU and latency
@@ -398,7 +406,7 @@ These are starting points. Set the cab (Block A on, and B on with a different mi
 - The built-in cab models are hand-made responses, not recordings of real speakers or mics. For a particular sound, use IRs you own or a neural capture.
 - The pitch features work best on single notes. Low notes (below about 100 Hz) and down-shifts are rougher in the Fast mode; use Smooth.
 - Auto Level is a measured match with a test signal, not a perception test.
-- Not built: a built-in chorus in the Glass Clean amp (use the Chorus pedal), a graphic EQ in the Creamy Lead amp (use the Boost EQ or Post EQ), MIDI output, and non-WAV IRs.
+- Not built: a built-in chorus in the Jade Chorus amp (use the Chorus pedal), a graphic EQ in the Marque Dream amp (use the Boost EQ or Post EQ), MIDI output, and non-WAV IRs.
 
 ---
 
@@ -408,21 +416,26 @@ Voicing positions 1, 2 and 3 are the three entries of the Voicing menu. Position
 
 | # | Amp | Voicing 1 | Voicing 2 | Voicing 3 | Character (voicing 4 is listed in the next table) |
 |---|---|---|---|---|---|
-| 0 | Clean (sparkly) | Sparkly | Edge push | Boutique | Lots of headroom, scooped mids, sparkly top. Edge push is a small old amp turned up. Boutique has fuller mids and more compression |
-| 1 | Vintage Chime (class-A) | Chime | Treble boost | Normal | Chimey, jangly class-A upper-mid honk, gritty when pushed. Normal is darker, rounder and thicker, without the top boost |
-| 2 | British Hot-Rod (tight) | Tight | Heavy | Brown | Tight, bright, saturated, strong upper mids. Heavy has deep controlled lows and more gain. Brown is thicker, saggier and mid-rich |
-| 3 | Saturated Lead (smooth) | Smooth | Lead | Crunch | Smooth, thick, singing lead with forward upper mids and lots of compression. Crunch is a low-gain, open channel |
-| 4 | Modern High-Gain (scooped) | Scooped | Clarity | Vintage | Big lows, scooped mids, spongy sag. Clarity fills the scoop and tightens. Vintage is looser and fatter with a softer attack |
-| 5 | Classic Rock (crunch) | Crunch | Pushed | Jumped | Open, mid-forward, loose and dynamic. Pushed is a hard-rock lead tone. Jumped is both channels linked: fatter, hotter, more sag, a softer top |
-| 6 | Boutique Lead (smooth, singing) | Jazz | Rock | Lead | Clean headroom that turns into a smooth vocal lead when pushed. Lead is the boosted mode with more compression |
-| 7 | Tight Metal (raw to modern) | Raw | Modern | Crunch | Tight, aggressive three-stage high gain. Modern has more gain, tighter lows and a smoother top. Crunch is a low-gain rhythm channel |
-| 8 | Low-Watt Combo (spongy breakup) | Soft | Cranked | Four-ten | Small combo that breaks up early and soft with heavy sag. Cranked is spitty and thicker. Four-ten (changed in v77) is a clearer, fuller-bodied voicing: more headroom, bigger lows, a slightly scooped low mid, a brighter top and less sag |
-| 9 | Glass Clean (solid-state) | Glass | Warm | Funk | Stiff solid-state clean with huge headroom and no sag. Warm is rounder and darker. Funk is tight, percussive and scooped |
-| 10 | Creamy Lead (tight, mid-hump) | Rhythm | Lead | Vintage | Tight, creamy high gain with a mid hump. Rhythm is tight and punchy. Lead has a big mid hump and sustain. Vintage is lower gain with thick creamy mids |
-| 11 | Doom Stack (thick, loose) | Stoner | Wall | Bass stack | Thick, loose and heavy with a huge low end. Stoner is fuzzy and saturated. Wall is huge, deep and slow. Bass stack has massive low mids and a grind only when pushed |
-| 12 | Precision High-Gain (tight, modern) | Tight | Lead | Crunch | Modern boutique high gain: tight, articulate, clear. Lead (changed in v77) is a modern articulate lead: more gain, tighter and brighter than Tight, a focused upper-mid push near 2 kHz and little sag, so single notes stay defined rather than creamy. Crunch is open and dynamic |
-| 13 | Digital Extreme (brutal, digital) | Thall | Industrial | Cavern | Brutal, very tight digital-style high gain with almost no sag. Industrial is harsh and fizzy. Cavern is huge, slow and dark |
-| 14 | Master-Volume Rock (80s hard rock) | Stock | Modded | Cranked | An 80s master-volume hard-rock amp. Stock is the classic sound (the old Classic Rock "Master volume" voicing). Modded adds a gain stage: tighter, smoother, more saturated. Cranked has the master wide open: loose, saggy, loud |
+| 0 | Twin Sparkle (sparkly) | Sparkly | Edge push | Boutique | Lots of headroom, scooped mids, sparkly top. Edge push is a small old amp turned up. Boutique has fuller mids and more compression |
+| 1 | Chime Thirty (class-A) | Chime | Treble boost | Normal | Chimey, jangly class-A upper-mid honk, gritty when pushed. Normal is darker, rounder and thicker, without the top boost |
+| 2 | Brown Eye (tight) | Tight | Heavy | Brown | Tight, bright, saturated, strong upper mids. Heavy has deep controlled lows and more gain. Brown is thicker, saggier and mid-rich |
+| 3 | Slow Burn (smooth) | Smooth | Lead | Crunch | Smooth, thick, singing lead with forward upper mids and lots of compression. Crunch is a low-gain, open channel |
+| 4 | Modern Maul (scooped) | Scooped | Clarity | Vintage | Big lows, scooped mids, spongy sag. Clarity fills the scoop and tightens. Vintage is looser and fatter with a softer attack |
+| 5 | Club Crunch (crunch) | Crunch | Pushed | Jumped | Open, mid-forward, loose and dynamic. Pushed is a hard-rock lead tone. Jumped is both channels linked: fatter, hotter, more sag, a softer top |
+| 6 | Bumble Lead (smooth, singing) | Jazz | Rock | Lead | Clean headroom that turns into a smooth vocal lead when pushed. Lead is the boosted mode with more compression |
+| 7 | 5555 Block (raw to modern) | Raw | Modern | Crunch | Tight, aggressive three-stage high gain. Modern has more gain, tighter lows and a smoother top. Crunch is a low-gain rhythm channel |
+| 8 | Tweedle Dee (spongy breakup) | Soft | Cranked | Four-ten | Small combo that breaks up early and soft with heavy sag. Cranked is spitty and thicker. Four-ten (changed in v77) is a clearer, fuller-bodied voicing: more headroom, bigger lows, a slightly scooped low mid, a brighter top and less sag |
+| 9 | Jade Chorus (solid-state) | Glass | Warm | Funk | Stiff solid-state clean with huge headroom and no sag. Warm is rounder and darker. Funk is tight, percussive and scooped |
+| 10 | Marque Dream (tight, mid-hump) | Rhythm | Lead | Vintage | Tight, creamy high gain with a mid hump. Rhythm is tight and punchy. Lead has a big mid hump and sustain. Vintage is lower gain with thick creamy mids |
+| 11 | Citrus Doom (thick, loose) | Stoner | Wall | Bass stack | Thick, loose and heavy with a huge low end. Stoner is fuzzy and saturated. Wall is huge, deep and slow. Bass stack has massive low mids and a grind only when pushed |
+| 12 | Revved Up (tight, modern) | Tight | Lead | Crunch | Modern boutique high gain: tight, articulate, clear. Lead (changed in v77) is a modern articulate lead: more gain, tighter and brighter than Tight, a focused upper-mid push near 2 kHz and little sag, so single notes stay defined rather than creamy. Crunch is open and dynamic |
+| 13 | Digital Dread (brutal, digital) | Thall | Industrial | Cavern | Brutal, very tight digital-style high gain with almost no sag. Industrial is harsh and fizzy. Cavern is huge, slow and dark |
+| 14 | Master Cranker (80s hard rock) | Stock | Modded | Cranked | An 80s master-volume hard-rock amp. Stock is the classic sound (the old Club Crunch "Master volume" voicing). Modded adds a gain stage: tighter, smoother, more saturated. Cranked has the master wide open: loose, saggy, loud |
+| 15 | Harmonic Haze (rich, mid-focused) | Lead | Crunch | Clean | A rich, mid-focused lead amp with a smooth, thick saturation. Crunch is the lead channel backed off; Clean is a warm, wide-open clean |
+| 16 | Diesel Fuel (tight, cutting) | Lead | High gain | Crunch | A tight, thick, upper-mid-aggressive amp with little power-stage compression. Has the Modern Metal controls and Focus |
+| 17 | Wreck Stack (huge, very tight) | Lead | Crunch | Clean | A huge, very tight stack with a stiff power stage and a firm, controlled low end. Has the Modern Metal controls and Focus |
+| 18 | Power Brawl (punchy 6L6) | Scooped | Mid-boosted | Crunch | A punchy modern amp with two lead mid voicings: scooped, or warm and creamy. Has the Modern Metal controls and Focus |
+| 19 | Cutaway (growl, flexible) | Lead | Sludge | Clean | A growly, cutting lead whose mids sit away from most high-gain amps. Sludge is lower gain, looser and darker. Has the Modern Metal controls and Focus |
 | - | Acoustic (piezo to acoustic) | - | - | - | A chain that makes a piezo pickup sound like a miked acoustic guitar. It replaces the amp and cab |
 
 (The # column is the position in the Amp B list. Both amp menus are grouped into folders by gain level: Clean, Low / mid gain and High gain; Amp A also lists Acoustic first. Open a folder to pick an amp.)
@@ -483,7 +496,7 @@ Generated from the plug-in's own hover help. Grouped by page and panel. Knobs sh
 - **Menu**: Wall style only. The clipping diodes: Silicon (the original), LED (more headroom, louder, more open, less compression) or Germanium (clips early, softer, more compressed). Choices: Silicon ; LED (open) ; Germanium (soft).
 - **TONE BYPASS** (switch): Wall style only. Bypasses the tone control for the full, unfiltered fuzz.
 - **BUFFER** (switch): Face, Bender and Factory styles. A buffer in front, so the pickup is not loaded: a brighter, tighter, clearer sound. Off is the authentic woolly, pickup-loaded sound (the top end is softer and the fuzz reacts more to your guitar).
-- **OCTAVE UP** (switch): An octave-up rectifier in front of the fuzz (full-wave rectified): a sputtering, ringing octave-up fuzz. Works best on single notes, high on the neck.
+- **Oct up** (ADV knob, `fuzzOctave`): An octave-up rectifier in front of the fuzz (full-wave rectified): a sputtering, ringing octave-up fuzz. The knob is how much octave is blended in, and how far your plain note ducks (the same law as Oct down). Works best on single notes, high on the neck. 0 = off. It was an on/off switch; sessions saved with it on load at 10.
 - **Gain** (`fuzzGain`): Amount of fuzz. Wall: sustain. Tight: distortion. Gated: drive. Buzzsaw: distortion. Face and Bender: the fuzz amount (the Face's Fuzz knob, the Bender's Attack). Factory: drive.
 - **Tone** (`fuzzTone`): 0 = dark, 1 = bright (the same direction for all styles). On Buzzsaw it is the colour sweep: it moves the scooped mid band up in pitch. On Wall it is the Muff tone control (a scooped middle). On Face, Bender and Factory it is a top-end roll-off.
 - **Level** (`fuzzLevel`): Output level of the fuzz pedal (dB). Fuzz can be loud, so turn this down if the amp is overloaded.
@@ -615,7 +628,7 @@ Generated from the plug-in's own hover help. Grouped by page and panel. Knobs sh
 #### MOD FX A
 
 - **MOD FX A ON** (switch): Switches Mod FX A on.
-- **Menu**: The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono) or Harmonic tremolo (lows and highs pulse in opposite directions). Choices: Flanger ; Through-zero flanger ; Vibrato ; Uni-V ; Rotary ; Auto-pan ; Harmonic tremolo.
+- **Menu**: The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono) Harmonic tremolo (lows and highs pulse in opposite directions), Wobble (tremolo-arm vibrato; Feedback sets its drift), Tremolo (plain volume tremolo; the Optical shape is for this type) Shifted-feedback flanger (the feedback is frequency-shifted by the Shift knob on each trip), Pitch modulation (a pitch-shifted voice, Manual = interval, swung by the LFO) or Stutter (tempo-synced repeats, Manual = number of repeats). Choices: Flanger ; Through-zero flanger ; Vibrato ; Uni-V ; Rotary ; Auto-pan ; Harmonic tremolo ; Wobble (tremolo-arm vibrato) ; Tremolo ; Shifted-feedback flanger ; Pitch modulation ; Stutter (rhythmic repeats).
 - **Menu**: Before the amp: the effect hits the amp's input (and its gain). After the cab: it is applied to the finished sound, in stereo. Choices: Before the amp ; After the cab.
 - **Menu**: The LFO wave: Sine, Triangle or Soft square. Choices: Sine ; Triangle ; Soft square.
 - **Menu**: Free uses the Rate knob. A note value locks the speed to the tempo (one note length per cycle). Choices: Free (Hz) ; 1/2 ; Dotted 1/4 ; 1/4 ; 1/4 triplet ; Dotted 1/8 ; 1/8 ; 1/8 triplet ; Dotted 1/16 ; 1/16 ; 1/16 triplet.
@@ -629,7 +642,7 @@ Generated from the plug-in's own hover help. Grouped by page and panel. Knobs sh
 #### MOD FX B
 
 - **MOD FX B ON** (switch): Switches Mod FX B on.
-- **Menu**: The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono) or Harmonic tremolo (lows and highs pulse in opposite directions). Choices: Flanger ; Through-zero flanger ; Vibrato ; Uni-V ; Rotary ; Auto-pan ; Harmonic tremolo.
+- **Menu**: The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono) Harmonic tremolo (lows and highs pulse in opposite directions), Wobble (tremolo-arm vibrato; Feedback sets its drift), Tremolo (plain volume tremolo; the Optical shape is for this type) Shifted-feedback flanger (the feedback is frequency-shifted by the Shift knob on each trip), Pitch modulation (a pitch-shifted voice, Manual = interval, swung by the LFO) or Stutter (tempo-synced repeats, Manual = number of repeats). Choices: Flanger ; Through-zero flanger ; Vibrato ; Uni-V ; Rotary ; Auto-pan ; Harmonic tremolo ; Wobble (tremolo-arm vibrato) ; Tremolo ; Shifted-feedback flanger ; Pitch modulation ; Stutter (rhythmic repeats).
 - **Menu**: Before the amp: the effect hits the amp's input (and its gain). After the cab: it is applied to the finished sound, in stereo. Choices: Before the amp ; After the cab.
 - **Menu**: The LFO wave: Sine, Triangle or Soft square. Choices: Sine ; Triangle ; Soft square.
 - **Menu**: Free uses the Rate knob. A note value locks the speed to the tempo (one note length per cycle). Choices: Free (Hz) ; 1/2 ; Dotted 1/4 ; 1/4 ; 1/4 triplet ; Dotted 1/8 ; 1/8 ; 1/8 triplet ; Dotted 1/16 ; 1/16 ; 1/16 triplet.
@@ -686,8 +699,8 @@ Generated from the plug-in's own hover help. Grouped by page and panel. Knobs sh
 
 #### AMP
 
-- **Menu**: Which amp: Clean (sparkly), Vintage Chime (class-A), British Hot-Rod (tight), Saturated Lead (smooth), Modern High-Gain (scooped), Classic Rock (crunch), Boutique Lead (smooth, singing), Tight Metal (raw to modern), Low-Watt Combo (spongy breakup), Glass Clean (solid-state), Creamy Lead (tight, mid-hump), Doom Stack (thick, loose), Precision High-Gain (a modern boutique high-gain amp), Digital Extreme (a modern digital-style amp for extreme styles), or Acoustic (piezo to acoustic). Choices: Acoustic (piezo to acoustic) ; Clean (sparkly) ; Vintage Chime (class-A) ; British Hot-Rod (tight) ; Saturated Lead (smooth) ; Modern High-Gain (scooped) ; Classic Rock (crunch) ; Boutique Lead (smooth, singing) ; Tight Metal (raw to modern) ; Low-Watt Combo (spongy breakup) ; Glass Clean (solid-state) ; Creamy Lead (tight, mid-hump) ; Doom Stack (thick, loose) ; Precision High-Gain (tight, modern) ; Digital Extreme (brutal, digital).
-- **Menu**: The amp's voicing, with four positions per amp (listed in section 6). Clean: Sparkly, Edge push (a small old amp turned up) or Boutique (fuller mids, more compression). Vintage Chime: Chime, Treble boost or Normal (a darker, rounder, thicker channel without the top boost). Hot-Rod: Tight, Heavy (deep but controlled lows, more gain, forward upper mids) or Brown (a thicker, saggier, mid-rich crunch). Saturated Lead: Smooth, Lead or Crunch (a low-gain channel). Modern High-Gain: Scooped, Clarity or Vintage (spongy, looser, fatter lows). Classic Rock: Crunch, Pushed or Jumped (both channels linked: fatter, hotter, more sag). Boutique Lead: Jazz, Rock or Lead (the boosted lead mode). Tight Metal: Raw, Modern or Crunch (a low-gain rhythm channel). Low-Watt Combo: Soft, Cranked or Four-ten (a 4x10-style voicing with more headroom and bigger lows). Glass Clean: Glass, Warm or Funk (tight, percussive and scooped). Creamy Lead: Rhythm, Lead or Vintage (an early-style sound with lower gain and thick creamy mids). Doom Stack: Stoner, Wall or Bass stack (massive low mids, a cleaner top, a grind only when pushed). Precision High-Gain: Tight (the main high-gain channel), Lead (more gain, mid hump, sustain) or Crunch (an open, lower-gain channel). Digital Extreme: Thall (ultra-tight, scooped, hard clipping), Industrial (harsh, gritty, fizzy upper mids) or Cavern (huge, slow, dark, for drop tunings). Master-Volume Rock: Stock (the classic 80s master-volume sound), Modded (an extra gain stage: tighter, smoother, more saturated) or Cranked (master wide open: loose, saggy, loud). Does nothing in Acoustic mode. Choices: Voicing: Tight ; Voicing: Heavy ; Voicing: Brown.
+- **Menu**: Which amp: Twin Sparkle (sparkly), Chime Thirty (class-A), Brown Eye (tight), Slow Burn (smooth), Modern Maul (scooped), Club Crunch (crunch), Bumble Lead (smooth, singing), 5555 Block (raw to modern), Tweedle Dee (spongy breakup), Jade Chorus (solid-state), Marque Dream (tight, mid-hump), Citrus Doom (thick, loose), Revved Up (a modern boutique high-gain amp), Digital Dread (a modern digital-style amp for extreme styles), or Acoustic (piezo to acoustic). Choices: Acoustic (piezo to acoustic) ; Twin Sparkle (sparkly) ; Chime Thirty (class-A) ; Brown Eye (tight) ; Slow Burn (smooth) ; Modern Maul (scooped) ; Club Crunch (crunch) ; Bumble Lead (smooth, singing) ; 5555 Block (raw to modern) ; Tweedle Dee (spongy breakup) ; Jade Chorus (solid-state) ; Marque Dream (tight, mid-hump) ; Citrus Doom (thick, loose) ; Revved Up (tight, modern) ; Digital Dread (brutal, digital).
+- **Menu**: The amp's voicing, with four positions per amp (listed in section 6). Clean: Sparkly, Edge push (a small old amp turned up) or Boutique (fuller mids, more compression). Chime Thirty: Chime, Treble boost or Normal (a darker, rounder, thicker channel without the top boost). Hot-Rod: Tight, Heavy (deep but controlled lows, more gain, forward upper mids) or Brown (a thicker, saggier, mid-rich crunch). Slow Burn: Smooth, Lead or Crunch (a low-gain channel). Modern Maul: Scooped, Clarity or Vintage (spongy, looser, fatter lows). Club Crunch: Crunch, Pushed or Jumped (both channels linked: fatter, hotter, more sag). Bumble Lead: Jazz, Rock or Lead (the boosted lead mode). 5555 Block: Raw, Modern or Crunch (a low-gain rhythm channel). Tweedle Dee: Soft, Cranked or Four-ten (a 4x10-style voicing with more headroom and bigger lows). Jade Chorus: Glass, Warm or Funk (tight, percussive and scooped). Marque Dream: Rhythm, Lead or Vintage (an early-style sound with lower gain and thick creamy mids). Citrus Doom: Stoner, Wall or Bass stack (massive low mids, a cleaner top, a grind only when pushed). Revved Up: Tight (the main high-gain channel), Lead (more gain, mid hump, sustain) or Crunch (an open, lower-gain channel). Digital Dread: Thall (ultra-tight, scooped, hard clipping), Industrial (harsh, gritty, fizzy upper mids) or Cavern (huge, slow, dark, for drop tunings). Master Cranker: Stock (the classic 80s master-volume sound), Modded (an extra gain stage: tighter, smoother, more saturated) or Cranked (master wide open: loose, saggy, loud). Does nothing in Acoustic mode. Choices: Voicing: Tight ; Voicing: Heavy ; Voicing: Brown.
 - **AUTO LEVEL** (switch): Auto level: this amp's output is held at the same loudness for every setting of the Gain knob and for every amp model and voicing, so changing the gain changes the sound, not the volume. The level comes from a table I measured, so it adds no processing. Overdrive and Modern Metal settings can still change the loudness a little.
 - **BRIGHT** (switch): Bright switch: a treble lift that fades out as the Gain goes up (like the bright switch on a vintage amp). Most noticeable at low gain.
 - **Menu**: The tone stack: as voiced (the amp's own), Neutral (most of the amp's own tone shape taken out) or one of seven passive stacks solved from component values. Bass, Low Mid, High Mid and Treble still work on top.
@@ -702,7 +715,7 @@ Generated from the plug-in's own hover help. Grouped by page and panel. Knobs sh
 - **High Mid** (`highMid`): High-mid control (dB), around 1.2-2 kHz.
 - **Treble** (`treble`): Treble control (dB).
 - **Presence** (`presence`): Power-amp presence: adds treble after the clipping, like a real amp's presence knob.
-- **Focus** (`ampTune`): Focus: tightens the low end and trims bass and gain so low-tuned guitars stay clear. Turn it up as your tuning gets lower (about 1 per semitone below E standard). Only the Saturated Lead, Modern High-Gain, Tight Metal, Creamy Lead, Precision High-Gain and Digital Extreme amps use it.
+- **Focus** (`ampTune`): Focus: tightens the low end and trims bass and gain so low-tuned guitars stay clear. Turn it up as your tuning gets lower (about 1 per semitone below E standard). Only the Slow Burn, Modern Maul, 5555 Block, Marque Dream, Revved Up and Digital Dread amps use it.
 - **Bias** (`ampBias`): Power-tube bias. Negative: hotter, with more bite and a tighter feel. Positive: colder, with a looser, crossover-style sound and more gap in the attack. 0 is the amp's own.
 - **Power Drive** (`ampPower`): Power-amp drive: pushes the output stage into saturation for more squash and sizzle. 0 is off.
 - **Resonance** (`ampReso`): Resonance: low-end thump from the power amp and speaker interaction (around 100 Hz). 0 is off.
@@ -712,7 +725,9 @@ Generated from the plug-in's own hover help. Grouped by page and panel. Knobs sh
 
 - **Menu**: The size and shape of the acoustic guitar body being imitated: Dreadnought, Jumbo (bigger, lower), Parlor / OM (smaller, more midrange) or Nylon classical (softer top). Choices: Body: Dreadnought ; Body: Jumbo ; Body: Parlor / OM ; Body: Nylon classical.
 - **Body** (`acBodyAmt`): How strongly the body resonances are applied. 0 = just the piezo signal.
-- **Piezo Fix** (`acFix`): Removes the nasal 'quack' (about 2.3 kHz) and glassy edge (about 4.8 kHz) of a piezo pickup and fills in the hollow low mids.
+- **Pickup** (`acPickup`): the pickup being corrected. Piezo (under-saddle): thin, quacky, glassy. Magnetic (soundhole): dark and boomy with no top-plate sound or air; raise Body for a more acoustic sound. Electric guitar (solid body): makes an electric sound like an acoustic. Choose the Body (Nylon classical for a classical sound), then raise Pickup Fix, Body and Air.
+- **Air** (`acAir`): string and pick detail for the magnetic and electric choices (not used with piezo).
+- **Pickup Fix** (`acFix`): corrects the pickup. Piezo: removes the nasal 'quack' (about 2.3 kHz) and glassy edge (about 4.8 kHz) and fills in the hollow low mids. Magnetic: cuts the boxy low mids, lifts the air above 3 kHz and brings back some pick attack.
 - **Preamp** (`acPreamp`): Soft saturation for warmth, like a tube preamp. 0 = clean.
 - **Squeeze** (`acSqueeze`): Gentle compression for an even, polished acoustic level. 0 = off.
 - **Sparkle** (`acSparkle`): High shelf at 5 kHz (dB): adds or removes sparkle.
@@ -735,7 +750,7 @@ Generated from the plug-in's own hover help. Grouped by page and panel. Knobs sh
 
 #### AMP B  (PARALLEL)
 
-- **Menu**: Which electric amp Amp B is. Use a different one from Amp A for layered tones, such as a tight high-gain with a cleaner amp underneath. Choices: Clean (sparkly) ; Vintage Chime (class-A) ; British Hot-Rod (tight) ; Saturated Lead (smooth) ; Modern High-Gain (scooped) ; Classic Rock (crunch) ; Boutique Lead (smooth, singing) ; Tight Metal (raw to modern) ; Low-Watt Combo (spongy breakup) ; Glass Clean (solid-state) ; Creamy Lead (tight, mid-hump) ; Doom Stack (thick, loose) ; Precision High-Gain (tight, modern) ; Digital Extreme (brutal, digital).
+- **Menu**: Which electric amp Amp B is. Use a different one from Amp A for layered tones, such as a tight high-gain with a cleaner amp underneath. Choices: Twin Sparkle (sparkly) ; Chime Thirty (class-A) ; Brown Eye (tight) ; Slow Burn (smooth) ; Modern Maul (scooped) ; Club Crunch (crunch) ; Bumble Lead (smooth, singing) ; 5555 Block (raw to modern) ; Tweedle Dee (spongy breakup) ; Jade Chorus (solid-state) ; Marque Dream (tight, mid-hump) ; Citrus Doom (thick, loose) ; Revved Up (tight, modern) ; Digital Dread (brutal, digital).
 - **Menu**: Amp B's voicing: the same four-position switch as Amp A's, with the names for Amp B's model. Choices: Voicing: Sparkly ; Voicing: Edge push ; Voicing: Boutique.
 - **AMP B ON** (switch): Turns on the parallel Amp B. It gets the same signal as Amp A (after the overdrive pedal) and runs its own preamp and tone stack. Each cab block then picks Amp A, Amp B or both. Uses about as much CPU as Amp A again. Not available with the Acoustic amp.
 - **AUTO LEVEL** (switch): Auto level for Amp B: same as Amp A's. Holds Amp B at the same loudness for every setting of its Gain knob and every model. B Level still works on top of it.
@@ -763,7 +778,7 @@ Generated from the plug-in's own hover help. Grouped by page and panel. Knobs sh
 #### NAM: AMP A  (in place of Amp A's preamp and power stage)
 
 - **ON** (switch): Uses the loaded neural capture (.nam file) in place of Amp A's preamp and power stage. The overdrive pedal still feeds it, and the tone stack and cab come after it. Amp B can still run beside it.
-- **LOAD MODEL...** (switch): Loads a neural capture (.nam file) into the Amp A slot. WaveNet and LSTM captures are supported. The model file stays where it is: the session remembers its location.
+- **LOAD MODEL...** (switch): Loads a neural capture (.nam file) into the Amp A slot. WaveNet (including the newer A2 layout and slimmable files, which play at their largest size) and LSTM captures are supported. The model file stays where it is: the session remembers its location.
 - **CLEAR** (switch): Unloads the Amp A model.
 - **MATCH LOUDNESS** (switch): Evens out the volume between models using the loudness stored in the file, so different captures sit at similar levels. Off: the raw level of the model.
 - **Input** (`namIn`): How hard the signal drives the model, in dB. Captures are made at a particular input level: raise this for more gain and breakup, lower it for a cleaner, quieter sound.
@@ -776,7 +791,7 @@ Generated from the plug-in's own hover help. Grouped by page and panel. Knobs sh
 #### NAM: AMP B  (in place of Amp B's preamp and power stage)
 
 - **ON** (switch): Uses Amp B's own neural capture in place of Amp B's preamp and power stage. Amp B must also be switched on (AMP B ON on the Amp B tab).
-- **LOAD MODEL...** (switch): Loads a neural capture (.nam file) into the Amp B slot. WaveNet and LSTM captures are supported. The model file stays where it is: the session remembers its location.
+- **LOAD MODEL...** (switch): Loads a neural capture (.nam file) into the Amp B slot. WaveNet (including the newer A2 layout and slimmable files, which play at their largest size) and LSTM captures are supported. The model file stays where it is: the session remembers its location.
 - **CLEAR** (switch): Unloads the Amp B model.
 - **MATCH LOUDNESS** (switch): Evens out the volume between models using the loudness stored in the file.
 - **Input** (`namBIn`): How hard the signal drives the Amp B model, in dB.
@@ -789,7 +804,7 @@ Generated from the plug-in's own hover help. Grouped by page and panel. Knobs sh
 #### NAM: PEDAL 1  (before the overdrive and the amp)
 
 - **ON** (switch): Runs the pedal 1 capture (a drive, compressor or other effect), before the overdrive and the amp.
-- **LOAD MODEL...** (switch): Loads a neural capture (.nam file) into the pedal 1 slot. WaveNet and LSTM captures are supported. The model file stays where it is: the session remembers its location.
+- **LOAD MODEL...** (switch): Loads a neural capture (.nam file) into the pedal 1 slot. WaveNet (including the newer A2 layout and slimmable files, which play at their largest size) and LSTM captures are supported. The model file stays where it is: the session remembers its location.
 - **CLEAR** (switch): Unloads the pedal 1 model.
 - **MATCH LOUDNESS** (switch): Evens out the volume between models using the loudness stored in the file.
 - **Input** (`nmP1In`): How hard the signal drives the pedal 1 model, in dB.
@@ -799,7 +814,7 @@ Generated from the plug-in's own hover help. Grouped by page and panel. Knobs sh
 #### NAM: PEDAL 2  (after the cab)
 
 - **ON** (switch): Runs the pedal 2 capture (a drive, compressor or other effect), after the cab.
-- **LOAD MODEL...** (switch): Loads a neural capture (.nam file) into the pedal 2 slot. WaveNet and LSTM captures are supported. The model file stays where it is: the session remembers its location.
+- **LOAD MODEL...** (switch): Loads a neural capture (.nam file) into the pedal 2 slot. WaveNet (including the newer A2 layout and slimmable files, which play at their largest size) and LSTM captures are supported. The model file stays where it is: the session remembers its location.
 - **CLEAR** (switch): Unloads the pedal 2 model.
 - **MATCH LOUDNESS** (switch): Evens out the volume between models using the loudness stored in the file.
 - **STEREO: ONE MODEL PER SIDE** (switch): Off: the stereo signal is summed to mono for one model, whose output goes to both sides (less CPU). On: a second copy of the model runs, one for each side, so a stereo signal stays stereo (about twice the CPU).
@@ -982,6 +997,16 @@ Generated from the plug-in's own hover help. Grouped by page and panel. Knobs sh
 - **Lo-Fi** (`preDelayLofi`): Darker, crunchier, more degraded repeats (lower sample rate and bit depth). Only affects the repeats.
 - **Warble** (`preDelayWarble`): Tape-style pitch wobble on the repeats: a slow wow, a faster flutter and a little drift.
 
+#### GUITAR SYNTH (PITCH page)
+A single-note synth that follows your playing. It listens to one note at a time, works out the pitch, and plays a synth on it next to your own sound. It cannot follow chords. It sits before the octaver and pitch pedal.
+- **Playing:** the note the synth is on right now. If it jumps around, lower the input or Sensitivity.
+- **Menus:** the waves of the two oscillators, the second one's octave, and Follow bends (glides with bends and vibrato) or Snap to notes.
+- **Cutoff, Resonance, Level to filter:** the filter. Hit harder for brighter.
+- **Attack, Release:** the swell in and the ring out.
+- **Synth, Dry:** the synth's level and your own guitar's level.
+- **ADV:** Detune, Sub, Grit, Note to filter, Touch, Glide and Sensitivity.
+- **Delay:** the synth trails your pick by about 9 ms on the high strings up to about 35 ms on the lowest. Single notes and a clean, quiet signal track best.
+
 #### PRE-AMP DELAY: DUCK, MODULATION, DIFFUSION, HOLD, TAPS
 
 - **HOLD** (switch): Hold the delay. Freeze: the delay stops listening and loops what it holds. Infinite: the repeats never die away, but new playing still joins in. Switch it off to let the repeats fade again.
@@ -1045,23 +1070,13 @@ Generated from the plug-in's own hover help. Grouped by page and panel. Knobs sh
 - **Tone** (`granTone`): Rolls off the highs of the cloud. Fully up = no filtering.
 - **Mix** (`granMix`): Crossfade between your dry signal (0) and the cloud (1).
 
-#### TREMOLO / AUTO-PAN
+#### TREMOLO
 
 - **TREMOLO ON** (switch): Tremolo / auto-pan on/off. It sits after the Post EQ.
-- **Menu**: Tremolo: both sides pulse together. Stereo: the left and right sides alternate (an auto-pan feel). Choices: Tremolo (both sides) ; Stereo (sides alternate).
 - **Menu**: Shape of the pulse: sine (smooth), triangle, or soft square (choppy). Choices: Sine ; Triangle ; Square (soft).
 - **Menu**: Free uses the Rate knob. A note value locks the speed to the tempo (one note length per cycle). Choices: Free (Hz) ; 1/2 ; Dotted 1/4 ; 1/4 ; 1/4 triplet ; Dotted 1/8 ; 1/8 ; 1/8 triplet ; Dotted 1/16 ; 1/16 ; 1/16 triplet.
 - **Rate** (`tremRate`): Speed in Hz (used when Note is Free).
 - **Depth** (`tremDepth`): How deep the volume dips. 1 = down to silence.
-
-#### WOBBLE  (TREMOLO-ARM VIBRATO)
-
-- **WOBBLE ON** (switch): Wobble on/off: pitch vibrato like a loosely held tremolo arm.
-- **Menu**: Free uses the Rate knob. A note value locks the wobble to the tempo (one note length per cycle). Choices: Free (Hz) ; 1/2 ; Dotted 1/4 ; 1/4 ; 1/4 triplet ; Dotted 1/8 ; 1/8 ; 1/8 triplet ; Dotted 1/16 ; 1/16 ; 1/16 triplet.
-- **Rate** (`wobRate`): Speed of the vibrato (Hz).
-- **Depth** (`wobDepth`): How far the pitch moves. Small values give a few cents of drift; high values sound seasick.
-- **Drift** (`wobDrift`): Adds a slow random drift to the pitch, like an unsteady hand.
-- **Mix** (`wobMix`): 1 = pure vibrato; lower blends in the dry signal for a chorus-like effect.
 
 #### SWELL  (VOLUME FADE-IN)
 
@@ -1109,6 +1124,7 @@ Generated from the plug-in's own hover help. Grouped by page and panel. Knobs sh
 - **Blend** (`noiseSicken`): Clash wet/dry mix. 0 = only your dry signal, 1 = only the Clash voices.
 - **Freq** (`ringFreq`): Carrier frequency, 1 Hz to 5 kHz. About 1-20 Hz is a tremolo chop, 50-500 Hz growl and metal, higher gives bells.
 - **Mix** (`ringMix`): Ring modulator wet/dry. 0 = only your dry signal.
+- **Track** (`ringTrack`): Makes the carrier follow the note you play. While tracking, Freq becomes a ratio to your note (330 Hz = same pitch). 0 = fixed Freq. Best on single notes.
 - **Wobble** (`ringWobble`): Moves the carrier up and down by up to an octave, at the Speed rate. 0 = steady.
 
 ### POST FX page
@@ -1178,7 +1194,7 @@ Generated from the plug-in's own hover help. Grouped by page and panel. Knobs sh
 Each amp has one Mode menu (Amp A on the row under Bright; Amp B in the same place on its tab).
 
 - **Classic:** the amp as voiced by ear. Feel and Presence nudge the tone; the sag has one time constant.
-- **Circuit-derived:** the preamp stages and power stage clip with curves taken from tube-circuit simulation (grid blocking, power-tube shapes), and the power section is worked out from circuit values: the feedback loop with the output stage inside it, the Presence control as cut feedback, output transformer and speaker impedance, a two-part supply droop (the Sag knob scales it), gentle output-transformer saturation, and preamp corner frequencies and bright cap from component values (American combo and 50 W British models). Levels are matched to Classic on a test signal. In my timing test it costs about the same CPU as Classic. The Acoustic, Glass Clean and Digital models ignore it.
+- **Circuit-derived:** the preamp stages and power stage clip with curves taken from tube-circuit simulation (grid blocking, power-tube shapes), and the power section is worked out from circuit values: the feedback loop with the output stage inside it, the Presence control as cut feedback, output transformer and speaker impedance, a two-part supply droop (the Sag knob scales it), gentle output-transformer saturation, and preamp corner frequencies and bright cap from component values (American combo and 50 W British models). Levels are matched to Classic on a test signal. In my timing test it costs about the same CPU as Classic. The Acoustic, Jade Chorus and Digital models ignore it.
 - **Full circuit (Lead 50, heavy):** Amp A only. A complete simulation of one 50 watt master-volume lead amp. The Master knob appears. Gain is the preamp volume; Bass, Treble and Mids (the average of Low Mid and High Mid) act like the real controls and interact; Bias, Sag, the preamp tube and the power tube change the circuit. It runs at twice the host rate and measured about 45% of real time, roughly 20 times the CPU of the other modes. The amp model menu, Voicing, Stack, Feel, Deep, Auto Level and the Metal controls are ignored while it is on. Pedals before the amp and the cab section work as usual.
 
 What v87 removed: Power (Full/Half/Low), Class, Rectifier, Dual voice and the Metal panel's Sag knob (Power Drive and Sag cover the same ground), and the American and British entries of the Stack menu (the passive stacks cover them).
@@ -1192,7 +1208,7 @@ On the AMP page, next to the Circuit Amp and Stage Model menus, the Derived menu
 - **Derived: power + supply:** adds a supply droop with a fast part (the reservoir, tens of milliseconds) and a slow part (the filter stages, a few hundred), and a gentle rounding of loud low notes (output transformer). The Sag knob scales it, Power (Half, Low) increases it and Rectifier: Silicon stiffens it.
 - **Derived: power + supply + voicing:** also uses the corner frequencies of the cathode bypass and coupling capacitors, and the bright capacitor's shelf, worked out from component values. Only the American combo and 50 W British models have this; for the others it is the same as the level below. It can sound looser in the low end than classic, because the real corners are low.
 
-Levels are matched to classic on a test signal. CPU is unchanged. The Acoustic, Glass Clean and Digital models ignore it.
+Levels are matched to classic on a test signal. CPU is unchanged. The Acoustic, Jade Chorus and Digital models ignore it.
 
 ## Optical tremolo and Spring Drive (v83)
 
@@ -1230,12 +1246,160 @@ Overdrive panel, Distortion style: switch on CIRCUIT MODE to use the circuit-bas
 
 **Fuzz 2.** The Fuzz section also has a second block ("FUZZ 2", starts off), a full copy of the first with a **Route** menu: Series (Fuzz 1 into Fuzz 2) or Parallel (both from the same input, added at -3 dB each; two fuzzes added together can partly cancel and sound hollow). Both sit in the Fuzz position of the effect order. Real fuzzes depend on what drives them, so a fuzz behind another fuzz is a model of the circuit, not a promise of what the real pedals do together.
 
-**Style menu (Drive 1 and 2):** Transparent, Tight, Open, Screamer, Distortion, Tube Driver, Op-Amp Distortion, Stack Drive. Transparent is now a Centaur-type circuit (below). The Circuit Mode switch is back (v94, off by default): off, Transparent, Tight, Screamer and Distortion are the original hand-tuned voicings; on, they are the circuit models. Op-Amp Distortion and Stack Drive are always circuit models; Open and Tube Driver are hand-tuned. Grip works in both modes.
+**Style menu (Drive 1 and 2):** Transparent, Tight, Open, Screamer, Distortion, Tube Driver, Op-Amp Distortion, Stack Drive, Blues Driver. Transparent is now a Centaur-type circuit (below). The Circuit Mode switch is back (v94, off by default): off, Transparent, Tight, Screamer and Distortion are the original hand-tuned voicings; on, they are the circuit models. Op-Amp Distortion, Stack Drive and Blues Driver are always circuit models (Blues Driver: two gain stages with diode clipping between them, a warm bump near 120 Hz; knobs Gain and Tone); Open and Tube Driver are hand-tuned. Grip works in both modes.
 
-**Transparent.** Gain fades the clean path out as the clipped path comes in; Tone is the treble shelf; **Edge** is the extra top end into the clipper (I took "grip" to mean Edge, since there is no knob called Grip; tell me if you meant something else). Several values in it are my estimates until you send the LC_VODA readings (list in MODELED_GEAR).
+**Transparent.** Gain fades the clean path out as the clipped path comes in; Tone is the treble shelf; **Edge** is the extra top end into the clipper; **Tighten** (it was the Grip switch; 0 to 10) tightens and brightens the voicing: the low cut ahead of the clipper rises and the top end comes up, about twice as far at 10 as the old switch did. Several values in it are my estimates until you send the LC_VODA readings (list in MODELED_GEAR).
 
 **Boost section.** Mode **Clean** is now an op-amp boost (0 to 26 dB) and mode **Treble** is a one-transistor booster whose Sat knob moves the input capacitor (5 to 47 nF). **Compressor.** Style **Dyna (OTA)** is a squashing pedal compressor: Threshold sets how hard it squeezes, Attack, Release, Output and Mix work as labelled; ratio, attack and release curves are my estimates.
 
 **Amps.** The Mode menus are back (v94): Classic (the original voicing, the default) or Circuit-derived. The Full-circuit mode and its Master knob stay removed. Sessions saved in v93 carry no Mode, so they load as Classic.
 
 Wah panel: the Voice menu picks Generic (your Heel and Toe) or Classic circuit (a fixed 450 Hz to 1.6 kHz sweep).
+
+## Pedals added in v96
+Fuzz style **Power Chip**: Gain (how hard the chip is hit), Low and High (passive tone network), Level and Mix (blend in the clean signal).
+Fuzz style **Doom**: Gain (distortion), Tone (filter), Octave (octave-up amount), Boost (clean boost after the distortion), plus a Diodes menu in ADV.
+Wall version **Circuit (modern build, 560 pF)**.
+
+## Metal Pedal (fuzz style, v97)
+Cut tightens the low end before the gain. Gain, then a five-band EQ (Bass, Low-Mid, Mid, High-Mid, Treble, plus or minus 12 dB), Boost and Gate.
+
+## Distortion + Reverb (fuzz style, v97)
+A distortion followed (or preceded) by a reverb. Gain, Tone and Level are the usual fuzz controls. Reverb is the amount, Decay the tail length, Mod the movement in the tail. Program: 1 normal, 2 octave-down, 3 reversed swell. Order: reverb after or before the distortion (before makes the tail itself distorted). Hold freezes the tail while it is on.
+
+## Mod FX shapes and Fidelity (v97)
+Shape now also offers Ramp up, Ramp down, Square and Random (wandering). Fidelity (both Mod FX blocks) rolls off the lows and highs and adds a little grit when turned down.
+
+## Shimmer octave-down (v97)
+The shimmer reverb's Down Delay knob sets how late an octave-down voice arrives (0 = off).
+
+## New cab speakers (v97)
+Five more speakers at the end of the speaker list. Old sessions are unchanged.
+
+
+## Amps 21 and 22 (v0.1)
+- **Hi-Wat Headroom (tight, clean to edge)**: stiff and punchy with a lot of headroom; it stays clean until pushed. Voicings: Normal, Brilliant (more top), Linked (more gain, a little sag), Open (more headroom and low end).
+- **Console DI (class-A channel, no amp)**: a wide, clean channel with a little even-order colour. Voicings: Console, Pushed (driven harder), Funk (tight and punchy), Air (more top). It has no compressor of its own; use the Compressor section.
+- **Plex Appeal (Plexi-style, mod options)**: a 100 W British head from the 1960s and 70s. Voicings: Stock (bright input, volumes up: open, hairy and bright, breaking up from the power stage), Jumped (both inputs linked: thicker, darker and mid-heavy, with more gain and sag), Modded (the common mods in one position: a cascade gain stage, a smaller bright cap, a diode clipper after a pre-tone-stack master and softer feedback: tighter, more sustain, less fizz), Modded + Jumped (all of it, with both inputs linked).
+- **Marmalade (thick, mid-forward crunch)**: a modern 50 W British-style head. The bass is cut hard between the early gain stages so the clipping stays tight, then a thick, mid-forward crunch with a smooth top. Voicings: Crunch, Heavy (more gain, mellower, more sag), Clean (the clean channel, crisp and firm) and Sharp (less mid, more bite). Fitted to plain Rockerverb-style captures in Hybrid mode (tone shape within a few dB at 125 Hz to 8 kHz at high gain, harmonic structure at 196 Hz close); not listened to.
+- **Matt's Amp (thick, dark, doom-friendly)**: a 1970s British 100 to 120 W head with a wide bass and treble network. Voicings: Graphic (early 70s: thick, saggy, with a fixed cap taking the fizz off the top), Heavy (a bass-cut input cap and extra low-mid weight: doomy), Bright (a modern version with more top) and Mix (the head's gain stages feeding a Marshall-style tone stack: tighter and brighter). Use the Bass, Mid and Treble knobs as you would on the real amp, and turn Presence up for a more open sound.
+
+## Block presets (PRE button)
+Amps, cab blocks and most pedals have a small PRE button in the title bar. Save stores just that block's settings under a name; pick a name to load it. Cab presets work across blocks A to D and keep the IR file path; amp presets work across Amp A and B. Delete and "Show preset folder" are in the same menu.
+
+
+**Oct down (was "Sub oct"; Fuzz and Fuzz 2, ADV):** an octave-down square wave (flip-flop divider) blended in front of the fuzz, following your playing level. Best on single notes; glitches on chords and the highest notes.
+
+## Added in b4
+- **Cedar Twelve** (Clean folder): a small blackface-style combo. Voicing: Blackface (clean to breakup, round low mids), Spanky (brighter, thinner lows), Cranked (volume well up, sag and a singing mid-forward breakup) or Big Spring (a 40 W two-6L6 combo with a 15-inch speaker: fuller lows, darker top).
+- **Big Fifteen** (cab speaker): a large-diameter, 15-inch-style voicing with a big loose low thump, a scooped low mid and an early top roll-off.
+- **Wah: Envelope Filter (Q-Tron style)** (`wahMode`): the playing level pushes the filter. **Direction** (`wahEnvDir`) Up or Down; **Shape** (`wahEnvShape`) Band-pass, Low-pass or High-pass. Resonance is the peak, Sensitivity the input level, Decay how fast it recovers, Heel and Toe the range. Position is not used in this mode.
+
+## Added in b5
+- **Triple Blend** (Clean folder): three amps in parallel in one amp: a warm 15-inch combo, a smooth Dumble-style lead amp and an open, clean-headroom head. One Gain knob drives all three. **Warm** (`blendLevelA`), **Smooth** (`blendLevelB`) and **Open** (`blendLevelC`) set how much of each you hear. Voicing: Three-in-One (even), Warm, Open or Singing. It uses about three amps' worth of CPU while selected. The three parts are placeholders until they are fitted to captures.
+- **A Pan** (`ampAPan`) and **B Pan** (`ampBPan`) on the AMP B tab: where each amp sits in the stereo field. With cab blocks on they add to the Pan of the block carrying that amp (blocks set to A + B ignore them).
+
+
+## Added in b7/b8: amp-style tremolo and movable effects
+**Bias (amp-style)** is a tremolo shape with narrow dips and a wide full-level part. **Pick** (when the tremolo sits in the amp's FX loop) makes the dips shallower when you play harder. Where the tremolo runs is now set in the ORDER window: drag it to the loop lane for the in-amp version (Amp A, Amp B, Triple Blend; Acoustic and neural captures fall back to the pedal). Stereo mode and the Optical pedal's two-sided pulse are pedal-only. Shapes are my choice; nothing was compared with a real amp.
+
+## Added in b8: ORDER window with three lanes
+The ORDER button opens a pedalboard with three lanes: Before the amp, In the amp's FX loop, After the cab. Drag a pedal to move it (including between lanes); click its lamp to switch it on or off. Each lane has two rails (main and parallel) with a balance slider; put a pedal on the lower rail to run it in parallel. Doubler and Widener are fixed last, Granular fixed first after the cab, input/pitch/synth/denoise stages fixed at the start. The FX loop is a true loop only for a single electric Amp A (adds one oversampler trip of latency); otherwise it sits on Amp A's output before the cab. The chain strip is gone; the ORDER window replaces it.
+
+
+## Added in b9: per-pedal parallel routing
+In the ORDER window, a pedal on the lower row runs in parallel: it takes a copy of the lane's input, and its sound is added to the main row. Click a pedal (not its lamp) to open the strip at the bottom: SERIES / PARALLEL, Level, Pan (after the cab only) and Flip polarity. Level, Pan and polarity apply only while the pedal is on the lower row. The Rail Balance slider of each lane sets the main row against the parallel pedals (middle = both at full level). Pedals with their own Mix pass their dry sound too, so set Mix to 100% wet or lower Level. Branches are not time-aligned with the main row, so avoid parallel pedals that delay the sound by a few milliseconds unless you want that.
+
+
+## Added in b10: split / merge per lane
+Each lane in the ORDER window has a Split menu. Separate branches: every lower-row pedal runs on its own beside the main row (click a pedal for its level, pan and polarity). Chain B beside chain A: the lower-row pedals run one after another as a second path. Crossover split: the upper row hears only the lows and the lower row only the highs, divided at the Crossover frequency (for example a fuzz on the lows and a chorus on the highs); a row with no pedals passes its band unchanged. Left / right split (after the cab only): the upper row processes the left channel and the lower row the right. B level, B pan (after the cab) and Flip polarity merge the lower row back. The crossover adds a small phase shift of its own, as every crossover does.
+
+
+## Added in b11: Black Hole reverb
+Reverb Type now ends with **Black Hole**: an enormous, dense, slowly swirling space. Set Decay to 10 s or more; Freeze holds it forever. **Gravity** (Reverb Shaping panel, Black Hole only) shapes the tail after you stop playing: Linear just decays, Surge dips and swells back up, Reverse drops away and swells slowly in before being cut off (a live approximation of a reversed tail). Stop playing for a moment to hear Gravity work; it reacts to your playing level.
+
+## Added in b12
+Reverb 2 is a second full reverb, a movable pedal like the others (POST FX page, plus the Order window). Both reverbs gain: type Reverse; Wet Trem / Trem Rate / shape (reverb-only tremolo); Wet Drive with type; Duck Release; Focus and Purity. Reverb 2 cannot use IR Reverb.
+
+## Added in b13
+Reverb types ModEcho and Mangled (Reverb Shaping has Echo Time, Echo Fdbk and Mangle). Long menus are grouped under headings.
+
+## Added in b14
+Two clean amps: Jazz Box (dark jazz clean) and Brit Eighteen (18 W EL84 combo). Both are Amp A only.
+
+
+## Added in b15
+Four new effects, each with its own panel and a spot on the Order board (drag them anywhere, or move them to the parallel row like the others).
+- **Filter** (MOD page). Mode picks the filter type. Freq is the cutoff or centre. Resonance is the peak (in Formant mode it is how sharp the vowel is; in Resonator mode it is how long it rings). Motion moves the frequency: LFO (Rate, or lock it to the tempo with the Free/note menu), Envelope (louder playing opens it), or Random steps. Depth is how far it sweeps; negative flips the direction. Vowel only matters in Formant mode.
+- **Volume / Pan** (GAIN page). A level and pan control you can place anywhere in the chain, for example to mute a path or to set a parallel pedal's balance.
+- **Multiband Comp** (GAIN page). Splits the sound into low, mid and high, squashes each above its own threshold, and puts them back together. Mix blends the compressed sound with the original.
+- **Gate / Expander** (INPUT page). Cuts or turns down quiet sound between notes. Gate shuts below Threshold by the Range amount; Expander turns quiet parts down gently. Raise the detector high-pass if low rumble keeps it open.
+
+
+## Added in b16: the looper
+Press LOOP (top right, next to Tidy View) to open it. The big button does the next step: Record, then Play, then Overdub, then Play again. The first press waits for your first note (switch that off to start at once). Press again when you have played the part: the loop starts playing straight away. Press again to add a layer on top (Overdub), and again to go back to just playing.
+- Undo removes the last overdub (press it again to put it back). Stop stops it, and the big button starts it again from the top. Clear erases it.
+- Length: leave it on Free to close the loop yourself, or pick 1 to 8 bars and it closes by itself at the tempo in the header (the beats per bar come from the metronome settings).
+- In the standalone app, the space bar is the big button. For your feet, open MIDI and map a footswitch to "Looper Record / Play / Overdub" (and to Undo, Stop, Clear if you have more switches).
+- The loop records the finished sound (after the amp and effects), up to 40 seconds. Loops are not saved with the session.
+
+
+## Changed in b17
+- The Noise Pedal is now called the **Clash Pedal** (Scapes page).
+- **Transpose / Formant** is on the Pitch page. The Input page now has the input level, the gate / expander and pickup de-noise.
+- The tool buttons (Tuner, Metro, Loop, Riff, MIDI) sit together on the second row, with Order, Tidy View and Help after them.
+- Reverb Shaping shows type-specific controls only for the reverb type you picked.
+
+## Changed in b20
+- Overdrive, Open style: new CIRCUIT MODE toggle (off by default). In this mode the pedal is an OCD-type circuit; HIGH RANGE is its HP / LP switch; Drive is the gain pot and Tone is the treble pot.
+- Fuzz, Factory style: re-fitted to captures of a Fuzz Factory. Stab now brightens and lifts the level.
+
+## Changed in b21
+Diesel Fuel now follows the VH4 captures more closely: fuller lows (the high-passes are lower), more even harmonics and a brighter top. If it sounds too boomy or fizzy, lower Bass or Treble a few dB. Cutaway's drive character is slightly richer in even harmonics. Everything else is unchanged.
+
+## Changed in b23
+The Order page now has Lo-Fi and Boost as movable pedals (before the amp, FX loop or after the cab). The drives stay fixed for now.
+
+## Changed in b24
+Drive 1 and Drive 2 can now be dragged on the Order page like any other pedal. At the end of the before-the-amp lane they are built into the amp (as before); anywhere else they run as ordinary pedals.
+
+## Changed in b25
+On the Order page each lane has "Parallel section" menus. Put pedals on the lower row, then choose where the parallel part starts and ends. Everything after it runs on the merged sound.
+
+## Changed in b26
+Brown Eye was refitted (cleaner at low Gain, each voicing with its own range). The Amp Gain knob now has a little more range at both ends for every amp, and the four tone knobs go to +/-18 dB.
+
+## Changed in b35
+- **Fuzz 2** is a pedal in the Order window. Put it on the lower row of its lane to run it beside Fuzz 1, or leave it on the main row to stack it after Fuzz 1. The Series / Parallel switches on the Fuzz and Drive 2 pages are gone: Drive 2 stacks after Drive 1 by default, and the lower row runs it beside Drive 1.
+- **Order window plugs:** drag the plug at either end of a lane's parallel rows to move where they split and merge.
+- **Delay 1 / Delay 2:** the two delays are the same unit with the same controls (stereo mode, Right offset, Spread, Forward / Reverse, Duck, Modulation, Diffusion, Hold, Multi-tap). Drag either one anywhere on the board.
+- **Bright** is in the top row of the Amp panel. Tone stack, Feel and Engine are behind ADV.
+
+## Changed in b34
+- **DI Match** (INPUT page): make your guitar's tone resemble another pickup type, a smooth pink-noise balance, or a DI recording you load. Set **Your pickups** and **Match to**. For Measured, press LEARN and play chords and single notes for about ten seconds, then press again. For a Loaded DI, press LOAD DI... and pick a dry guitar recording. It sits after the Transpose.
+- **Gate / Expander: Listens to**: choose The input to have the gate follow your dry playing while it cuts after the amp.
+- **Amp menu**: some amps are listed in more than one folder; each entry picks the voicing that suits that folder.
+- **Order window**: double-click a pedal to jump to its controls.
+
+## Changed in b33
+- **Spring return** (Reverb Shaping, Spring and Spring (tank) types only): Generic, Sparkle, Chime, Tight, Full, Clean or Tilt. It changes how the spring is fed and how its return is filtered, like the reverb circuit of different amps: Sparkle is thin and bright with a sizzle, Chime is very bright, Tight is drier and steeper, Full keeps the body, Clean is flat and does not clip, Tilt is bright, forward and a bit hollow. Spring Drive still sets how hard the driver is pushed (it only thins and darkens in Clean).
+- Spring Drive now shows for Spring (tank) as well.
+
+## Changed in b32
+- **Reverb type "Spring (tank)"** in both Reverb blocks: a spring-tank model (two springs, with the falling chirp of a real spring). Decay sets the spring length, Damp the top end. The older "Spring" type is unchanged.
+- **Compressor**: the "10:1 Soft" ratio is removed. Ratio now applies to every style except Dyna. Saturation stays a separate menu.
+
+## Changed in b31
+The compressor has a new style, Thump, which carries Bloom, Smack and Clarity. These three knobs only appear (and only act) in Thump. The Dyna style hides the menus it does not use.
+
+## Changed in b30
+The Mod FX slots' Phaser type has Stages, Envelope and Lag knobs, and the Lo-Fi warble type has Noise, Dropouts and Level, so the old stand-alone Phaser and Lo-Fi pedals are fully covered.
+
+## Changed in b29
+Each Mod FX slot also has Filter sweeps (low-pass, band-pass, notch, vowel), an Auto-wah and a Slicer. A slot shows only the knobs its type uses. The old Phaser, Chorus and Lo-Fi pedals are hidden while off; turn TIDY VIEW off to see them.
+
+## Changed in b28
+There are now four Mod FX slots (A to D). Each has the same Type menu, which also offers Chorus, Phaser and Lo-Fi warble. For those three types Manual, Tone, Feedback and Fidelity mean something different (the tooltips say what). Mod C and D appear on the Mod page and in the pedal tray on the Order page. The old Chorus, Phaser and Lo-Fi pedals still exist.
+
+## Changed in b27
+The Order page shows only the pedals that are on. The others wait in a tray under the lanes.

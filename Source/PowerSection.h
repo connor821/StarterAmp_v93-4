@@ -22,8 +22,8 @@ namespace PowerSection
     // Which table row each amp model uses (-1 = none: acoustic, solid-state and digital models)
     inline int familyForModel (int m)
     {
-        static const int fam[16] = { 0, 3, 1, 2, 2, -1, 1, 4, 2, 3, -1, 2, 3, 2, -1, 1 };   // v90: Creamy Lead moved from the light-feedback family to the British-lead one (Mark-series feedback network read, see MODELED_GEAR.md)
-        return (m >= 0 && m < 16) ? fam[m] : -1;
+        static const int fam[34] = { 0, 3, 1, 2, 2, -1, 1, 4, 2, 3, -1, 2, 3, 2, -1, 1, 4, 2, 2, 2, 2, 2, -1, 1, 2, 1, 2, 2, 3, -1, 0, 0, -1, 3 };   // v0.1: 21 Hi-Wat Headroom (heavy feedback, so the tight family), 22 Console DI (no power section)   // v95: 16 to 20 are the five new amps (estimates, see MODELED_GEAR.md)   // v90: Marque Dream moved from the light-feedback family to the British-lead one (Mark-series feedback network read, see MODELED_GEAR.md)
+        return (m >= 0 && m < 34) ? fam[m] : -1;
     }
 
     // Presence knob 0..1 interpolated between the five table steps
@@ -184,10 +184,24 @@ namespace PowerSection
             case 4:  s = { 460.0f, 0.50f,  80.0f, 0.081f, 0.15f }; return true;     // 100 W dual-rectifier amp: 2 x 220 uF reservoir, choke, 2.7k x 30 uF (read); source resistance between silicon and tube rectifier is my estimate
             case 8: case 13:
                      s = { 480.0f, 0.50f,  80.0f, 0.20f,  0.15f }; return true;     // 120 W modern (dropping network estimated)
-            case 7:  s = { 400.0f, 0.25f, 120.0f, 0.30f,  0.25f }; return true;
+            case 7:  s = { 436.0f, 0.45f, 110.0f, 0.044f, 0.25f }; return true;     // v0.2 Bumble Lead, read from the '70s Dumble-style power sheet: six-diode supply, 100 uF pair, 80 ohm choke (plus the transformer: about 110 ohm in all), 436 V on the output stage's rail through 2.2k with 20 uF; peak current and transformer saturation are estimates
             case 9:  s = { 335.0f, 0.12f, 250.0f, 0.075f, 0.40f }; return true;    // tweed combo (5E3): 5Y3 rectifier, 345 V at the plates, 320 V screens through 4.7k x 16 uF (read); the rectifier and transformer resistance and peak current are estimates
             case 11: s = { 448.0f, 0.35f,  60.0f, 0.185f, 0.20f }; return true;     // Mark-series: silicon bridge, 220 uF reservoir, choke, 5.6k x 30 uF (read); peak current and transformer saturation are my estimates
             case 12: s = { 500.0f, 0.50f, 110.0f, 0.60f,  0.30f }; return true;
+            case 16: s = { 470.0f, 0.50f,  85.0f, 0.30f,  0.18f }; return true;     // v95 Harmonic Haze (4 x EL34 or 6L6, solid-state rectifier; the schematic shows a B1 rail but no values; all numbers estimated)
+            case 17: s = { 470.0f, 0.50f,  85.0f, 0.35f,  0.20f }; return true;     // v95 Diesel Fuel (4 x KT77, 100 W; service manual gives bias only; estimated)
+            case 18: s = { 545.0f, 0.60f,  70.0f, 0.25f,  0.15f }; return true;     // v95 Wreck Stack (read: 545 V plates, 335 V screens, 2 x 220 uF reservoirs, 150k and 330k dropping resistors; peak current and source resistance estimated)
+            case 19: s = { 450.0f, 0.50f,  80.0f, 0.20f,  0.15f }; return true;     // v95 Power Brawl (100 W, 4 x 6L6GC; b18: plate supply read from the schematic, 440 V on / 460 V standby printed, 470R screen resistors, 220 uF reservoir; peak current and source resistance still estimated)
+            case 20: s = { 480.0f, 0.55f,  85.0f, 0.30f,  0.20f }; return true;     // v95 Cutaway (100 to 140 W, 4 x EL34 as shipped; estimated)
+            case 21: s = { 460.0f, 0.55f, 60.0f, 0.05f, 0.10f }; return true;     // v0.1 Hi-Wat Headroom (read from the 100 W British head schematic: bridge of four 1N5408 into 2 x 220 uF in series, 100 ohm to the screens, 1k x 50 uF to the preamp; the 460 V, peak current and source resistance are my estimates, and the transformer is assumed large)
+            case 23: s = { 480.0f, 0.50f,  80.0f, 0.50f,  0.25f }; return true;     // v0.2 Plexi-style 100 W: the same supply reading as the 1959-style amp (silicon bridge, 10k x 50 uF dropping stage); estimated
+            case 24: s = { 470.0f, 0.55f,  90.0f, 0.50f,  0.25f }; return true;     // v0.2 Matamp-style 120 W: eight-diode bridge, 100 uF pair, choke, 33k and 33k dropping stages with 16 uF (read from the schematics); voltages are not printed, so B+ and peak current are estimated
+            case 27: s = { 448.0f, 0.35f,  60.0f, 0.185f, 0.20f }; return true;     // v0.2 Marque Five: same supply as the Mark-series amp (silicon bridge, 220 uF, choke, 5.6k x 30 uF)
+            case 26: s = { 480.0f, 0.55f,  80.0f, 0.20f,  0.15f }; return true;     // v0.2 Hi / Lo input amp: 100 W, four EL34s, silicon rectifier; estimated (no supply data), the stiff modern 100 W figures
+            case 28: s = { 350.0f, 0.24f, 140.0f, 0.16f, 0.30f }; return true;     // v0.2 Dual Thirty (read from the two-channel 30 W EL84 combo's supply sheet: rectifier tube, 33 uF reservoirs with a choke, 4.7k and 22k dropping stages with 22 and 33 uF; 350 V at the reservoir, 308 to 338 V on the plates, measured on the sheet. Peak current, source resistance and transformer saturation are estimates)
+            case 30: s = { 420.0f, 0.20f, 110.0f, 0.12f, 0.30f }; return true;     // v0.2 Cedar Twelve: small blackface-style combo, two 6V6s, silicon rectifier; peak current and source resistance estimated (a small supply droops sooner than the big amp's)
+            case 31: s = { 420.0f, 0.20f, 110.0f, 0.12f, 0.30f }; return true;     // v0.2 Triple Blend part one (the small combo's supply)
+            case 33: s = { 330.0f, 0.18f, 120.0f, 0.15f, 0.30f }; return true;     // b14 Brit Eighteen: 18 W EL84 combo, rectifier tube; estimated (no schematic read)
             default: return false;
         }
     }

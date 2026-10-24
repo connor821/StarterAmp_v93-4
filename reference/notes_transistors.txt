@@ -1,0 +1,113 @@
+## Transistor parameters for StarterAmp fuzz modeling
+
+For fuzz circuits, I would model both device-to-device gain variation and germanium leakage, then let the actual circuit determine bias, compression, and clipping. Published datasheet ranges are useful bounds, but selected vintage fuzz transistors often behave differently from generic production parts.
+
+The following values combine manufacturer specifications, measured-device research, and practical fuzz-building ranges.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://pureadmin.qub.ac.uk\&sz=32)
+
+Queen's University Belfast
+
++3
+
+
+
+| Transistor | Type          | Useful hFE range for modeling                                  | Leakage behavior                                        |
+| ---------- | ------------- | -------------------------------------------------------------- | ------------------------------------------------------- |
+| AC128      | Germanium PNP | 45–165 datasheet range; fuzz-selected devices often \~65–140   | Potentially substantial; model per-device               |
+| OC44       | Germanium PNP | 100 minimum in published summary; measured devices vary widely | Potentially substantial; model per-device               |
+| BC108      | Silicon NPN   | B grade \~200–450; C grade \~420–800 at specified test current | Very low at room temperature in a healthy part          |
+| 2N3904     | Silicon NPN   | 100–300 at 10 mA in a common datasheet specification           | Typically tens of nA maximum under specified conditions |
+| 2N5088     | Silicon NPN   | 300–900 at 100 µA; much higher small-signal gain is possible   | Typically tens of nA maximum under specified conditions |
+
+The AC128's published gain range varies with manufacturer and test conditions.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.electronics-notes.com\&sz=32)
+
+Electronics Notes
+
++1
+
+&#x20;The OC44 has been characterized experimentally, with extracted forward current-gain parameters differing substantially between individual devices.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.electronics-notes.com\&sz=32)
+
+Electronics Notes
+
++1
+
+
+
+## 1. Leakage ranges and sensible simulation defaults
+
+| Device | Datasheet or practical leakage reference                                                                                      | Suggested simulation approach                 |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| AC128  | Some references specify up to approximately 10 µA under datasheet test conditions; vintage parts can be substantially leakier | Sweep 1–300 µA initially; allow higher values |
+| OC44   | Strong device-to-device variation; leakage depends on sample and condition                                                    | Sweep 1–200 µA initially; allow higher values |
+| BC108  | Up to 15 nA at room temperature in the cited datasheet; up to 4 µA at 125°C                                                   | Use low-leakage silicon defaults              |
+| 2N3904 | Up to 50 nA under specified cutoff test conditions                                                                            | Use low-leakage silicon defaults              |
+| 2N5088 | Up to 50 nA under specified cutoff test conditions                                                                            | Use low-leakage silicon defaults              |
+
+The silicon figures are manufacturer test limits, not typical operating leakage in every fuzz circuit.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://www.mouser.com\&sz=32)
+
+Mouser Electronics
+
++2
+
+
+
+The germanium sweep ranges are engineering starting points, not verified population distributions. The experimental study by Holmes, Holters, and van Walstijn is particularly relevant because it measured actual AC128 and OC44 devices and extracted transistor-model parameters for real-time circuit simulation.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://pureadmin.qub.ac.uk\&sz=32)
+
+Queen's University Belfast
+
+
+
+## 2. What I would implement in StarterAmp
+
+For a circuit-accurate fuzz engine, each transistor instance should have:
+
+- Forward current gain, βF: independently adjustable per transistor.
+- Reverse current gain, βR: relevant to reverse operation and saturation behavior.
+- Leakage current: modeled independently of hFE.
+- Saturation current and ideality factor: for the nonlinear junction behavior.
+- Early voltage and gain roll-off: to reproduce output conductance and gain compression.
+- Junction capacitances: for high-frequency response and stability.
+- Temperature dependence: especially important for germanium leakage and bias drift.
+
+I would use an Ebers–Moll model as a baseline for low-complexity circuits, with an optional Gummel–Poon model for more demanding cases. The published comparative study specifically evaluates this accuracy-versus-computational-cost trade-off.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://pureadmin.qub.ac.uk\&sz=32)
+
+Queen's University Belfast
+
+
+
+### Circuit-specific fuzz presets
+
+Germanium Fuzz Face
+
+Use an AC128-like PNP pair, with lower gain in Q1 and higher gain in Q2. Provide independent leakage and bias controls. A practical starting point is hFE around 70 for Q1 and 100–120 for Q2.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://pedalparts.co.uk\&sz=32)
+
+FuzzDog
+
+
+
+Tone Bender / OC44-style fuzz
+
+Use the OC44's measured nonlinear characteristics rather than simply assigning a generic germanium transistor model. Include per-device gain, leakage, and bias variation.
+
+Silicon Fuzz Face
+
+Start with BC108 devices and support 2N3904 substitutions. Include gain mismatch and optional small capacitors that tame excess high-frequency response or oscillation.
+
+High-gain silicon fuzz
+
+Use the 2N5088's high current gain and low leakage as a distinct option. Its high gain can change the circuit's bias and clipping behavior even when the nominal schematic is unchanged.
+
+My main recommendation: don't expose hFE and leakage only as cosmetic tone knobs. Make them alter the actual transistor equations and resulting circuit bias. That is what will make the difference between a fuzz preset that merely sounds fuzzy and one that responds convincingly to guitar volume, pickup output, and playing dynamics.

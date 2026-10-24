@@ -1,0 +1,24 @@
+name: Tests
+on:
+  workflow_dispatch:
+jobs:
+  tests:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -B build -A x64 -DSTARTERAMP_BUILD_TESTS=ON
+      - name: Build tests
+        run: cmake --build build --target StarterAmpTests --config Release --parallel
+      - name: Stress tests
+        shell: pwsh
+        run: |
+          $exe = (Get-ChildItem build -Recurse -Filter StarterAmpTests.exe | Select-Object -First 1).FullName
+          & $exe stress
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+      - name: Regression render
+        shell: pwsh
+        run: |
+          $exe = (Get-ChildItem build -Recurse -Filter StarterAmpTests.exe | Select-Object -First 1).FullName
+          & $exe regress x Tests/golden.txt
+          if ($LASTEXITCODE -ne 0) { exit 1 }

@@ -410,7 +410,7 @@ static const Entry kP42[] = {
 };
 static const Entry kP43[] = {
     { "ampGain", 0.45f }, { "ampModel", 12.0f }, { "ampVoicing", 0.0f }, { "cabCbnA", 3.0f }, { "cabLevelA", 0.0f }, { "cabMicA", 1.0f }, { "cabOn", 1.0f }, { "cabOnA", 1.0f }, { "cabPanA", 0.0f }, { "cabSpkA", 0.0f },
-    { "fuzzGain", 0.7f }, { "fuzzLevel", -11.0f }, { "fuzzMuffDiode", 2.0f }, { "fuzzMuffOpAmp", 1.0f }, { "fuzzMuffVer", 4.0f }, { "fuzzOn", 1.0f },
+    { "fuzzGain", 0.7f }, { "fuzzLevel", -11.0f }, { "fuzzMuffDiode", 2.0f }, { "fuzzMuffOpAmp", 0.0f }, { "fuzzMuffVer", 3.0f }, { "fuzzOn", 1.0f },
     { "fuzzStyle", 0.0f }, { "fuzzTone", 0.4f }, { "gate", -55.0f }, { "odOn", 0.0f }, { "outGain", 1.8f }, { "reverbMix", 0.12f }, { "reverbOn", 1.0f },
 };
 
@@ -504,11 +504,11 @@ static const Preset kPresets[] = {
     { "Clean & Ambient", "Piezo Acoustic Interlude", kP31, (int) (sizeof (kP31) / sizeof (Entry)) },
     { "Clean & Ambient", "Boutique Jazz Clean", kP32, (int) (sizeof (kP32) / sizeof (Entry)) },
     { "Classic & Low Gain", "Boutique Rock Singing Lead", kP33, (int) (sizeof (kP33) / sizeof (Entry)) },
-    { "Djent & Modern Rhythm", "Tight Metal Raw Rhythm", kP34, (int) (sizeof (kP34) / sizeof (Entry)) },
-    { "Progressive Metal", "Tight Metal Modern Lead", kP35, (int) (sizeof (kP35) / sizeof (Entry)) },
+    { "Djent & Modern Rhythm", "5555 Block Raw Rhythm", kP34, (int) (sizeof (kP34) / sizeof (Entry)) },
+    { "Progressive Metal", "5555 Block Modern Lead", kP35, (int) (sizeof (kP35) / sizeof (Entry)) },
     { "Classic & Low Gain", "Low-Watt Edge of Breakup", kP36, (int) (sizeof (kP36) / sizeof (Entry)) },
     { "Clean & Ambient", "Glass Chorus Clean", kP37, (int) (sizeof (kP37) / sizeof (Entry)) },
-    { "Progressive Metal", "Creamy Lead With Delay", kP38, (int) (sizeof (kP38) / sizeof (Entry)) },
+    { "Progressive Metal", "Marque Dream With Delay", kP38, (int) (sizeof (kP38) / sizeof (Entry)) },
     { "Groove & Sludge", "Doom Wall", kP39, (int) (sizeof (kP39) / sizeof (Entry)) },
     { "Classic & Low Gain", "Germanium Face Cleanup", kP40, (int) (sizeof (kP40) / sizeof (Entry)) },
     { "Classic & Low Gain", "Raspy Bender Rock", kP41, (int) (sizeof (kP41) / sizeof (Entry)) },
