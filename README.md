@@ -2,7 +2,7 @@
 
 A hand-built guitar amp simulator (Standalone, VST3, AU): input and gate, pitch shifting, fuzz, compressor, overdrive, boost, wah, phaser, chorus, modulation, thirty-two amp models (electric amps, a console channel, an acoustic, and the Triple Blend multi-amp), four neural-capture (NAM) slots, four cab blocks, Post EQ, granular and shoegaze effects, delays and reverbs.
 
-This README is organised by section (one section per part of the plugin). Other files: **MANUAL.md** (full user manual and control reference), **QUICKSTART.md** (first ten minutes), **MODELED_GEAR.md** (the real gear the parts are loosely inspired by; names appear only there), **CHANGELOG.md** (old per-version notes), **WINDOWS_BUILD.md** (the Windows beta build).
+This README is organised by section (one section per part of the plugin). Other files: **MANUAL.md** (full user manual and control reference), **QUICKSTART.md** (first ten minutes), **BASED_ON.md** (the short "based on" list for every part), **MODELED_GEAR.md** (the real gear the parts are loosely inspired by, in detail; names appear only in these docs), **DATASHEET_AUDIT_b58.md** (how far the models are from the filed datasheets), **CHANGELOG.md** (old per-version notes), **WINDOWS_BUILD.md** (the Windows beta build).
 
 ## Build
 ```
@@ -20,22 +20,21 @@ The window has ten pages, chosen with the tabs along the top or the signal-flow 
 
 | Tab | What is on it |
 |---|---|
-| INPUT | INPUT & GATE (with the pickup de-noise), TRANSPOSE / FORMANT |
+| INPUT | INPUT & GATE (with the pickup de-noise), GATE / EXPANDER, TRANSIENT SHAPER, DI MATCH, SWELL |
 | GAIN | FUZZ, COMPRESSOR, OVERDRIVE, BOOST, BOOST EQ |
-| MOD | WAH, PHASER, CHORUS, MOD FX A, MOD FX B |
-| PITCH | PITCH PEDAL, OCTAVER, HARMONIZER |
-| AMP | Tabs AMP A, AMP B (the parallel amp) and NAM (four neural-model slots); MODERN METAL and ACOUSTIC panels appear when the amp needs them |
+| MOD | WAH, PHASER, CHORUS, MOD FX A to D, FILTER, LO-FI WARBLE (old sessions) |
+| PITCH | TRANSPOSE / FORMANT, PITCH PEDAL, OCTAVER, HARMONIZER, GUITAR SYNTH, CLASH PEDAL |
+| AMP | Tabs AMP A, AMP B (the parallel amp) and NAM (four neural-model slots); the ACOUSTIC panel appears when the amp needs it, and the MODERN METAL panel sits behind the amp panel's ADV button (its settings keep working while it is hidden) |
 | CAB | Sub-tab CAB BLOCKS (cab blocks A to D, CAB, mic position, IR alignment) and sub-tab SPEAKER SHAPING & EXPORT (per-block shaping, speaker dynamics, export as IR) |
 | EQ | POST EQ and the spectrum |
-| DELAY | PRE-AMP DELAY and POST-AMP DELAY (each with its effects panel) |
-| SCAPES | GRANULAR CLOUD, TREMOLO / AUTO-PAN, WOBBLE, SWELL, LO-FI WARBLE, NOISE PEDAL |
-| POST FX | REVERB (with reverb shaping), OUTPUT (meters, limiter), DOUBLER, WIDENER |
+| TIME | PRE-AMP DELAY and POST-AMP DELAY (each with its effects panel), REVERB and REVERB 2 (each with its shaping panel), GRANULAR CLOUD |
+| POST FX | OUTPUT (meters, limiter), DOUBLER, WIDENER |
 
 **Tidy view.** The TIDY VIEW button in the header collapses every pedal that is switched off into a small tile with its name, a one-line description and a SWITCH ON button, so a page only shows what you are using. Click SWITCH ON to bring the pedal back at full size. Switch TIDY VIEW off to see every pedal in full, faded when off.
 
 **Help.** The HELP button opens a window with a short plain-language guide to the window.
 
-**Reordering effects.** The signal-flow strip under the tabs shows the effects that can be moved. Drag a block left or right to change the order; blocks can move within their own group (before the amp, or after the cab). The ORDER window (MOVE UP / MOVE DOWN, or drag a row) does the same from a list.
+**The pedalboard.** The BOARD window draws the signal path as boxes and cables: drag from a jack on the right of one box to a jack on the left of another to wire them, drop a pedal on a cable to put it there, drop it on the amp's loop jacks to run it in the FX loop, and put two pedals beside each other, or split a signal with a crossover or an L/R split, by wiring them that way. Click a cable to set its level, polarity, pan and channel. The default board is the usual chain (pedals, amp, cab, pedals); older sessions are converted on load.
 
 **On/off switches.** Every effect has one. Lit (amber) = on. Switching a delay or the reverb off fades its mix out, so it does not click, and any tail dies away.
 
@@ -51,7 +50,7 @@ For developers (all in `PluginEditor.h` and `PluginEditor.cpp`):
 - **Adding a panel:** declare a `Panel` in `PluginEditor.h`, add it to the list near the top of the constructor, and add an `item (...)` line for it in the page definitions (search for `addFlowPage`) so it takes part in the flow layout and TIDY VIEW. If it has a description, add it to the map in `addFlowPage`.
 
 ## Signal chain
-input -> **pickup de-noise** -> gate -> high-pass -> **transpose / formant** -> **noise pedal** -> **fuzz** -> **compressor** -> **wah** -> **phaser** -> **chorus** -> **pre-amp delay** -> **Mod FX slots set to "Before the amp"** -> **Lo-Fi Warble** -> **boost** -> **NAM pedal 1** -> **overdrive** -> **amp** (Amp A, or its NAM capture; Amp B in parallel, or its own capture) -> presence and tone stack -> **cab** (four blocks, each taking Amp A, Amp B or both) -> **NAM pedal 2** and the **Mod FX slots set to "After the cab"** -> **Post EQ**, **delay**, **reverb** and the rest of the post group, in the ORDER window's order -> output level -> **optional limiter**.
+input -> **pickup de-noise** -> gate -> high-pass -> **transpose / formant** -> **noise pedal** -> **fuzz** -> **compressor** -> **wah** -> **phaser** -> **chorus** -> **pre-amp delay** -> **Mod FX slots set to "Before the amp"** -> **Lo-Fi Warble** -> **boost** -> **NAM pedal 1** -> **overdrive** -> **amp** (Amp A, or its NAM capture; Amp B in parallel, or its own capture) -> presence and tone stack -> **cab** (four blocks, each taking Amp A, Amp B or both) -> **NAM pedal 2** and the **Mod FX slots set to "After the cab"** -> **Post EQ**, **delay**, **reverb** and the rest of the post group, wherever the BOARD puts them -> output level -> **optional limiter**.
 
 The order of the pre-amp group and the post-cab group can be changed by dragging (see above). Pitch effects (pitch pedal, octaver, harmonizer) sit in the pre-amp chain next to the modulation effects.
 
@@ -237,6 +236,9 @@ A compressor before the amp. It has a set of ratio curves (including a 10:1 "Sof
 | Variable-mu | Very soft knee and a gentler ratio curve: smooth, even glue | Attack 6 ms, release about 330 ms |
 | Sustainer | A pedal-style squeeze: the first few ms of the pick gets through, then a long hold so notes bloom | Attack 4 ms, release about 460 ms |
 | Bus | Light glue (4:1 at most, slow attack) that holds chords together | Attack 4 ms, release about 180 ms |
+| Opto Sustain | A sustain pedal in the spirit of an optical "sustainer": very high squeeze, a fast first release then a slow swell back. Its own knobs: Volume, Blend, Sustain, Grit, Treble (the usual Threshold, Ratio, Attack and Release are hidden). Estimates only | Attack about 2 ms, release 90 ms then 0.45 to 0.95 s |
+| RMS (VCA) | True RMS detection, hard knee, ratio to infinity | Release a steady 125 dB per second |
+| Crush Limiter | A fast, heavy podium-limiter squash. Its own knobs: Crush, Crunch (saturating stage), Darkness, Volume, Mix, and a Slow / Fast release | Attack about 1.3 ms, release about 1.7 s (slow) or 0.85 s (fast), longer as Crush goes past the middle |
 
 (The numbers are the time to get within 3 dB of settled and of recovered; the Release knob scales them all.)
 
@@ -555,7 +557,7 @@ Tips:
 - **Classic is back (v94):** the amp Mode menus (Classic default, or Circuit-derived) and the pedal Circuit Mode switch (off = the original hand-tuned Transparent, Tight, Screamer, Distortion) return, so the circuit work is a choice, not forced. Classic matches v92 exactly in my render tests. See CHANGELOG.
 - **Second drive and the pedal changes (v93):** a second OVERDRIVE block ("Drive 2", starts off) that stacks after the first (Series) or runs beside it (Parallel, each -3 dB). The Transparent style is now a Centaur-type circuit with Gain, Tone and Edge (I took "grip" to mean Edge). Clean and Treble boosts moved into the Boost section, and the Dyna compressor into the Comp section (Style "Dyna (OTA)"). (The v93 removal of the Circuit Mode switch and the amp Mode menus was reversed in v94, above.) A second fuzz block ("Fuzz 2") works the same way as Drive 2. CIRCUITS.md lists every circuit received and what was done with it. Details and my estimates are in MODELED_GEAR.md.
 - **More real component values (v89):** Circuit-derived mode now takes preamp cathode corners, a bright cap and supply values from schematics I have read, for two more amps (the high-gain amp and the Mark-style creamy lead amp). The creamy lead amp's low end is tighter than before. Classic mode is unchanged. Details and what was not applied are in MODELED_GEAR.md.
-- **Circuit-derived by default (v88):** new sessions and factory presets start in Circuit-derived; older sessions keep the mode they had. Component-value preamp voicing exists only for the American combo and 50 W British amps, the ones I have schematics for. At high gain the new default is up to about 5 dB quieter than Classic on a couple of amps (more sag), within about 2 dB on most.
+- **Circuit-derived by default (v88):** new sessions start in Circuit-derived; older sessions keep the mode they had. Component-value preamp voicing exists only for the American combo and 50 W British amps, the ones I have schematics for. At high gain the new default is up to about 5 dB quieter than Classic on a couple of amps (more sag), within about 2 dB on most.
 - **Amp mode (v87):** the Circuit Amp, Stage Model and Derived menus (and the Dual voice switch, Power, Class and Rectifier menus and the Metal Sag knob) are folded into one "Mode" menu per amp. **Classic** is the original voicing. **Circuit-derived** uses the circuit-derived stage curves and works out the power section, supply droop, transformer saturation, feedback loop and preamp corners from circuit values; in my timing test it costs about the same CPU as Classic (roughly 2% of real time against 1.5 to 2%, on the build machine). **Full circuit** is the 50 W lead-amp simulation; it is only for that one amp and measured about 45% of real time, roughly 20 times the others, with no extra reported latency. Amp B has Classic and Circuit-derived. Master only shows in Full circuit. The Stack menu now reads As voiced, Neutral, then the seven passive stacks. Older sessions are moved across: Circuit Amp on becomes Full circuit; Stage Model or Derived on becomes Circuit-derived; Power Half/Low adds some Power Drive; Silicon rectifier and Metal Sag scale the Sag knob; American/British stack settings become the closest passive stack. These are close, not identical. From v88 the default is Circuit-derived; Classic remains selectable and is unchanged from before. Dual voice is removed (its effect was subtle).
 - **Circuit-derived levels (v83):** next to the Stage Model menu, a "Derived" menu (Amp B has its own in the advanced rows). Off is the classic voicing, as before. "Power section" replaces the Feel switch's tone nudges and the Presence shelf with the response of the power amp worked out from its feedback network, presence control, output transformer and a speaker impedance model: more feedback is tighter and stiffer, the Presence knob works by cutting feedback at high frequencies (its effect is milder than the classic shelf, as on the real amps), and the speaker's bass resonance lifts the low end. "Power + supply" adds a supply droop with two time constants (the reservoir recovers in tens of milliseconds, the filter stages in a few hundred) and a little low-end saturation of the output transformer, with depth from each amp's supply values (the Sag knob scales it; Rectifier Silicon makes it stiffer). "Power + supply + voicing" also takes the preamp corner frequencies and the bright-cap shelf from component values, for the American-combo and 50 W British models. Levels are matched to classic on a test signal. It costs no extra CPU. Not available for the Acoustic, Jade Chorus and Digital models. Default is Off, so older sessions are unchanged.
 - **Power stage with feedback (v86):** in Circuit-derived mode, the output stage runs inside its negative-feedback loop. Tight feedback stays clean longer and then clips harder; loose feedback breaks up earlier and softer. The Feel switch no longer nudges the drive by itself in that mode. Effect is subtle at most settings, since the preamp clips first.
@@ -584,3 +586,5 @@ Limits:
 Everything added after a release defaults to neutral or off, so older sessions load and sound the same. Sessions saved before v73 reopen on the page that now holds their old page's content. Details of each older change are in CHANGELOG.md.
 
 I have not run or listened to the full plugin on a Mac; parts of the DSP were tested on their own. If the build shows errors, paste them.
+
+There is now a **macOS build and tests** workflow (`.github/workflows/macos.yml`, run it by hand from the Actions tab). It builds the Standalone, VST3 and AU as a universal binary on a Mac runner, runs the same stress and regression tests as the Windows workflow, and uploads the result. It has not been run yet; the plugin has only been compiled with GCC so far, so the first run may show clang-only errors.

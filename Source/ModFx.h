@@ -17,6 +17,27 @@
 #include <cmath>
 #include <vector>
 
+// b43: the LFO waves, shared by the Mod FX types and by the Phaser and Lo-Fi engines.
+// 0 sine, 1 triangle, 2 soft square, 3 ramp up, 4 ramp down, 5 square, 6 and 7 slow wandering random, 8 bias (narrow dips, for the tremolo)
+inline float modLfoWave (float ph, int shape)
+{
+    ph -= std::floor (ph);
+    const float s = std::sin (6.2831853f * ph);
+    if (shape == 1) return ph < 0.5f ? 4.0f * ph - 1.0f : 3.0f - 4.0f * ph;
+    if (shape == 2) return std::tanh (4.0f * s) * 1.0007f;
+    if (shape == 3) return ph < 0.97f ? -1.0f + 2.0f * ph / 0.97f : 1.0f - 2.0f * (ph - 0.97f) / 0.03f;
+    if (shape == 4) return ph < 0.03f ? 1.0f - 2.0f * ph / 0.03f : -1.0f + 2.0f * (ph - 0.03f) / 0.97f;
+    if (shape == 5) return std::tanh (12.0f * s) * 1.0000001f;
+    if (shape == 8)
+    {
+        // Bias (amp-style): the dips are narrow and the full-level part is wide, as when a tremolo wobbles the power tubes' bias
+        const float dip = std::pow (0.5f * (1.0f - s), 1.7f);
+        return 1.0f - 2.0f * dip;
+    }
+    if (shape >= 6) return 0.55f * s + 0.3f * std::sin (6.2831853f * (ph * 2.618f + 0.3f)) + 0.2f * std::sin (6.2831853f * (ph * 4.236f + 0.7f));
+    return s;
+}
+
 class ModFx
 {
 public:
@@ -25,6 +46,7 @@ public:
         int   type = 0, shape = 0;     // shape: 0 sine, 1 triangle, 2 soft square
         float rateHz = 0.5f, depth = 0.5f, feedback = 0.0f, manual = 0.5f, toneHz = 9000.0f, mix = 0.5f;
         float shiftHz = 7.0f;          // type 9: how far the feedback is shifted on each trip round the loop (Hz, + up, - down)
+        float pick = 0.0f;             // b43: tremolo only: a harder pick makes the pulse shallower (the amp-style tremolo's Pick Response)
         float fidelity = 1.0f;         // v97: 1 = clean; lower rolls off lows and highs and adds a little saturation (worn tape / cassette)
     };
 
@@ -54,7 +76,7 @@ public:
             c.stW = 0;  c.stRead = 0;  c.stStart = 0;  c.stLen = 64;  c.stGate = 0.0f;
         }
         stWasIn = false;
-        phase = 0.0f;  lamp = 0.0f;  fLp[0] = fLp[1] = fHp[0] = fHp[1] = 0.0f;
+        phase = 0.0f;  lamp = 0.0f;  pickEnv = 0.0f;  fLp[0] = fLp[1] = fHp[0] = fHp[1] = 0.0f;
         hornRate = drumRate = 0.0f;
         hornPhase = drumPhase = 0.0f;
     }
@@ -118,7 +140,7 @@ private:
     float shiftSample (Chan& c, float x, float shiftHz)
     {
         static const float a[8] = { 0.6923878f, 0.9360654f, 0.9882295f, 0.9987488f, 0.4021921f, 0.8561711f, 0.9722910f, 0.9952885f };
-        float v[2] = { x, c.hb.d };
+        float v[2] = { c.hb.d, x };       // b62: the delay belongs on the first chain (it was on the second, which put the pair 15 degrees off at 1 kHz)
         c.hb.d = x;
         float outv[2];
         for (int path = 0; path < 2; ++path)
@@ -136,22 +158,10 @@ private:
             outv[path] = t;
         }
         const float ang = 6.2831853f * shiftPhase;
-        return outv[0] * std::cos (ang) - outv[1] * std::sin (ang);
+        return outv[0] * std::cos (ang) + outv[1] * std::sin (ang);       // b62: the sign was reversed (a positive shift went down); see the b62 test
     }
 
-    static float lfo (float ph, int shape)
-    {
-        ph -= std::floor (ph);
-        const float s = std::sin (6.2831853f * ph);
-        if (shape == 1) return ph < 0.5f ? 4.0f * ph - 1.0f : 3.0f - 4.0f * ph;
-        if (shape == 2) return std::tanh (4.0f * s) * 1.0007f;
-        // v97: ramp up, ramp down, square (short soft edges), and a slow wandering random made from three unrelated sines
-        if (shape == 3) return ph < 0.97f ? -1.0f + 2.0f * ph / 0.97f : 1.0f - 2.0f * (ph - 0.97f) / 0.03f;
-        if (shape == 4) return ph < 0.03f ? 1.0f - 2.0f * ph / 0.03f : -1.0f + 2.0f * (ph - 0.03f) / 0.97f;
-        if (shape == 5) return std::tanh (12.0f * s) * 1.0000001f;
-        if (shape >= 6) return 0.55f * s + 0.3f * std::sin (6.2831853f * (ph * 2.618f + 0.3f)) + 0.2f * std::sin (6.2831853f * (ph * 4.236f + 0.7f));
-        return s;
-    }
+    static float lfo (float ph, int shape) { return modLfoWave (ph, shape); }
 
     float readDelay (const Chan& c, float d) const        // cubic interpolation, d in samples
     {
@@ -378,7 +388,7 @@ private:
     void tremStep (const Params& p, float inL, float inR, float& oL, float& oR)
     {
         float v;
-        if (p.shape >= 7)
+        if (p.shape == 7)
         {
             const float raw = 0.5f + 0.5f * std::sin (6.2831853f * phase);
             lamp += (raw > lamp ? 1.0f - std::exp (-1.0f / (0.012f * sr)) : 1.0f - std::exp (-1.0f / (0.045f * sr))) * (raw - lamp);
@@ -386,7 +396,16 @@ private:
         }
         else
             v = lfo (phase, p.shape);
-        const float g = 1.0f - p.depth * 0.5f * (1.0f - v);
+        float depth = p.depth;
+        if (p.pick > 0.0f)
+        {
+            // b43 Pick Response: the level of what you play squeezes the pulse (a loud signal narrows the bias swing), so soft notes throb more than hard ones
+            const float a = 0.5f * (std::abs (inL) + std::abs (inR));
+            const float rel = std::exp (-1.0f / (0.06f * sr));
+            pickEnv = a > pickEnv ? a : a + rel * (pickEnv - a);
+            depth = p.depth / (1.0f + p.pick * pickEnv * 2.0f);
+        }
+        const float g = 1.0f - depth * 0.5f * (1.0f - v);
         oL = inL + p.mix * (inL * g - inL);
         oR = inR + p.mix * (inR * g - inR);
     }
@@ -430,7 +449,7 @@ private:
         oL = out[0];  oR = out[1];
     }
 
-    float sr = 48000.0f, shiftPhase = 0.0f, phase = 0.0f, lamp = 0.0f, hornRate = 0.0f, drumRate = 0.0f, hornPhase = 0.0f, drumPhase = 0.0f;
+    float sr = 48000.0f, shiftPhase = 0.0f, phase = 0.0f, lamp = 0.0f, pickEnv = 0.0f, hornRate = 0.0f, drumRate = 0.0f, hornPhase = 0.0f, drumPhase = 0.0f;
     int size = 1, stSize = 1;
     bool stWasIn = false;
     Chan ch[2];

@@ -44,6 +44,8 @@ juce_add_plugin(StarterAmp
 target_sources(StarterAmp PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginProcessor.h
+    Source/PatchGraph.h
+    Source/AutoLevelModes.h
     Source/CabRealism.h
     Source/PluginEditor.cpp
     Source/PluginEditor.h

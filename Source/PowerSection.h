@@ -4,6 +4,7 @@
 #include <cmath>
 #include <algorithm>
 #include "PowerSectionTable.h"
+#include "Adaa.h"
 
 namespace PowerSection
 {
@@ -22,8 +23,8 @@ namespace PowerSection
     // Which table row each amp model uses (-1 = none: acoustic, solid-state and digital models)
     inline int familyForModel (int m)
     {
-        static const int fam[34] = { 0, 3, 1, 2, 2, -1, 1, 4, 2, 3, -1, 2, 3, 2, -1, 1, 4, 2, 2, 2, 2, 2, -1, 1, 2, 1, 2, 2, 3, -1, 0, 0, -1, 3 };   // v0.1: 21 Hi-Wat Headroom (heavy feedback, so the tight family), 22 Console DI (no power section)   // v95: 16 to 20 are the five new amps (estimates, see MODELED_GEAR.md)   // v90: Marque Dream moved from the light-feedback family to the British-lead one (Mark-series feedback network read, see MODELED_GEAR.md)
-        return (m >= 0 && m < 34) ? fam[m] : -1;
+        static const int fam[41] = { 0, 3, 1, 2, 2, -1, 1, 4, 2, 3, -1, 2, 3, 2, -1, 1, 4, 2, 2, 2, 2, 2, -1, 1, 2, 1, 2, 2, 3, -1, 0, 0, -1, 3,   1, 2, 0, 0, 1, 3, 1 };   // v0.1: 21 Hi-Wat Headroom (heavy feedback, so the tight family), 22 Console DI (no power section)   // v95: 16 to 20 are the five new amps (estimates, see MODELED_GEAR.md)   // v90: Marque Dream moved from the light-feedback family to the British-lead one (Mark-series feedback network read, see MODELED_GEAR.md)
+        return (m >= 0 && m < 41) ? fam[m] : -1;      // b66: 34 Tweedle Dum (27k feedback, 5k Presence: the 50 W family), 35 Marque One (the Mark-series network), 36 Cedar Grand and 37 Cedar Ten (American combo), 38 Brit Forty-Five (27k / 5k: 50 W family), 39 Tweedle Mini (no feedback), 40 Jubilant (50 W family)
     }
 
     // Presence knob 0..1 interpolated between the five table steps
@@ -54,28 +55,131 @@ namespace PowerSection
     // 'comp'; g and beta are set so the closed-loop small-signal gain stays comp. Small signals pass as before, the distortion of
     // the stage is reduced by the loop gain, and when the stage runs out of swing the loop cannot help and it clips hard.
     // Solved per sample by Newton's method (three steps, starting from the last output).
+    // b49: the loop y = F(g (x - beta y)) is solved with a bracketed Newton method. The plain Newton method (three steps from the last output)
+    // could land in a two-sample cycle between the two saturated ends of F: with the loop gain above one, F flat at both ends and the true
+    // answer in the steep middle, each step overshot the root, and after a loud passage (or a restart with the last output left over) the
+    // loop stayed stuck there, so a quiet note came out about 30 dB low (Hi-Wat Headroom Linked) or with a full-scale buzz. F rises with its
+    // argument, so h(y) = y - F(g (x - beta y)) rises with y by at least one, has exactly one root, and that root lies between F's two
+    // saturation values. The bracket starts there, every step shrinks it, and a Newton step that leaves it is replaced by its midpoint.
+    constexpr int   kLoopSteps = 14;
+    constexpr float kLoopTol   = 2.0e-5f;
+
+    template <typename F>
+    inline float solveLoop (F& f, float x, float g, float beta, float y, float lo, float hi)
+    {
+        y = std::min (hi, std::max (lo, y));
+        for (int it = 0; it < kLoopSteps; ++it)
+        {
+            const float u = g * (x - beta * y);
+            const float h = y - f (u);
+            if (std::abs (h) < kLoopTol * (1.0f + std::abs (y))) break;      // converged: a warm start usually needs one step
+            if (h > 0.0f) hi = y; else lo = y;
+            const float e = 1.0e-3f;
+            const float dF = (f (u + e) - f (u - e)) * (0.5f / e);
+            float yn = y - h / std::max (1.0f, 1.0f + g * beta * dF);
+            if (! (yn > lo && yn < hi)) yn = 0.5f * (lo + hi);
+            y = yn;
+        }
+        return y;
+    }
+
+    template <typename F>
+    inline void loopBounds (F& f, float& lo, float& hi)
+    {
+        lo = f (-1.0e4f);  hi = f (1.0e4f);
+        if (lo > hi) std::swap (lo, hi);
+        const float pad = 1.0e-3f * (1.0f + std::abs (hi - lo));
+        lo -= pad;  hi += pad;
+    }
+
     template <typename F>
     inline void feedbackStage (float* y, int m, float lg, float comp, float& last, F f)
     {
         const float g = 1.0f + lg, beta = lg / (comp * g);
+        float lo, hi;  loopBounds (f, lo, hi);
         float yy = last;
         for (int i = 0; i < m; ++i)
         {
             const float x = y[i];
-            for (int it = 0; it < 3; ++it)
-            {
-                const float u = g * (x - beta * yy);
-                const float fu = f (u);
-                const float e = 1.0e-3f;
-                const float dF = (f (u + e) - f (u - e)) * (0.5f / e);
-                const float h = yy - fu;
-                const float hp = std::max (1.0f, 1.0f + g * beta * dF);
-                yy -= h / hp;
-            }
+            yy = solveLoop (f, x, g, beta, yy, lo, hi);
             y[i] = yy;
         }
         last = yy;
     }
+
+    // b41: the same loop with an anti-aliased output. 'post' is the anti-aliased version of f: it is evaluated once per sample, at
+    // the argument the solved loop ends on, and its result is the output (the Newton steps themselves use the plain f).
+    template <typename F, typename P>
+    inline void feedbackStageAdaa (float* y, int m, float lg, float comp, float& last, F f, P post)
+    {
+        const float g = 1.0f + lg, beta = lg / (comp * g);
+        float lo, hi;  loopBounds (f, lo, hi);
+        float yy = last;
+        for (int i = 0; i < m; ++i)
+        {
+            const float x = y[i];
+            yy = solveLoop (f, x, g, beta, yy, lo, hi);
+            yy = post (g * (x - beta * yy));
+            y[i] = yy;
+        }
+        last = yy;
+    }
+
+    // b51: anti-aliased power stage inside its feedback loop.
+    // With the loop, the stage is a one-sample curve y = Phi (x) (the loop solved for every input), and with the loop gain up its corner (where the
+    // stage runs out of swing) is several times sharper than the stage's own: with the Power control up, the Circuit-derived and Hybrid modes
+    // folded harmonics of that corner back as a flat inharmonic noise floor (about -30 dB against the 2 to 12 kHz band; -60 dB with the loop
+    // out). The anti-aliasing used before b51 acted on the stage's internal argument, which jumps where the loop's corner is, so it did not
+    // follow the corner. Now Phi itself is tabulated (the solver run once per table node, on the Adaa.h curve grid) and run through the second-order
+    // anti-aliasing of Adaa.h like every other clipper. The table is rebuilt only when the stage's numbers change (a few hundred solver calls),
+    // and per sample it is a lookup instead of a root solve.
+    struct LoopTable
+    {
+        std::vector<float> y;
+        Adaa::CurveInt ci;
+        Adaa::Prev prev;
+        float key[5] = { -1.0f, -1.0f, -1.0f, -1.0f, -1.0f };
+        bool built = false;
+        LoopTable()
+        {
+            y.assign ((size_t) StageCurves::kN, 0.0f);
+            ci.y = y.data();  ci.F.assign ((size_t) StageCurves::kN, 0.0);  ci.G.assign ((size_t) StageCurves::kN, 0.0);
+            prev.order = 2;
+        }
+        LoopTable (const LoopTable& o) : y (o.y), ci (o.ci), prev (o.prev), built (o.built) { ci.y = y.data(); for (int i = 0; i < 5; ++i) key[i] = o.key[i]; }
+        LoopTable& operator= (const LoopTable& o) { y = o.y; ci = o.ci; ci.y = y.data(); prev = o.prev; built = o.built; for (int i = 0; i < 5; ++i) key[i] = o.key[i]; return *this; }
+        void reset() { prev.reset(); }
+        bool keyChanged (const float* k) const { if (! built) return true; for (int i = 0; i < 5; ++i) if (key[i] != k[i]) return true; return false; }
+
+        template <typename F>
+        void build (const float* k, float lg, float comp, F f)
+        {
+            for (int i = 0; i < 5; ++i) key[i] = k[i];
+            const float g = 1.0f + lg, beta = lg / (comp * g);
+            float lo, hi;  loopBounds (f, lo, hi);
+            float yy = lo;
+            const int N = StageCurves::kN;
+            for (int i = 0; i < N; ++i)
+            {
+                const float x = StageCurves::kU0 + StageCurves::kDu * (float) i;
+                yy = solveLoop (f, x, g, beta, yy, lo, hi);
+                y[(size_t) i] = yy;
+            }
+            const double du = StageCurves::kDu;
+            ci.F[0] = 0.0;  ci.G[0] = 0.0;
+            for (int i = 0; i + 1 < N; ++i)       // the same sums as Adaa::makeCurveInt, written into the arrays that are already there
+            {
+                ci.F[(size_t) i + 1] = ci.F[(size_t) i] + 0.5 * du * ((double) y[(size_t) i] + (double) y[(size_t) i + 1]);
+                ci.G[(size_t) i + 1] = ci.G[(size_t) i] + du * ci.F[(size_t) i] + du * du * (0.5 * (double) y[(size_t) i] + ((double) y[(size_t) i + 1] - (double) y[(size_t) i]) * (1.0 / 6.0));
+            }
+            prev.reset();
+            built = true;
+        }
+        inline void process (float* x, int n)
+        {
+            for (int i = 0; i < n; ++i) x[i] = (float) Adaa::curveStep (ci, prev, (double) x[i]);
+        }
+    };
 
     struct Chain
     {
@@ -192,16 +296,23 @@ namespace PowerSection
             case 17: s = { 470.0f, 0.50f,  85.0f, 0.35f,  0.20f }; return true;     // v95 Diesel Fuel (4 x KT77, 100 W; service manual gives bias only; estimated)
             case 18: s = { 545.0f, 0.60f,  70.0f, 0.25f,  0.15f }; return true;     // v95 Wreck Stack (read: 545 V plates, 335 V screens, 2 x 220 uF reservoirs, 150k and 330k dropping resistors; peak current and source resistance estimated)
             case 19: s = { 450.0f, 0.50f,  80.0f, 0.20f,  0.15f }; return true;     // v95 Power Brawl (100 W, 4 x 6L6GC; b18: plate supply read from the schematic, 440 V on / 460 V standby printed, 470R screen resistors, 220 uF reservoir; peak current and source resistance still estimated)
-            case 20: s = { 480.0f, 0.55f,  85.0f, 0.30f,  0.20f }; return true;     // v95 Cutaway (100 to 140 W, 4 x EL34 as shipped; estimated)
+            case 20: s = { 480.0f, 0.55f,  85.0f, 0.30f,  0.20f }; return true;     // v95 Stolen Fire (100 to 140 W, 4 x EL34 as shipped; estimated)
             case 21: s = { 460.0f, 0.55f, 60.0f, 0.05f, 0.10f }; return true;     // v0.1 Hi-Wat Headroom (read from the 100 W British head schematic: bridge of four 1N5408 into 2 x 220 uF in series, 100 ohm to the screens, 1k x 50 uF to the preamp; the 460 V, peak current and source resistance are my estimates, and the transformer is assumed large)
             case 23: s = { 480.0f, 0.50f,  80.0f, 0.50f,  0.25f }; return true;     // v0.2 Plexi-style 100 W: the same supply reading as the 1959-style amp (silicon bridge, 10k x 50 uF dropping stage); estimated
             case 24: s = { 470.0f, 0.55f,  90.0f, 0.50f,  0.25f }; return true;     // v0.2 Matamp-style 120 W: eight-diode bridge, 100 uF pair, choke, 33k and 33k dropping stages with 16 uF (read from the schematics); voltages are not printed, so B+ and peak current are estimated
             case 27: s = { 448.0f, 0.35f,  60.0f, 0.185f, 0.20f }; return true;     // v0.2 Marque Five: same supply as the Mark-series amp (silicon bridge, 220 uF, choke, 5.6k x 30 uF)
             case 26: s = { 480.0f, 0.55f,  80.0f, 0.20f,  0.15f }; return true;     // v0.2 Hi / Lo input amp: 100 W, four EL34s, silicon rectifier; estimated (no supply data), the stiff modern 100 W figures
             case 28: s = { 350.0f, 0.24f, 140.0f, 0.16f, 0.30f }; return true;     // v0.2 Dual Thirty (read from the two-channel 30 W EL84 combo's supply sheet: rectifier tube, 33 uF reservoirs with a choke, 4.7k and 22k dropping stages with 22 and 33 uF; 350 V at the reservoir, 308 to 338 V on the plates, measured on the sheet. Peak current, source resistance and transformer saturation are estimates)
-            case 30: s = { 420.0f, 0.20f, 110.0f, 0.12f, 0.30f }; return true;     // v0.2 Cedar Twelve: small blackface-style combo, two 6V6s, silicon rectifier; peak current and source resistance estimated (a small supply droops sooner than the big amp's)
+            case 30: s = { 420.0f, 0.20f, 110.0f, 0.12f, 0.30f }; return true;     // v0.2 Cedar Spring: small blackface-style combo, two 6V6s, silicon rectifier; peak current and source resistance estimated (a small supply droops sooner than the big amp's)
             case 31: s = { 420.0f, 0.20f, 110.0f, 0.12f, 0.30f }; return true;     // v0.2 Triple Blend part one (the small combo's supply)
-            case 33: s = { 330.0f, 0.18f, 120.0f, 0.15f, 0.30f }; return true;     // b14 Brit Eighteen: 18 W EL84 combo, rectifier tube; estimated (no schematic read)
+            case 33: s = { 330.0f, 0.18f, 120.0f, 0.15f, 0.30f }; return true;
+            case 34: s = { 430.0f, 0.30f, 130.0f, 0.16f, 0.30f }; return true;     // b66 Tweedle Dum (5F6-A / AB165-style): GZ34 rectifier, two push-pull 6L6 or 5881 at about 430 V; peak current and source resistance estimated
+            case 35: s = { 449.0f, 0.38f,  60.0f, 0.185f, 0.20f }; return true;    // b66 Marque One (read from the early single-channel Mark: four 6L6 at about 449 V, silicon bridge, 220 uF, choke, dropping stage)
+            case 36: s = { 460.0f, 0.34f, 100.0f, 0.12f, 0.25f }; return true;     // b66 Cedar Grand (Vibroverb-style: two 6L6, about 460 V, tube rectifier); estimated
+            case 37: s = { 483.0f, 0.42f,  75.0f, 0.10f, 0.20f }; return true;     // b66 Cedar Ten (Hot Rod DeVille-style: two 6L6, solid-state rectifier, 483 V printed)
+            case 38: s = { 420.0f, 0.28f, 140.0f, 0.20f, 0.30f }; return true;     // b66 Brit Forty-Five (JTM45: two KT66, GZ34 rectifier); estimated
+            case 39: s = { 330.0f, 0.06f, 300.0f, 0.05f, 0.40f }; return true;     // b66 Tweedle Mini (5F1-style: one 6V6, 5Y3 rectifier, about 325 V; a 5 W supply is soft and sags early)
+            case 40: s = { 470.0f, 0.45f,  85.0f, 0.30f, 0.20f }; return true;     // b66 Jubilant (100 W silver-jubilee-style head: silicon rectifier); estimated     // b14 Brit Eighteen: 18 W EL84 combo, rectifier tube; estimated (no schematic read)
             default: return false;
         }
     }

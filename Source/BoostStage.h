@@ -18,6 +18,7 @@
 #include <cmath>
 #include <vector>
 #include "CircuitModels.h"
+#include "Adaa.h"
 
 class BoostStage
 {
@@ -25,7 +26,7 @@ public:
     struct Band { float hz, db, q; };
     struct Params
     {
-        int   mode = 0;             // 0 Clean, 1 EP, 2 Console, 3 Tube, 4 Treble, 5 Mid, 6 FET
+        int   mode = 0;             // 0 Clean, 1 EP, 2 Console, 3 Tube, 4 Treble, 5 Mid, 6 FET, 7 Tape
         float gainDb = 0.0f;        // 0..30
         float sat = 0.3f;           // 0..1
         float tight = 0.0f;         // 0..1 (0 = off)
@@ -51,6 +52,7 @@ public:
             b->clear();
         pedC.reset();  pedT.reset();  circuitKey[0] = circuitKey[1] = -999.0f;
         dcX = dcY = 0.0f;
+        for (auto& a : ad) a.reset();
         lastGain = 1.0f;
         lastLevel = 1.0f;
     }
@@ -205,6 +207,7 @@ private:
         k.mode = p.mode; k.tightStyle = p.tightStyle; k.tight = p.tight; k.sat = p.sat;
         k.b[0] = p.lo; k.b[1] = p.m1; k.b[2] = p.m2; k.b[3] = p.hi;
         if (k == lastKey) return;
+        if (k.mode != lastKey.mode) for (auto& a : ad) a.reset();       // b42: a different curve: start the anti-aliasing history afresh
         lastKey = k;
 
         // tighten: the low cut climbs from 40 Hz to 300 Hz
@@ -231,6 +234,10 @@ private:
             case 5:  modePre1.highPass (sr, 130.0f, 0.7f);  modePre2.peak (sr, 900.0f, 0.8f, 4.0f + 3.0f * s);
                      modePost1.lowPass (sr, 9500.0f, 0.6f);                                                   break;      // Mid
             case 6:  modePre1.highPass (sr, 35.0f, 0.7f);  modePost1.lowPass (sr, 13000.0f, 0.6f);           break;      // FET
+            // b62 Tape: a cassette four-track's channel in front of its tape: head bump (a low shelf near 90 Hz), rumble cut, and the cassette's top
+            // roll-off, two poles, closing as it is driven (its tape saturates the highs first)
+            case 7:  modePre1.lowShelf (sr, 90.0f, 2.5f + 3.0f * s);  modePre2.highPass (sr, 45.0f, 0.7f);
+                     modePost1.lowPass (sr, 9000.0f - 3000.0f * s, 0.6f);  modePost2.lowPass (sr, 12000.0f - 2500.0f * s, 0.5f);   break;      // Tape
             default: break;
         }
         // oversampling filters: 4th-order Butterworth at 0.47 x the base rate, at twice the base rate
@@ -253,7 +260,25 @@ private:
         }
     }
 
-    // one sample of the non-linear part
+    // b42: tanh on the positive side and s * tanh (v / s) on the negative one (s = 1 is plain tanh), with first-order
+    // antiderivative anti-aliasing (Adaa.h): F (v) = log cosh v for v > 0 and s^2 log cosh (v / s) for v < 0, which join smoothly at 0.
+    static double asymStep (Adaa::Prev& p, double v, double s)
+    {
+        if (p.order >= 2)       // b45: second order. F2 (v) = T2 (v) above 0 and s^3 T2 (v / s) below, T2 = the second antiderivative of tanh that is 0 at 0 (Adaa::tanhH)
+            return Adaa::step2 (p, v, Adaa::makeFam ([s] (double w) { return w > 0.0 ? std::tanh (w) : s * std::tanh (w / s); },
+                                                      [s] (double w) { return w > 0.0 ? Adaa::logcosh (w) : s * s * Adaa::logcosh (w / s); },
+                                                      [s] (double w) { return w > 0.0 ? Adaa::tanhH().F2c (w) : s * s * s * Adaa::tanhH().F2c (w / s); }));
+        const double F = v > 0.0 ? Adaa::logcosh (v) : s * s * Adaa::logcosh (v / s);
+        auto at = [s] (double w) { return w > 0.0 ? std::tanh (w) : s * std::tanh (w / s); };
+        double y;
+        if (! p.primed)                                  y = at (v);
+        else if (std::abs (v - p.u) < Adaa::kSmallStep)  y = at (0.5 * (v + p.u));
+        else                                             y = (F - p.F) / (v - p.u);
+        p.u = v;  p.F = F;  p.primed = true;
+        return y;
+    }
+
+    // one sample of the non-linear part (runs at twice the base rate)
     float shape (int mode, float x, float d, float lowPart)
     {
         switch (mode)
@@ -261,40 +286,42 @@ private:
             case 1:        // EP: gentle asymmetry
             {
                 const float b = 0.22f, tb = std::tanh (b), norm = 1.0f / (std::sqrt (d) * (1.0f - tb * tb));
-                return (std::tanh (d * x + b) - tb) * norm;
+                return ((float) asymStep (ad[0], d * x + b, 1.0) - tb) * norm;
             }
             case 2:        // Console: the low band saturates earlier (iron), the highs more gently
             {
                 const float hi = x - lowPart;
                 const float dl = d * 2.5f, dh = d * 0.7f;
-                return std::tanh (dl * lowPart) / std::sqrt (dl) + std::tanh (dh * hi) / std::sqrt (dh);
+                return (float) asymStep (ad[0], dl * lowPart, 1.0) / std::sqrt (dl) + (float) asymStep (ad[1], dh * hi, 1.0) / std::sqrt (dh);
             }
             case 3:        // Tube: positive side softer, negative side clips harder
             {
                 const float b = 0.30f, tb = std::tanh (b), norm = 1.0f / (std::sqrt (d) * (1.0f - tb * tb));
-                const float v = d * x + b;
-                const float y = v > 0.0f ? std::tanh (v) : std::tanh (1.6f * v) / 1.6f;
-                return (y - (b > 0 ? tb : tb)) * norm;
+                const float y = (float) asymStep (ad[0], d * x + b, 1.0 / 1.6);
+                return (y - tb) * norm;
             }
             case 5:        // Mid: mild asymmetry, firmer on the negative side
             {
                 const float b = 0.25f, tb = std::tanh (b), norm = 1.0f / (std::sqrt (d) * (1.0f - tb * tb));
-                const float v = d * x + b;
-                const float y = v > 0.0f ? std::tanh (v) : 0.75f * std::tanh (v / 0.75f);
+                const float y = (float) asymStep (ad[0], d * x + b, 0.75);
                 return (y - tb) * norm;
             }
             case 6:        // FET: very gentle asymmetry, mostly second harmonic
             {
                 const float b = 0.18f, tb = std::tanh (b), norm = 1.0f / (std::sqrt (d) * (1.0f - tb * tb));
-                const float v = d * 0.8f * x + b;
-                const float y = v > 0.0f ? std::tanh (v) : 0.85f * std::tanh (v / 0.85f);
+                const float y = (float) asymStep (ad[0], d * 0.8f * x + b, 0.85);
                 return (y - tb) * norm * 1.12f;
+            }
+            case 7:        // Tape: symmetric, the lows (head bump) saturate earlier than the highs, odd harmonics first
+            {
+                const float hi = x - lowPart;
+                const float dl = d * 1.9f, dh = d * 0.9f;
+                return (float) asymStep (ad[0], dl * lowPart, 1.0) / std::sqrt (dl) + (float) asymStep (ad[1], dh * hi, 1.0) / std::sqrt (dh);
             }
             default:       // Treble: germanium-like, more asymmetric
             {
                 const float b = 0.45f, tb = std::tanh (b), norm = 1.0f / (std::sqrt (d) * (1.0f - tb * tb));
-                const float v = d * x + b;
-                const float y = v > 0.0f ? std::tanh (v) : 0.6f * std::tanh (v / 0.6f);
+                const float y = (float) asymStep (ad[0], d * x + b, 0.6);
                 return (y - tb) * norm;
             }
         }
@@ -329,5 +356,6 @@ private:
     Biquad tightHp, tightPk, eqLo, eqM1, eqM2, eqHi, modePre1, modePre2, modePost1, modePost2, upA, upB, dnA, dnB, splitLp, splitLp2;
     Circuit::NewPedals pedC, pedT;
     float circuitKey[2] { -999.0f, -999.0f }, circuitSat[2] { -1.0f, -1.0f };
+    Adaa::Prev ad[2];
     float dcX = 0.0f, dcY = 0.0f, lastGain = 1.0f, lastLevel = 1.0f;
 };

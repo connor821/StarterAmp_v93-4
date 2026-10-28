@@ -1,0 +1,173 @@
+### 4\. Add the Neumann U 87 Ai
+
+![Neumann U 87 Ai Studio Microphone - Vintage King](https://images.openai.com/static-rsc-4/gSKxsCCGUzhRHQwGc1y9fqmj61-gbK0Kob99DnLxPfYaldooyNVOwwLyq1Jj8LGY9zEDOSakKSaNK5goL8rnL6CvDEYb4sJeibxBBLmIyFstvdxKVDrizt_cCPP-l87wFwmYbVScYvpnKw9xe6LMx6rYxe46DsdrOfnjmpTe5thih8LEAC8A1F2ALu4obxNh?purpose=fullsize)
+
+Neumann U 87 Ai
+
+High-priority addition
+
+* Rated response: 20 Hz–20 kHz.
+
+* Patterns: omnidirectional, cardioid and figure-eight.
+
+* Controls: −10 dB pre-attenuation pad and switchable low-frequency roll-off.
+
+* Modeling value: extended top end, a different presence character from close dynamic mics, and a useful condenser option for blended guitar-cab captures.
+
+Manufacturer documentation: neumann.com +1
+
+Official documentation:
+
+* [Neumann U 87 Ai — operating instructions and technical information (PDF)](https://www.neumann.com/globalassets/digizuite/16474-en-opin0134_u87ai_06-10.pdf?utm_source=chatgpt.com)
+
+* [Neumann official U 87 Ai product page](https://www.neumann.com/en-en/products/microphones/u-87-ai/?utm_source=chatgpt.com)
+
+### What matters for the simulator
+
+The U 87 is not simply an SM57 with more treble. Its capsule, polar pattern, off-axis behavior and distance response all contribute to the result. It is also a credible real-world guitar-cab microphone: Sweetwater's controlled guitar-cab shootout included the U 87 Ai alongside an SM57, R-121, M 160, MD 421-II and C414 XLS. InSync +1
+
+I'd implement these separate response states:
+
+* Cardioid, flat filter
+
+* Cardioid, low-frequency roll-off
+
+* Omni, flat filter
+
+* Figure-eight, flat filter
+
+Keep the −10 dB pad as an input-headroom setting rather than a tonal EQ curve, unless measurements show a meaningful response difference.
+
+Important limitation: the manufacturer's published U 87 documentation provides response specifications and graphs, but I have not verified a complete measured set of U 87-specific proximity curves at several distances. Don't label synthetic curves as manufacturer measurements.
+
+### 5\. Other guitar-cab microphones worth adding
+
+These are genuine recording options, not just obscure models to inflate the mic list. A Sweetwater shootout tested many of them directly on guitar cabinets. InSync +1
+
+![beyerdynamic M 201 TG Dynamic Microphone
+ – Chicago Music Exchange](https://images.openai.com/static-rsc-4/M-0aMBseWozDzTpVtxs5Rp-2_5LKcpLZO2XUpDDvavq3uFTJxwDQRdzwIAB7uewCiZ-kSHC62VlU5OlgyAAU3wYad2V26NYn1K4AZ1VFV6wWSAjudXFTUzW4Adp34HB-mC3ykaTcePvA_-913kHTK8_N-QbJ5p6qn1yH2SZ7vQ1fjPOmk1zR4xb5uyduSGZu?purpose=fullsize)
+
+Beyerdynamic M 201 — top addition
+
+Response: 40 Hz–18 kHz. The manufacturer's technical sheet includes response curves at 2 cm, 10 cm and 1 m. This is arguably even more useful than a single on-axis graph for your distance/proximity system.
+
+[Official M 201 technical sheet and three distance curves](https://global.beyerdynamic.com/amfile/file/download/file/1727?utm_source=chatgpt.com)
+
+Sources: Dynamic Moving-Coil Microphone +1
+
+![Audix i5 Dynamic Instrument Microphone - Vintage King](https://images.openai.com/static-rsc-4/R_pZhBfXZH6Kp965fgIKml0hZOTdNkLbhfS6noHiQbAlsNrnVcsDbQ3Vrgf_nW2dnMw4bAPFZnfiQumW1HIh2ZJQ7eI2tal41iGEdyn8egia-80ycmJ1_ZAmsvLCZCl00WxxHcj65edtsWobvkel7slCMrJ_MYTvGpjBBwMVWD5GcOAZS0fxqMofOWRJqwRa?purpose=fullsize)
+
+Audix i5 — SM57 alternative
+
+Response: 50 Hz–16 kHz. A common alternative for close-miking guitar cabinets, with a useful difference in upper-midrange voicing.
+
+[Official i5 page and spec-sheet download](https://audixusa.com/collections/percussion/products/i5?utm_source=chatgpt.com)
+
+[i5 datasheet with frequency-response plot](https://cdn.audixusa.com/media/downloadable/manual/AUDIX-AX-I5-SpecSheet.pdf?utm_source=chatgpt.com)
+
+Sources: cdn.audixusa.com +1
+
+![Electro Voice RE20 Dynamic Cardioid Microphone | Россия](https://images.openai.com/static-rsc-4/jSxtVDZgAuHtkwNxLyJyXQFYbehgShq_PqGtI767qV7KeS_7pdh06Qgey-AHpBAoy8Y-s3qoxnlRglqLk5DjNxxNbhEGfPDZWd0TEew0YgJHhbc8sKBay7QKSlMvJKb9RlfuI91OVwYT9oy08n1omlkbeFh8dsYlvR46O-OVy6DhsfGUNJeFMo_xmCm0RWGZ?purpose=fullsize)
+
+Electro-Voice RE20 — controlled proximity
+
+Response: 45 Hz–18 kHz. Its Variable-D design is intended to minimize proximity-effect changes, making it a valuable contrast against close cardioid and ribbon mics.
+
+[Official RE20 engineering datasheet and response graph](https://products.electrovoice.com/binary/RE20_Engineering_Data_Sheet.PDF?utm_source=chatgpt.com)
+
+Sources: products.electrovoice.com +1
+
+![Sennheiser e 609 Silver Dynamic Guitar Microphone | Music & Arts](https://images.openai.com/static-rsc-4/RKc7pBXTn5Cweiu_KqnFhNvnTVaF4RL2gBBYxpmLiTbe_o25zbQdXzauPl7gvsD74qSBFSC05u5DWTrpNiApPtqp5u5e_SayToootcdOahL16sgqdkBMH_J81jUkPlU24CkUeiRj7jPVqm6C6NhfIiAUUDFBtwiAF5GiElNVQfsX1xQMtcNfI1CnoyUfU-Q3?purpose=fullsize)
+
+Sennheiser e609 Silver — classic hanging cab mic
+
+A widely used close-miking option with a distinct response from the SM57. Worth modeling separately from the e906 rather than treating them as interchangeable.
+
+[Sennheiser official website — search e609 Silver downloads](https://www.sennheiser.com/?utm_source=chatgpt.com)
+
+Source: InSync +1
+
+![Audio-Technica AT4050 | ZenPro Audio](https://images.openai.com/static-rsc-4/C1LSqXBa6R3EP2kqY5pYaEjfApVAQs6odJ6IkM5oFDmqPpcHdGsW8RWGh7jAtD4S752OeBKdzzWX9Zp9bjJjEswduRWxHebkc-BoAPZX6JuiMMv8Aj8jypFNUjYQzYd0q0GuBI_Hzb6DZcLE_BGEWcGlQXdfhVcXsBqZz6XlsFiEHo_AkdZyPjs-o41Kkzhv?purpose=fullsize)
+
+Audio-Technica AT4050 — another condenser color
+
+A useful large-diaphragm condenser choice for capturing more of the cabinet's upper spectrum and for mixing with a close dynamic mic.
+
+[Audio-Technica official website — search AT4050 downloads](https://www.audio-technica.com/?utm_source=chatgpt.com)
+
+Source: ProSoundWeb +1
+
+![Royer R-10 Ribbon Microphone | Guitar Center](https://images.openai.com/static-rsc-4/1qgOH9wl3qOp28BhTbLtji84WiTO7YcBSXNCF9IQAvO1t18uYr_c6y5aY8UOlvYgUBa47IhqEi5BIjEzxxhCYoRLhpTZ4ceW7kobrtT4kok9ibvtvxZePDdCa8dc2_wGukhslNHw4oYd9hmiJW7WAjC0oPUn5e3vX8HPTht4_alLVRVpo61J3WKe9EUk9nVJ?purpose=fullsize)
+
+Royer R-10 — alternate ribbon
+
+A practical alternative to the R-121 for a ribbon model family. Keep its response distinct rather than deriving the R-10 by applying a generic treble shelf to the R-121.
+
+[Royer Labs official website — search R-10 documentation](https://royerlabs.com/?utm_source=chatgpt.com)
+
+Source: InSync +1
+
+### 6\. Additional models for a more complete mic library
+
+These are the next tier I'd consider, particularly if you're aiming for a serious modern-metal production tool.
+
+| Mic                   | Why it deserves consideration                                                         | Priority   |
+| --------------------- | ------------------------------------------------------------------------------------- | ---------- |
+| Sennheiser MD 441-U   | Highly controlled dynamic response; detailed upper mids                               | Medium     |
+| Beyerdynamic M 88 TG  | Strong low-frequency response and pronounced character; useful for thicker cab sounds | Medium     |
+| Shure KSM32           | Neutral large-diaphragm condenser option                                              | Medium     |
+| Shure KSM313          | Distinctive ribbon option, including different front/rear tonal behavior              | Medium     |
+| AEA R-84 / N22        | Ribbon color and room/blend options                                                   | Medium-low |
+| AKG C414 XLII         | More presence-forward condenser alternative to the C414 XLS                           | High       |
+| Neumann U 47 FET      | A classic high-SPL condenser sound; worthwhile as a premium model                     | Medium     |
+| Telefunken M80 / M81  | Modern dynamic alternatives with different presence voicings                          | Medium     |
+| Audio-Technica AE2300 | Compact dynamic instrument mic; useful for close-mic tonal variety                    | Medium     |
+| Shure SM58            | Familiar, slightly different close-mic voicing from an SM57                           | Medium-low |
+
+These models have been used in published guitar-cab microphone comparisons, although inclusion in a shootout doesn't mean every model is equally common in professional sessions. InSync +2
+
+### 7\. Best sources for your missing data
+
+For your particular goal—response curves extending to 20 kHz and measured proximity curves—I'd prioritize the sources as follows.
+
+First: Beyerdynamic M 201 and M 160
+
+Their published distance curves provide concrete reference points for building and validating proximity behavior.
+
+* [M 201 technical sheet](https://global.beyerdynamic.com/amfile/file/download/file/1727?utm_source=chatgpt.com)
+
+* [M-series specifications](https://global.beyerdynamic.com/amfile/file/download/file/1717?utm_source=chatgpt.com)
+
+Second: Neumann U 87 Ai and Electro-Voice RE20
+
+Useful contrast between a multi-pattern condenser and a dynamic microphone designed to minimize proximity effect.
+
+* [U 87 Ai documentation](https://www.neumann.com/globalassets/digizuite/16474-en-opin0134_u87ai_06-10.pdf?utm_source=chatgpt.com)
+
+* [RE20 engineering data](https://products.electrovoice.com/binary/RE20_Engineering_Data_Sheet.PDF?utm_source=chatgpt.com)
+
+Third: Audix i5, SM57, e906 and R-121
+
+These establish the most useful close-mic reference tones and give you a foundation for the core guitar-cab library.
+
+* [Audix i5 response graph](https://cdn.audixusa.com/media/downloadable/manual/AUDIX-AX-I5-SpecSheet.pdf?utm_source=chatgpt.com)
+
+* [SM57 guide](https://www.shure.com/en-US/docs/guide/SM57?utm_source=chatgpt.com)
+
+* [R-121 manual](https://www.royerlabs.com/pdf/manuals/R-121manual.pdf?utm_source=chatgpt.com)
+
+### 8\. One important DSP recommendation
+
+I'd separate the mic model into three components:
+
+* Intrinsic mic response: the measured frequency-response curve, including its presence peak and high-frequency roll-off.
+
+* Distance response: measured proximity effect and distance-dependent spectral changes, where actual data is available.
+
+* Angle and position response: off-axis coloration, capsule orientation and speaker-cone position.
+
+That last component matters enormously for guitar. Moving a mic from the dust-cap center toward the cone edge can change brightness dramatically, even without changing the microphone or its distance. The Audix i5 documentation explicitly discusses this positioning effect. cdn.audixusa.com +1
+
+For a release aimed at progressive metal and djent, my recommended expanded core library would be the SM57, SM7B, MD 421-II, e906, M 160, M 201, R-121, R-10, U 87 Ai, C414 XLS, C414 XLII, Audix i5 and RE20.
+
+That provides dynamic, ribbon and condenser options without requiring you to build dozens of poorly sourced mic models. I'd rather have 12 well-validated models—with measured responses, distance behavior where supported, and sensible interpolation—than 30 models made from generic EQ curves.

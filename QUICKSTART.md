@@ -58,10 +58,10 @@ Open the **DELAY** and **POST FX** tabs: a delay and a reverb are ready. Raise t
 | A, B, A/B | Two snapshots of your sound to compare; A/B swaps between them |
 | UNDO / REDO | Step back and forward through your changes (also Cmd+Z) |
 | Mode menu | Normal, Low Latency (no oversampling, least delay) or High Quality (4x) |
-| TUNER | A chromatic tuner. The output is muted while it is open. |
+| TUNER | A tuner with two views: Single note, or All strings (strum the chord and every string is read at once, for 6, 7 and 8 string guitars, basses or your own tuning). The output is muted while it is open. |
 | METRO | A metronome |
 | MIDI | Foot controller and expression pedal mapping; right-click any knob for MIDI learn |
-| ORDER | Rearrange the effects before the amp and after the cab |
+| BOARD | Wire pedals, amps and the cab together with cables |
 | TAP / tempo box / HOST TEMPO | Tempo for the delays, tremolo and other synced effects. HOST TEMPO follows your DAW. |
 | RIFF | Record up to 60 s of your playing and replay it through any tone you set |
 

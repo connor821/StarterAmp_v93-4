@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include "CircuitModels.h"
+#include "Adaa.h"
 
 namespace Circuit
 {
@@ -59,7 +60,7 @@ namespace Circuit
             muff.prepare (fs);  hm2.prepare (fs);
             for (auto& b : eqB) b.reset();
             cutHp.reset();  postLp.reset();  clipA.reset();  clipB.reset();  dcHp.reset();
-            gateEnv = 0.0f;  gateGain = 1.0f;  boostHp.reset();
+            gateEnv = 0.0f;  gateGain = 1.0f;  boostHp.reset();  for (auto& a : adT) a.reset();
             lastKey = -1.0f;
             setupClippers (0);
         }
@@ -136,7 +137,7 @@ namespace Circuit
                 {
                     // Depth: input saturation / compression / fuzz before the core
                     const float dep = p.depth;
-                    y = (1.0f - 0.5f * dep) * y + 0.5f * dep * std::tanh (3.0f * y) * 0.5f;
+                    y = (1.0f - 0.5f * dep) * y + 0.5f * dep * (float) Adaa::tanhStep (adT[0], 3.0 * y) * 0.5f;
                     y = 0.8f * muff.process (y);
                     y = eq3 (y);
                     break;
@@ -144,7 +145,7 @@ namespace Circuit
                 case 12:
                 {
                     const float pre = 1.0f + 5.0f * p.boost;               // the "modern" gain stage: more gain ahead of the classic core
-                    y = hm2.process (std::tanh (pre * y));
+                    y = hm2.process ((float) Adaa::tanhStep (adT[1], (double) pre * y));
                     y = eqN (y, 4);
                     y *= 0.8f;
                     break;
@@ -167,12 +168,12 @@ namespace Circuit
                     y = dcHp.run (y);
                     y = eqN (y, 5);
                     if (p.boost > 0.001f)
-                        y = std::tanh ((1.0f + 3.0f * p.boost) * y * 0.5f) * 2.0f * (0.7f);
+                        y = (float) Adaa::tanhStep (adT[2], (1.0 + 3.0 * p.boost) * y * 0.5) * 2.0f * (0.7f);
                     break;
                 }
             }
             if (p.style == 11 && p.boost > 0.001f)
-                y = std::tanh (0.25f * (1.0f + 15.0f * p.boost * p.boost) * y) * 4.0f / (1.0f + 3.0f * p.boost);   // independent clean boost, up to about +24 dB
+                y = (float) Adaa::tanhStep (adT[3], 0.25 * (1.0 + 15.0 * p.boost * p.boost) * y) * 4.0f / (1.0f + 3.0f * p.boost);   // independent clean boost, up to about +24 dB
             return y;
         }
 
@@ -192,6 +193,7 @@ namespace Circuit
         MuffCircuit muff;  Hm2Circuit hm2;
         Bq eqB[5], cutHp, postLp, dcHp, boostHp;
         DiodeLimiter clipA, clipB;
+        Adaa::Prev adT[4];          // b42: anti-aliasing history of the four tanh clippers above
         float gateEnv = 0.0f, gateGain = 1.0f, lastKey = -1.0f;
     };
 }

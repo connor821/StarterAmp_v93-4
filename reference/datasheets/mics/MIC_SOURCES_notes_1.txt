@@ -1,0 +1,149 @@
+For your amp simulator, the most valuable mic data is the actual frequency-response curve at multiple distances, not just the published frequency range. Since your speaker models roll off around 4–6 kHz, the mic response is effectively your final major tonal-shaping stage: presence peaks, upper-treble roll-off, and low-frequency proximity behavior will have a large effect on how realistic each mic sounds.
+
+I found several useful manufacturer sources, including a particularly valuable Beyerdynamic document that plots the M 160 at 10 cm and 1 m on the same graph. That is exactly the sort of data that can help you model distance-dependent bass response rather than using an arbitrary low-shelf boost. Technical Specifications +1
+
+### 1\. Manufacturer datasheets and response plots
+
+![Shure SM57 Dynamic Microphone \[SM57-LC\] : AVShop.ca - Canada's Pro Audio, Video and DJ Store](https://images.openai.com/static-rsc-4/jsMHHDxoLGlht6DFRMyuk4CVY4wDV-SrdJJnlHcZw1BfsLOribAbTVFb-Vb6joZ6wT5DjwseUZswIvz53mWJbhcIs9ejf_JaC_qa2_vGYk60phY91t-L0Ncldp6S2eugrxGxhc48LiG8zfTstED5lkspLcto2nWmQrlCoOcARvq_gX52aHojziPSVELcubQ_?purpose=fullsize)
+
+1\. Shure SM57 — essential starting point
+
+High priority
+
+* Response: 40 Hz–15 kHz.
+
+* Data: official response graph, polar plots and placement guidance.
+
+* Proximity: Shure documents 6–10 dB of bass boost below 100 Hz at approximately 6 mm for cardioid microphones generally, not as a measured SM57-specific curve.
+
+[Official SM57 guide and graphs](https://www.shure.com/en-US/docs/guide/sm57?utm_source=chatgpt.com)
+
+[SM57 guide PDF](https://pubs.shure.com/view/guide/SM57/en-US.pdf?utm_source=chatgpt.com)
+
+Sources: Shure +2
+
+![Shure SM7B dynamische broadcastmicrofoon | Soundium](https://images.openai.com/static-rsc-4/ccVv3B7gEwIedNMYFJmO_sNka6Aoz96zh-8bZxXJuK3nSLsrc_dhexLyfCvAXLMCS-QNVC8VKEgzR47AC-Bohdp86wERfN-vrFl7QWhrSniAizH0D2XnZCNKzqISJ5nuw1LMSvPT3u3PJ5jaQPMgSKt4bePaKoWxjA-qrM0NzD_Esspa-27ApNLqSDReiK-r?purpose=fullsize)
+
+2\. Shure SM7B
+
+* Response: 50 Hz–20 kHz.
+
+* Data: response plots for flat, bass-roll-off and presence-boost settings.
+
+* Proximity: the documentation explains close-talk behavior, but doesn't provide a full set of measured bass curves by distance.
+
+[Official SM7B specification sheet (PDF)](https://content-files.shure.com/Pubs/SM7B/sm7b-specification-sheet-english.pdf?utm_source=chatgpt.com)
+
+[SM7B guide PDF with response graph](https://pubs.shure.com/view/guide/SM7B/en-US.pdf?utm_source=chatgpt.com)
+
+Source: Shure Content Files +1
+
+![Sennheiser MD 421-II Large-Diaphragm Dynamic Microphone | Guitar Center](https://images.openai.com/static-rsc-4/8BCP7lnKlC3BDIkY4BXtRlZNp_tisXT0xzjdAjOPpXtWMzcttt6NpHql_aZan1_yRGihFiCCocOkKGwO-6u_GD9rRIC0p6VaB3ke3qoXdWeb2zqmDIKMl-SvOOomIrEbDGVJY7Du96_IzKym6Gt7W-LQsYGKhskY6gK_XS6QmEYjfcGs8KGYo3W0rQ7Rk4MW?purpose=fullsize)
+
+3\. Sennheiser MD 421-II
+
+A useful dynamic reference for a different midrange and upper-presence character than the Shure mics.
+
+* Look for the official MD 421-II instruction manual and response diagram.
+
+* Its bass-control setting matters: don't model the microphone as one immutable curve if you intend to expose that control.
+
+[Sennheiser official website — search MD 421-II downloads](https://www.sennheiser.com/?utm_source=chatgpt.com)
+
+I haven't verified a direct, currently working PDF link for the MD 421-II in this search.
+
+![Impulse Responses & Microphones: A Guide to Better Guitar Tone](https://images.openai.com/static-rsc-4/10X5LFTKBWDxcUuQA6Kv1QXPewfNI68hFViao_nLTdkN791s2gJxV7Nxf99K6JWNaZPk6pH6CfvTMLJalHSu0wO6CxDyc9KGVHYbtIb4YB4qOpoNwEawQC2c8OXOedMJQZemSOwEE4NdeLYVEHLnkz1UMz7kghesxME4iO056HUMVnMhncAZDSJyrsUjOGNf?purpose=fullsize)
+
+4\. Royer R-121 — critical ribbon model
+
+* Response: 30 Hz–15 kHz, ±3 dB.
+
+* Data: official response and polar-pattern graphics.
+
+* Proximity: the manual includes a graph illustrating distance-dependent bass tip-up for a typical bidirectional ribbon, which is useful conceptually but is not an R-121-specific measured family of curves.
+
+[Official R-121 specifications and response plot](https://www.royerlabs.com/r-121?utm_source=chatgpt.com)
+
+[R-121 manual PDF — proximity-effect discussion and graph](https://www.royerlabs.com/pdf/manuals/R-121manual.pdf?utm_source=chatgpt.com)
+
+Sources: Royer Labs +1
+
+![beyerdynamic M 160 Dynamic Double-Ribbon Microphone (Hypercardioid) | Music & Arts](https://images.openai.com/static-rsc-4/H-xBJS25OBkK56ZCZqDAW7eSRZ5Hjp07MOKlxeYUYjsboWj-kxWcTmVy-TmgLBEzD7cazYgMmkJr7pKFAEH1Ne59DaHCwCLgAUwxQwEYBG41AcoCUUuKXbGx4T8M_l9EiXJCcLKsACubO8gtVGgLbRiKH_Ce4zwCzT7j9xTK-m6d5FXRtgcWzCynPPwFHEc7?purpose=fullsize)
+
+5\. Beyerdynamic M 160 — best distance-curve reference
+
+Best proximity data
+
+* Response: 40 Hz–18 kHz.
+
+* Data: manufacturer's graph contains curves at 10 cm and 1 m, extending to 20 kHz.
+
+* This is especially useful for deriving a distance-dependent tonal model.
+
+[M Series technical specifications PDF — response curves](https://global.beyerdynamic.com/amfile/file/download/file/1717?utm_source=chatgpt.com)
+
+[M 160 datasheet PDF — specifications and response/polar plots](https://global.beyerdynamic.com/amfile/file/download/file/1724?utm_source=chatgpt.com)
+
+Sources: Technical Specifications +1
+
+![Sennheiser e 906 Supercardioid Dynamic Instrument Microphone for Guitar, Percussion and Brass | Full Compass Systems](https://images.openai.com/static-rsc-4/bAbcdRM48NqxQMyd6xuV6TWAggv-VPZE0QKBeXESFOJaNAIWb5-Nmg4IDt9OXG_Nj3NTj4M3RKz6EZ9tfw3vYke-vkY4SHEZib5EPLSmXCOpF3RH0sofd_hgSV68KrV8uhhTCgLAsPwMK32HBbABvZxei1EIgxQ8GGziPxCqd8TqLZt2DS2C_ltmjfrwUF6W?purpose=fullsize)
+
+6\. Sennheiser e906 — particularly relevant for guitar cabs
+
+* Response: 40 Hz–18 kHz.
+
+* Data: official response plot and polar pattern.
+
+* The microphone has a selectable presence filter; represent the three switch positions as separate response states rather than a single curve.
+
+[Official e906 manual PDF with response plot](https://assets.sennheiser.com/global-downloads/file/14874/e906_Manual_07_2020_EN.pdf?utm_source=chatgpt.com)
+
+[Official e906 specifications and plots](https://docs.cloud.sennheiser.com/en-us/evolution-wired/evolution-wired/specifications-e906.html?utm_source=chatgpt.com)
+
+Sources: assets.sennheiser.com +1
+
+![AKG C414 XLS | Musikcentralen  | Musikaffär i Växjö och Online](https://images.openai.com/static-rsc-4/KoAtdqtJGiY_x1xqK5WXPxrHzZ_wdmiyFEZshoRfXjdBUCc8dv-huupc3tlRYQH5sf6s7VFT5eLQtEgR0Sn6H8KfWXAbeGwhQ0cnsjTEG-ODrs7o8PCbos-kPZWVMgmPfq1WdEefHLkuzY3B8EacmZyuKXFOC1loJCrNrl25y7aGuakUqR_JnRSL5zCpxnPS?purpose=fullsize)
+
+7\. AKG C414 XLS — condenser reference
+
+* Response: 20 Hz–20 kHz.
+
+* Data: manufacturer documentation includes response and polar-pattern plots.
+
+* Model the selected polar pattern and bass-cut filter if you expose those controls in your plugin.
+
+[Official C414 XLS product page and downloads](https://www.akg.com/C414XLS-B.html?utm_source=chatgpt.com)
+
+Sources: AKG +1
+
+### 2\. Which curves you can actually use
+
+| Microphone | Response data                                      | Distance/proximity data                                               |
+| ---------- | -------------------------------------------------- | --------------------------------------------------------------------- |
+| SM57       | Manufacturer graph to 20 kHz axis; rated to 15 kHz | General cardioid guidance; no verified model-specific distance family |
+| SM7B       | Manufacturer graph to 20 kHz                       | Switch settings, not a verified distance family                       |
+| MD 421-II  | Direct graph still to be verified                  | Bass-control behavior; distance family not verified                   |
+| R-121      | Manufacturer graph; rated to 15 kHz                | Generic bidirectional ribbon example in manual                        |
+| M 160      | Manufacturer graph to 20 kHz                       | 10 cm and 1 m curves                                                  |
+| e906       | Manufacturer graph to 20 kHz axis; rated to 18 kHz | Presence switch settings; distance family not verified                |
+| C414 XLS   | Manufacturer response plots to 20 kHz              | Pattern and bass-cut settings; distance family not verified           |
+
+One important distinction: a graph with a 20 kHz horizontal axis does not mean the microphone has a specified response all the way to 20 kHz. For example, Royer specifies the R-121 to 15 kHz, while Beyerdynamic specifies the M 160 to 18 kHz. Royer Labs +1
+
+### 3\. How I'd use this in your DSP engine
+
+I'd prioritize the following implementation:
+
+* Static measured response: digitize each manufacturer's graph into frequency/gain points, then interpolate in log-frequency space. Store a separate curve for each switch setting.
+
+* Distance-dependent bass: implement proximity as a separate low-frequency response component. Start with the M 160's two measured distances as a reference, but don't assume its behavior transfers exactly to a cardioid SM57.
+
+* Upper-treble behavior: preserve each mic's actual response through 15–20 kHz where data supports it. Don't artificially extend a rated bandwidth with a made-up peak.
+
+* Cab interaction: apply the mic response after the speaker/cab response. This will let the mic shape the remaining 4–6 kHz roll-off and any surviving upper harmonics without compensating for the speaker model twice.
+
+* Validation: compare the resulting curves against the source plots and test the complete speaker-plus-mic response, not just the isolated mic filter.
+
+My recommendation: start with the SM57, e906, R-121 and M 160. Together, they give you four distinct tonal archetypes, and the M 160 provides the strongest manufacturer-supplied distance data found here. Add the SM7B and C414 next for smoother dynamic and condenser options.
+
+For the best results, treat these manufacturer graphs as reference measurements, not perfect calibration data: published curves may be typical rather than individually measured, and test conditions differ between manufacturers.

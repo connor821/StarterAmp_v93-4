@@ -7,13 +7,14 @@
 #include <cstdint>
 #include <vector>
 #include <juce_core/juce_core.h>
+#include "ModFx.h"
 
 class LoFiWarble
 {
 public:
     struct Params
     {
-        int   shape;      // 0 sine, 1 triangle, 2 random (smoothed steps)
+        int   shape;      // 0 sine, 1 triangle, 2 random (smoothed steps), 3 and up = the Mod FX waves (b43)
         float rate;       // Hz
         float depth;      // 0..1: how far the pitch swings
         float drift;      // 0..1: random wander and flutter
@@ -23,6 +24,7 @@ public:
         float dropouts;   // 0..1: how often (and how deep) the level dips
         float mix;        // 0..1: dry to wet
         float levelDb;    // output level
+        int   voice = 0;  // b62: 0 = the original warble pedal, 1 = Cassette (tape saturation, no bit crushing, head bump, steeper top roll-off, steady hiss)
     };
 
     void prepare (double sampleRate)
@@ -43,7 +45,7 @@ public:
         flutterPhase = 0.0;
         randTarget = randSmooth = 0.0f;
         heldSample = 0.0f;  holdCounter = 0.0f;
-        lp1 = lp2 = 0.0f;  lpIn1 = lpIn2 = 0.0f;  hpState = 0.0f;
+        lp1 = lp2 = 0.0f;  lpIn1 = lpIn2 = 0.0f;  hpState = 0.0f;  cLp1 = bA = bB = 0.0f;
         hissLp = 0.0f;  crackle = 0.0f;
         dropRemaining = dropLen = 0;  dropDepth = 0.0f;
         lastLevel = 1.0f;
@@ -54,16 +56,17 @@ public:
     {
         if (buf.empty()) return;
         const float rate = std::max (0.05f, p.rate);
+        const bool cass = p.voice == 1;
         // Peak pitch swing (a ratio): up to about 6% (a bit under a semitone) at full Depth. The delay excursion that
         // makes it is capped, so slow rates swing less, like a real worn transport.
         const float swing = 0.06f * p.depth * p.depth;
         const float excursion = std::min (0.018f, swing / (6.2831853f * std::max (rate, 0.3f)));
-        const float driftExc = p.drift * 0.004f, flutterExc = p.drift * 0.0003f;
+        const float driftExc = p.drift * (cass ? 0.0025f : 0.004f), flutterExc = p.drift * (cass ? 0.0012f : 0.0003f);      // cassette: more of the fast flutter, less slow wander
         const float baseDelay = 0.022f * (float) sr;
         const float dPhase = rate / (float) sr;
 
         // tone: a second-order low-pass from 1.5 kHz to 12 kHz
-        const float fc = std::min (1500.0f * std::pow (8.0f, p.tone), 0.45f * (float) sr);
+        const float fc = std::min ((cass ? 2000.0f * std::pow (4.5f, p.tone) : 1500.0f * std::pow (8.0f, p.tone)), 0.45f * (float) sr);
         const float k = std::tan (3.14159265f * fc / (float) sr);
         const float q = 0.7071f, norm = 1.0f / (1.0f + k / q + k * k);
         const float b0 = k * k * norm, b1 = 2.0f * b0, a1 = 2.0f * (k * k - 1.0f) * norm, a2 = (1.0f - k / q + k * k) * norm;
@@ -80,7 +83,9 @@ public:
         const float mix = p.mix;
         const float randCoef = 1.0f - std::exp (-rate * 3.0f / (float) sr);
         const float driftCoef = 1.0f - std::exp (-0.6f * 6.2831853f / (float) sr);
-        const float hpCoef = 1.0f - std::exp (-60.0f * 6.2831853f / (float) sr);
+        const float hpCoef = 1.0f - std::exp (-(cass ? 35.0f : 60.0f) * 6.2831853f / (float) sr);
+        const float cLp = 1.0f - std::exp (-6.2831853f * fc / (float) sr);                      // cassette: one more pole on the top
+        const float bumpA = 1.0f - std::exp (-6.2831853f * 130.0f / (float) sr), bumpB = 1.0f - std::exp (-6.2831853f * 45.0f / (float) sr);    // cassette: the head bump
         const float hissCoef = 1.0f - std::exp (-6000.0f * 6.2831853f / (float) sr);
 
         for (int i = 0; i < n; ++i)
@@ -92,6 +97,7 @@ public:
             float lfo;
             if (p.shape == 0) lfo = std::sin (6.2831853f * (float) phase);
             else if (p.shape == 1) lfo = 4.0f * std::fabs ((float) phase - 0.5f) - 1.0f;
+            else if (p.shape >= 3) lfo = modLfoWave ((float) phase, p.shape - 3);       // b43: 3 and up = the Mod FX waves
             else lfo = randSmooth;
             phase += dPhase;
             if (phase >= 1.0)
@@ -118,7 +124,13 @@ public:
             w = (w + 1) & (size - 1);
 
             // ---- worn-out tone: soft clip, then crush
-            if (p.dirt > 0.001f)
+            if (p.dirt > 0.001f && cass)
+            {
+                // tape saturation: a soft, slightly asymmetric squash with no quantising
+                const float gc = 1.0f + 5.0f * p.dirt * p.dirt;
+                wet = (std::tanh (gc * wet + 0.5f * bias) - std::tanh (0.5f * bias)) / gc;
+            }
+            else if (p.dirt > 0.001f)
             {
                 wet = (std::tanh (g * wet + bias) - biasOut) / g;
                 holdCounter += 1.0f;
@@ -129,6 +141,12 @@ public:
             const float lpOut = b0 * wet + b1 * lpIn1 + b0 * lpIn2 - a1 * lp1 - a2 * lp2;
             lpIn2 = lpIn1;  lpIn1 = wet;  lp2 = lp1;  lp1 = lpOut;
             wet = lpOut;
+            if (cass)
+            {
+                cLp1 += cLp * (wet - cLp1);  wet = cLp1;
+                bA += bumpA * (wet - bA);  bB += bumpB * (wet - bB);
+                wet += 0.45f * (bA - bB);
+            }
             hpState += hpCoef * (wet - hpState);
             wet -= hpState;
 
@@ -137,7 +155,7 @@ public:
             {
                 hissLp += hissCoef * (nextRandom() - hissLp);
                 wet += hissGain * hissLp * 4.0f;
-                if (std::fabs (nextRandom()) < crackleRate * 0.5f) crackle = (nextRandom() > 0.0f ? 1.0f : -1.0f) * (0.05f + 0.25f * std::fabs (nextRandom())) * p.noise;
+                if (! cass && std::fabs (nextRandom()) < crackleRate * 0.5f) crackle = (nextRandom() > 0.0f ? 1.0f : -1.0f) * (0.05f + 0.25f * std::fabs (nextRandom())) * p.noise;
                 wet += crackle;
                 crackle *= 0.985f;
             }
@@ -174,6 +192,7 @@ private:
     double sr = 48000.0, phase = 0.0, flutterPhase = 0.0;
     int size = 1, w = 0, dropRemaining = 0, dropLen = 0;
     float driftLp = 0, driftLp2 = 0, randTarget = 0, randSmooth = 0, heldSample = 0, holdCounter = 0;
+    float cLp1 = 0, bA = 0, bB = 0;
     float lp1 = 0, lp2 = 0, lpIn1 = 0, lpIn2 = 0, hpState = 0, hissLp = 0, crackle = 0, dropDepth = 0, lastLevel = 1.0f;
     uint32_t rng = 0x9E3779B9u;
 };

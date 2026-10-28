@@ -7,6 +7,7 @@
 #include <atomic>
 #include <cmath>
 #include <algorithm>
+#include "Adaa.h"
 
 class GuitarSynth
 {
@@ -45,7 +46,7 @@ public:
         std::fill (hist, hist + kHist, 0.0f);
         hpos = 0;  acc = 0.0f;  accN = 0;  sinceHop = 0;
         envFast = envSlow = peak = 0.0f;
-        gateOpen = false;  holdCount = 0;
+        gateOpen = false;  holdCount = 0;  gritAd.reset();
         haveEst = false;  estMidi = 0.0f;  estConf = 1.0f;  lastLag = 0.0f;
         curMidi = 0.0f;  smoothMidi = 0.0f;  noteOn = false;  pending = 0;  candMidi = 0.0f;  candCount = 0;
         ph1 = ph2 = phSub = 0.0f;  z1 = z2 = 0.0f;  ampEnv = 0.0f;  hpState = 0.0f;
@@ -139,7 +140,7 @@ public:
                 const float o1 = osc (p.wave1, ph1, f1), o2 = osc (p.wave2, ph2, f2);
                 const float sb = osc (1, phSub, f1 * 0.5f);
                 float v = 0.55f * o1 + 0.45f * o2 + p.sub * 0.7f * sb;
-                if (p.grit > 0.001f) { const float g = 1.0f + 6.0f * p.grit; v = std::tanh (v * g) / std::tanh (g * 0.6f) * 0.6f; }
+                if (p.grit > 0.001f) { const float g = 1.0f + 6.0f * p.grit; v = (float) Adaa::tanhStep (gritAd, (double) v * g) / std::tanh (g * 0.6f) * 0.6f; }
                 // filter: cutoff follows the note and the guitar's own level
                 const float lvl = peak > 1.0e-5f ? std::min (1.0f, envFast / peak) : 0.0f;
                 const float oct = p.envAmt * 4.0f * (lvl - 0.5f) + p.keyTrack * (smoothMidi - 60.0f) / 12.0f;
@@ -148,6 +149,7 @@ public:
                 const float dyn = (1.0f - p.touch) + p.touch * std::min (1.0f, 0.2f + 0.9f * lvl);
                 s = v * ampEnv * dyn;
             }
+            else gritAd.reset();
             x[i] = p.dry * in + p.level * 0.8f * s;
         }
     }
@@ -166,6 +168,7 @@ private:
     bool gateOpen = false, noteOn = false, retrig = false;
     int holdCount = 0, pending = 0, candCount = 0;
     float candMidi = 0.0f, curMidi = 0.0f, smoothMidi = 0.0f, ampEnv = 0.0f;
+    Adaa::Prev gritAd;                    // b42: anti-aliasing history of the grit clipper
     float ph1 = 0.0f, ph2 = 0.0f, phSub = 0.0f, z1 = 0.0f, z2 = 0.0f, hpState = 0.0f;
     std::atomic<int> shownNote { -1 };
 

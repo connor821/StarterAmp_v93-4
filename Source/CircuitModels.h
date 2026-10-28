@@ -7,6 +7,7 @@
 // Units: 1.0 in the plugin is treated as 1 volt inside these models.
 #include <algorithm>
 #include <cmath>
+#include "Adaa.h"
 
 namespace Circuit
 {
@@ -67,32 +68,35 @@ namespace Circuit
     public:
         void setup (float rfOhms, const DiodeSpec& pos, const DiodeSpec& neg)
         {
-            side[0].a = 2.0f * pos.isat * rfOhms;  side[0].b = pos.nVt;
-            side[1].a = 2.0f * neg.isat * rfOhms;  side[1].b = neg.nVt;
+            const Side n0 { 2.0f * pos.isat * rfOhms, pos.nVt }, n1 { 2.0f * neg.isat * rfOhms, neg.nVt };
+            if (n0.a != side[0].a || n0.b != side[0].b || n1.a != side[1].a || n1.b != side[1].b) { xPrev = 0.0; fPrev = 0.0; }       // b42: a different curve: its antiderivative history no longer applies
+            side[0] = n0;  side[1] = n1;
         }
-        void reset() { xPrev = 0.0f; fPrev = 0.0f; yPrev = 0.0f; }
+        void reset() { xPrev = 0.0; fPrev = 0.0; yPrev = 0.0f; }
 
         // Memoryless curve (no anti-aliasing).
         float curve (float x) const
         {
             const bool neg = x < 0.0f;
-            const float y = solve (side[neg ? 1 : 0], std::fabs (x));
-            return neg ? -y : y;
+            const double y = solve (side[neg ? 1 : 0], std::fabs ((double) x));
+            return (float) (neg ? -y : y);
         }
 
+        // b42: all in double precision. The antiderivative F (x) = integral of y dx follows y = f (x), whose slope dx/dy is about 1e5 in the
+        // knee, so a float y (6e-8 relative) put an error of several 1e-3 into F, which the divided difference passed straight on as noise.
         float process (float x)
         {
             const bool neg = x < 0.0f;
             const Side& s = side[neg ? 1 : 0];
-            const float ax = std::fabs (x);
-            const float y  = solve (s, ax);
-            const float f  = antiderivative (s, ax, y);
+            const double ax = std::fabs ((double) x);
+            const double y  = solve (s, ax);
+            const double f  = antiderivative (s, y);
             float out;
-            const float dx = x - xPrev;
-            if (std::fabs (dx) > 1.0e-4f)
-                out = (f - fPrev) / dx;
+            const double dx = (double) x - xPrev;
+            if (std::fabs (dx) > 1.0e-5)
+                out = (float) ((f - fPrev) / dx);
             else
-                out = curve (0.5f * (x + xPrev));
+                out = curve (0.5f * (x + (float) xPrev));
             xPrev = x;  fPrev = f;
             return out;
         }
@@ -100,29 +104,33 @@ namespace Circuit
     private:
         struct Side { float a = 1.0e-3f, b = 0.0453f; };
         Side side[2];
-        float xPrev = 0.0f, fPrev = 0.0f, yPrev = 0.0f;
+        double xPrev = 0.0, fPrev = 0.0;
+        float yPrev = 0.0f;
 
         // y such that y + a sinh (y/b) = x, for x >= 0
-        static float solve (const Side& s, float x)
+        static double solve (const Side& s, double x)
         {
-            if (x <= 0.0f) return 0.0f;
-            float y = std::min (x, s.b * std::asinh (x / s.a));      // at or above the root, so Newton comes down monotonically
-            for (int i = 0; i < 4; ++i)
+            if (x <= 0.0) return 0.0;
+            const double a = s.a, b = s.b;
+            double y = std::min (x, b * std::asinh (x / a));      // at or above the root, so Newton comes down monotonically
+            for (int i = 0; i < 6; ++i)
             {
-                const float e = std::exp (std::min (y / s.b, 60.0f)), ei = 1.0f / e;
-                const float f  = y + s.a * 0.5f * (e - ei) - x;
-                const float df = 1.0f + (s.a / s.b) * 0.5f * (e + ei);
-                y -= f / df;
-                y = std::min (x, std::max (0.0f, y));
+                const double e = std::exp (std::min (y / b, 60.0)), ei = 1.0 / e;
+                const double f  = y + a * 0.5 * (e - ei) - x;
+                const double df = 1.0 + (a / b) * 0.5 * (e + ei);
+                const double yn = std::min (x, std::max (0.0, y - f / df));
+                const bool done = std::fabs (yn - y) < 1.0e-13;
+                y = yn;
+                if (done) break;
             }
             return y;
         }
         // F(x) = integral of y dx from 0 (x >= 0, for the side's own curve; the negative half mirrors it)
-        static float antiderivative (const Side& s, float x, float y)
+        static double antiderivative (const Side& s, double y)
         {
-            const float e = std::exp (std::min (y / s.b, 60.0f)), ei = 1.0f / e;
-            const float sh = 0.5f * (e - ei), ch = 0.5f * (e + ei);
-            return 0.5f * y * y + s.a * y * sh - s.a * s.b * ch + s.a * s.b;
+            const double e = std::exp (std::min (y / s.b, 60.0)), ei = 1.0 / e;
+            const double sh = 0.5 * (e - ei), ch = 0.5 * (e + ei), a = s.a, b = s.b;
+            return 0.5 * y * y + a * y * sh - a * b * ch + a * b;
         }
     };
 
@@ -153,6 +161,36 @@ namespace Circuit
     private:
         float rail = 4.5f;
         double xPrev = 0.0, fPrev = 0.0;
+    };
+
+    // b42: soft clippers with first-order antiderivative anti-aliasing (Adaa.h), for the places where these models used a bare tanh or knee.
+    //   TanhAd:    pos * tanh (v / pos) above zero, neg * tanh (v / neg) below it
+    //   RailClipAd: x / (1 + (x / lim)^4)^(1/4) with its own limit on each side
+    struct TanhAd
+    {
+        Adaa::Prev p;
+        void reset() { p.reset(); }
+        float run (float v, float pos, float neg)
+        {
+            const double a = pos, b = neg;
+            return (float) Adaa::step (p, (double) v,
+                                       [=] (double w) { return w > 0.0 ? a * std::tanh (w / a) : b * std::tanh (w / b); },
+                                       [=] (double w) { return w > 0.0 ? a * a * Adaa::logcosh (w / a) : b * b * Adaa::logcosh (w / b); },
+                                       [=] (double w) { return w > 0.0 ? a * a * a * Adaa::tanhH().F2c (w / a) : b * b * b * Adaa::tanhH().F2c (w / b); });
+        }
+    };
+    struct RailClipAd
+    {
+        Adaa::Prev p;
+        void reset() { p.reset(); }
+        float run (float x, float pos, float neg)
+        {
+            const double a = pos, b = neg;
+            return (float) Adaa::step (p, (double) x,
+                                       [=] (double w) { return w >= 0.0 ? a * Adaa::hardFn (w / a) : b * Adaa::hardFn (w / b); },
+                                       [=] (double w) { return w >= 0.0 ? a * a * Adaa::sig4().c (w / a) : b * b * Adaa::sig4().c (w / b); },
+                                       [=] (double w) { return w >= 0.0 ? a * a * a * Adaa::sig4().c2 (w / a) : b * b * b * Adaa::sig4().c2 (w / b); });
+        }
     };
 
     // ---- the Screamer / Tight overdrive gain stage: coefficients ---------------------------------------------------
@@ -292,6 +330,16 @@ namespace Circuit
             if (v == 4) return { 6.80f, 1200.0f, 8.5f, 2.1f, 14.8f, 18.2f, 1780.0f, 1170.0f, 4.5f, 0.15e-6f, 9.8e3f, 33.0e3f,
                                  12.0e3f, 12.0e-9f, 4.0e-9f, 33.0e3f, 100.0e3f, 78.0e3f,
                                  100.0e3f, 1.0e3f, 18.9e3f, 8.9e3f, 55.0f, 138.0f };      // second clipper: 0.047 uF with 7.5k and the 100k bias resistor, about 138 Hz
+            // b64, variant 5: the small-box Muff (the Little Big Muff schematic, EHX book p117). Emitter-degenerated stages with collector loads of
+            // 8.2k, 10k and 15k, base resistors of 43k / 100k / 100k, 470k / 560 pF feedback, 0.1 uF coupling and 0.1 uF in series with each diode
+            // pair, and no Sustain control (the gain is fixed; here Sustain only lowers the level into the first clipper, 1 = the pedal). Gains and
+            // poles from the shunt-feedback stage model (Rs, Rb, 470k / 560 pF, open-loop gain Rc||Rload / (Re + re), re from the DC point), which
+            // reproduces the classic booster (6.8 at 1.15 kHz against the published 6.8 at 1.2 kHz) and the classic clipper (16.2 at 1.8 kHz against 14.8 at 1.78 kHz):
+            // booster 6.2 at 1.33 kHz, clipper one 14.8 at 1.33 kHz, clipper two 20.8 at 1.22 kHz. Recovery stage (6.8k emitter, 15k collector): 1.9.
+            // Tone: 39k / 10 nF low-pass branch, 4 nF / 22k high-pass branch, a 100k between them (the pedal has a 2-position switch; the knob sweeps between).
+            if (v == 5) return { 6.20f, 1330.0f, 0.4f, 0.5f, 14.8f, 20.8f, 1330.0f, 1220.0f, 1.9f, 0.1e-6f, 5.0e3f, 39.0e3f,
+                                 10.0e3f, 10.0e-9f, 4.0e-9f, 22.0e3f, 100.0e3f, 77.0e3f,
+                                 100.0e3f, 1.0e3f, 19.0e3f, 19.0e3f, 55.0f, 84.0f };
             return { 6.80f, 1200.0f, 4.0f, 1.0f, 14.8f, 18.2f, 1780.0f, 1170.0f, 4.5f, 1.0e-6f, 9.8e3f, 39.0e3f };
         }
 
@@ -322,6 +370,7 @@ namespace Circuit
         {
             boosterLp.reset(); hp1.reset(); lp1.reset(); hp2.reset(); lp2.reset(); inHp.reset(); inHp2.reset(); outHp.reset();
             tone.reset(); vc1 = vc2 = 0.0f;
+            adBoost.reset();  for (int k = 0; k < 2; ++k) { adOp[k].reset(); lims[k].reset(); }
         }
         void configure (const Params& p)
         {
@@ -332,6 +381,7 @@ namespace Circuit
             // Rf of both clipping stages is 470k.  The diode pair also has C6 / C7 (1 uF) in series with it.
             const float rfEff = 470.0e3f + 1.0f / ((float) fs * var.capSeries);
             lim[0] = { d.isat, d.nVt, rfEff };
+            for (auto& l : lims) l.setup (rfEff, d, d);
             sustainGain = sustainLaw (p.sustain, var.rOut, var.rPot, var.rBot, var.rLoad, var.rb);
         }
         float process (float x)
@@ -340,14 +390,14 @@ namespace Circuit
             // sooner on the way up (quiescent about 7 V of the 9 V supply) than on the way down.
             float v = inHp2.run (inHp.run (x));
             v = boosterLp.run (-var.boost * v);
-            v = v > 0.0f ? 1.8f * std::tanh (v / 1.8f) : 6.8f * std::tanh (v / 6.8f);
+            v = adBoost.run (v, 1.8f, 6.8f);
 
             // Sustain: the pot (loaded by the stage after it) sets how much reaches the first clipper
             float s1 = lp1.run (hp1.run (v)) * (var.g1 * sustainGain);
-            s1 = stage (s1, vc1);
+            s1 = stage (s1, vc1, 0);
             // the second clipper: fixed gain 25 dB
             float s2 = lp2.run (hp2.run (s1)) * -var.g2;
-            s2 = stage (s2, vc2);
+            s2 = stage (s2, vc2, 1);
 
             float out;
             if (par.tonePass) out = 0.25f * s2;
@@ -379,26 +429,18 @@ namespace Circuit
         float lastTone = -1.0f, sustainGain = 1.0f;
         float vc1 = 0.0f, vc2 = 0.0f;                     // the voltages across the 1 uF capacitors in the diode loops
         struct Lim { float isat, nVt, rf; } lim[1] {};
+        TanhAd adBoost, adOp[2];                           // b42: anti-aliasing for the booster's collector limit and the op-amp option
+        DiodeLimiter lims[2];                              // b42: the two diode loops, with anti-aliasing
 
         // One diode-limited stage with the 1 uF capacitor in series with the diode pair (a slow DC shift when the clipping is lopsided).
         //   y = vd + vc,   x - vc = vd + (Rf + T/C) * 2 Is sinh (vd / nVt),   vc += (T/C) * 2 Is sinh (vd / nVt)
-        float stage (float xin, float& vc) const
+        float stage (float xin, float& vc, int k)
         {
             float x = xin;
-            if (par.opAmp) x = 4.5f * std::tanh (x / 4.5f);
-            const float a = 2.0f * lim[0].isat * lim[0].rf, b = lim[0].nVt;
+            if (par.opAmp) x = adOp[k].run (x, 4.5f, 4.5f);
+            const float b = lim[0].nVt;
             const float target = x - vc;
-            const float ax = std::fabs (target);
-            float y = std::min (ax, b * std::asinh (ax / a));
-            for (int i = 0; i < 4; ++i)
-            {
-                const float e = std::exp (std::min (y / b, 60.0f)), ei = 1.0f / e;
-                const float f  = y + a * 0.5f * (e - ei) - ax;
-                const float df = 1.0f + (a / b) * 0.5f * (e + ei);
-                y -= f / df;
-                y = std::min (ax, std::max (0.0f, y));
-            }
-            const float vd = target < 0.0f ? -y : y;
+            const float vd = lims[k].process (target);
             const float id = 2.0f * lim[0].isat * std::sinh (std::min (std::fabs (vd) / b, 60.0f)) * (vd < 0.0f ? -1.0f : 1.0f);
             vc += id / ((float) fs * var.capSeries);              // T / C per sample
             vc *= 1.0f - 1.0f / (100.0e3f * var.capSeries * (float) fs);                // the cap's DC leaks away slowly (about 0.1 s, the base resistor)
@@ -423,7 +465,7 @@ namespace Circuit
             inHp.set (highPass1 (fs, 1.0 / (2.0 * 3.14159265358979 * 56.0e3 * 150.0e-9)));
             c6Hp.set (highPass1 (fs, 1.0 / (2.0 * 3.14159265358979 * 8.2e3 * 4.7e-6)));
             bypassHp.set (highPass1 (fs, 1.0 / (2.0 * 3.14159265358979 * 94.0e3 * 150.0e-9)));
-            gs = designGainStage (fs, 8200.0f, 4.7e-6f, 470.0e3f, 150.0e-12f, 1.0e6f, 0.0f);
+            gs = designGainStage (fs, 8200.0f, 4.7e-6f, 470.0e3f, 150.0e-12f, 4.0e6f, 0.0f);   // b58: RC4558, 4 MHz typical on the filed sheet (was 1 MHz)
             stageBp.set (gs.bandPass);  stageGbw.set (gs.gbwAndEdge);
             tone.setValues (150.0f, 5.6e3f, 120.0e-9f, 100.0e-9f, 1.2e3f, 10.0e3f, 100.0e3f);
             tone.prepare (fs);
@@ -499,7 +541,7 @@ namespace Circuit
             tone.prepare (fs);
             reset();
         }
-        void reset() { boostHp.reset(); coupleHp.reset(); bp.reset(); ge.reset(); rail.reset(); tone.reset(); vNode = 0.0f; xPrev = 0.0f; }
+        void reset() { boostHp.reset(); coupleHp.reset(); bp.reset(); ge.reset(); rail.reset(); tone.reset(); vNode = 0.0f; xPrev = 0.0f; adSwing.reset(); }
         // gain: the Distortion knob (0..1), toneKnob: 0 = dark (low-pass side), 1 = bright
         void setup (float gain, float toneKnob, const DiodeSpec& pos, const DiodeSpec& neg)
         {
@@ -512,7 +554,7 @@ namespace Circuit
         float process (float x)
         {
             float v = 56.0f * boostHp.run (x);
-            v = v > 0.0f ? 3.2f * std::tanh (v / 3.2f) : 5.6f * std::tanh (v / 5.6f);
+            v = adSwing.run (v, 3.2f, 5.6f);
             v = coupleHp.run (v);
             float w = v + ge.run (bp.run (v)) * peak;
             w = rail.process (w);
@@ -539,6 +581,7 @@ namespace Circuit
     private:
         double fs = 48000.0;
         Bq boostHp, coupleHp, bp, ge;
+        TanhAd adSwing;                       // b42
         RailLimiter rail;
         MuffToneNetwork tone;
         DiodeSpec dp = diodeSilicon(), dn = diodeSilicon();
@@ -632,6 +675,8 @@ namespace Circuit
     // ---- five more pedals from published analyses (v92) -----------------------------------------------------------------
     // kind 0 Treble boost : one germanium transistor stage, gain = gm x the output pot (80 at full), 5 nF input capacitor into about 11k
     //                       (2.9 kHz corner; the Tone knob moves the capacitor from 5 nF to 47 nF), lopsided limit (+7 V / -1.8 V).
+    //                       v0.2: solved as the circuit. A pickup (6k, 2.5 H: my estimate) drives the 5 nF into the base node (bias divider 470k / 68k and the
+    //                       junction); emitter 3.9k with 47 uF; 10k collector load; the swing is limited by cut-off (about 2 V) and by saturation (about 6 V).
     // kind 1 Clean boost  : op-amp stage, gain (1 + 56k / (R5 + 2.7k)) x 0.955 (1 to 20.6 as the reverse-log pot goes round), 4.7 uF in the
     //                       leg, 47 pF across the 56k, the op-amp's rails (+/-4.5 V) are the only limit.
     // kind 2 Op-amp distortion : gain 1 + 1M / (4.7k + pot) (1.5 to 213), 47 nF in the leg (720 Hz corner at full gain), 741-class bandwidth
@@ -652,8 +697,12 @@ namespace Circuit
         void prepare (double sampleRate) { fs = sampleRate; reset(); }
         void reset()
         {
-            for (auto* b : { &hp1, &hp2, &bp, &ge, &sh1, &sh2, &sh3, &lpOut, &bp2, &ge2, &tLp, &pk, &lpS2 }) b->reset();
+            for (auto* b : { &hp1, &hp2, &bp, &ge, &sh1, &sh2, &sh3, &lpOut, &bp2, &ge2, &tLp, &pk, &lpS2, &nbLpIn, &nbDiv, &nbLp7, &nbHp5, &nbBp2, &nbLpOut, &nbEqLo, &nbEqMid, &nbEqHi,
+                            &mzHp, &mzHp2, &mzA, &mzB, &mzC, &mzD, &mzS1lp, &mzLp, &mzShelf, &mzLo, &mzMid, &mzHi }) b->reset();
+            for (auto& b : nbLeg) b.reset();
+            nbClip.reset();
             rail.reset();  rail2.reset();  vNode = xPrev = env = 0.0f;
+            trIl = trVc = trEprev = trUprev = trW = 0.0;
         }
         void setup (int kind_, float gain, float tone, const DiodeSpec& pos, const DiodeSpec& neg)
         {
@@ -662,10 +711,9 @@ namespace Circuit
             rail.setRail (4.5f);  rail2.setRail (4.5f);
             if (kind == 0)
             {
-                const double c1 = 5.0e-9 * std::pow (9.4, (double) t);
-                hp1.set (highPass1 (fs, 1.0 / (2.0 * 3.14159265358979 * 11000.0 * c1)));
                 hp2.set (highPass1 (fs, 16.0));
                 gainLin = 80.0f * std::max (0.003f, audioTaper (k));
+                trebleDesign (gainLin, 5.0e-9 * std::pow (9.4, (double) t));
             }
             else if (kind == 1)
             {
@@ -682,6 +730,20 @@ namespace Circuit
                 hp1.set (highPass1 (fs, 23.5));
                 rail.setRail (3.5f);
                 nodeR = 10000.0f;  nodeC = 1.0e-9f;
+            }
+            else if (kind == 6)
+            {
+                // b64 Preamp Distortion, from the DOD 250 Overdrive Preamp breadboard sheet (SchematicsRead/DOD250.md): a 741 non-inverting stage,
+                // gain leg 4.7k + 4.7 nF + the Gain pot (500k, reverse-log: the knob turns it down), feedback 1M with 22 pF; the 741 is slow (1 MHz GBW, so
+                // only about 4.7 kHz at full gain) and swings little on 9 V. Then 4.7 uF, 10k and 1 nF into an asymmetric silicon clipper: one 1N4148 on the
+                // positive side, two in series on the negative side. The Volume pot follows (no tone control at all).
+                const float rv = 500000.0f * audioTaper (1.0f - k);
+                const auto gs = designGainStage (fs, 4700.0f + rv, 4.7e-9f, 1.0e6f, 22.0e-12f, 1.0e6f, 0.0f);
+                bp.set (gs.bandPass);  ge.set (gs.gbwAndEdge);  peak = gs.peakGain;
+                hp1.set (highPass1 (fs, 34.0));                                        // 10 nF into the 470k bias network
+                rail.setRail (2.8f);                                                    // estimate: a 741 on 9 V clips about 1.7 V short of each rail
+                nodeR = 10000.0f;  nodeC = 1.0e-9f;
+                dp = diodeSilicon();  dn = diodeSiliconPair();
             }
             else if (kind == 3)
             {
@@ -707,7 +769,13 @@ namespace Circuit
             else if (kind == 4)
             {
                 // v0.2 Blues Driver: two gain stages, the dual-gang Gain pot (250k) in both, diode clipping between them
-                const float rp = 250000.0f * audioTaper (k);                                // the published sweep tops out near 37 dB, which is about 22k + 80k in the feedback
+                // b36: the real pot (and so the published sweep) occupies the knob from 0.06 to 0.80; above that the law goes on with extra gain
+                // ahead of the diodes (up to +24 dB at the top, so the total reaches the larger of the two published maxima, about 52 dB, with room), and
+                // below 0.06 it takes up to 6 dB off. The real range is inside the knob's range with room on both ends.
+                const float u  = (k - 0.06f) * (1.0f / 0.74f);
+                const float rp = 250000.0f * audioTaper (std::min (1.0f, std::max (0.0f, u)));   // the published sweep tops out near 37 dB, which is about 22k + 80k in the feedback
+                bdTrim = u < 0.0f ? std::pow (10.0f, -6.0f * std::min (1.0f, -u * (0.74f / 0.06f)) / 20.0f)
+                       : u > 1.0f ? std::pow (10.0f, 24.0f * std::min (1.0f, (u - 1.0f) * (0.74f / 0.20f)) / 20.0f) : 1.0f;
                 const auto g1 = designGainStage (fs, 1500.0f, 150.0e-9f, 22000.0f + rp, 47.0e-12f, 2.0e6f, 0.0f);
                 bp.set (g1.bandPass);  ge.set (g1.gbwAndEdge);  peak = g1.peakGain;
                 const auto g2 = designGainStage (fs, 2200.0f, 1.0e-6f, 33000.0f, 100.0e-12f, 1.0e6f, 0.0f);
@@ -719,6 +787,91 @@ namespace Circuit
                 pk.set (peak2 (fs, 120.0, 1.1, std::pow (10.0, (6.0 - 5.0 * t) / 20.0)));   // the ~120 Hz bump (more with Tone down)
             }
         }
+        // b64 Natural Overdrive (kind 5), from the Nobels ODR-1 / ODR-1 Plus / ODR-S schematics (SchematicsRead/Nobels_ODR1_ODR1Plus_ODRS.md):
+        //   input low-pass (2k7 with 22 nF, 2.7 kHz) -> non-inverting 4558 stage (Drive pot in the feedback with 1k8, 120 pF, two 1N4148 across it;
+        //   ground legs 820 + 82 nF and 1k5 + 2.2 uF, and with the Plus Boost a third leg 270 + 2.2 uF) -> a second, hard clip (12k, 2.7 nF, two 1N4148 to
+        //   the bias rail) -> a 39k / 10k divider with a 12k + 82 nF shunt -> the Spectrum network -> the 4k7 / 8.2 nF low-pass of the second filter stage.
+        //   voicing 0 ODR-1, 1 ODR-1 Plus with the Boost switch on, 2 ODR-S (500k drive, germanium shunt clip, three-band Hi / Mid / Lo instead of Spectrum).
+        //   Estimates (not legible or not a number in the sources): the Spectrum curve (a pan from a 700 Hz low-pass to a 5 kHz high-pass plus a 2.1 kHz
+        //   bump, from the clone's description), the second filter stage's gain, and the ODR-S's transistor stage and EQ ranges.
+        void setupNobels (int voicing, float gain, float tone, float lo, float mid)
+        {
+            kind = 5;  nb = voicing;
+            const float k = std::min (1.0f, std::max (0.0f, gain)), t = std::min (1.0f, std::max (0.0f, tone));
+            const bool isS = voicing == 2;
+            rail.setRail (4.5f);
+            const double rpot = (isS ? 500000.0 : 250000.0) * audioTaper (k);
+            const double rfTot = rpot + (isS ? 1000.0 : 1800.0);
+            const double cfb = isS ? 150.0e-12 : 120.0e-12;
+            double lr[3], lc[3];  nbLegs = 0;
+            if (! isS) { lr[0] = 820.0;  lc[0] = 82.0e-9;  lr[1] = 1500.0;  lc[1] = 2.2e-6;  nbLegs = 2;
+                         if (voicing == 1) { lr[2] = 270.0;  lc[2] = 2.2e-6;  nbLegs = 3; } }
+            else       { lr[0] = 1000.0;  lc[0] = 68.0e-9;  lr[1] = 1800.0;  lc[1] = 2.2e-6;  nbLegs = 2; }
+            double peakSum = 0.0;
+            for (int i = 0; i < nbLegs; ++i)
+            {
+                const auto gs = designGainStage (fs, (float) lr[i], (float) lc[i], (float) rfTot, 0.0f, 3.0e6f, 0.0f);     // no feedback-capacitor pole here: it is inside the diode node
+                nbLeg[i].set (gs.bandPass);  nbPeak[i] = gs.peakGain;  peakSum += gs.peakGain;
+            }
+            {   const double fg = std::min (3.0e6 / (1.0 + peakSum), 0.45 * fs);
+                ge.set (bilinear (fs, 0, 0, 1, 0, 1.0 / (2.0 * 3.14159265358979 * fg), 1)); }                              // 4558 gain-bandwidth pole
+            hp1.set (highPass1 (fs, 16.0));
+            nbLpIn.set (lowPass1 (fs, 1.0 / (2.0 * 3.14159265358979 * 2700.0 * (isS ? 10.0e-9 : 22.0e-9))));
+            dp = dn = diodeSilicon();
+            nodeR = (float) rfTot;  nodeC = (float) cfb;
+            nbClip.setup (fs, isS ? 10000.0f : 12000.0f, isS ? 3.9e-9f : 2.7e-9f, isS ? diodeGermanium() : diodeSilicon());
+            {   const double R21 = 39000.0, R23 = 10000.0, R22 = 12000.0, C22 = 82.0e-9;
+                const double tau = R22 * C22, kk = R21 / R23;
+                nbDiv.set (bilinear (fs, 0, tau, 1.0, 0, tau * (1.0 + kk) + R21 * C22, 1.0 + kk)); }                       // the 39k / 10k divider with its 12k + 82 nF shunt
+            const double w = 2.0 * 3.14159265358979;
+            nbLp7.set (lowPass1 (fs, 700.0));
+            nbHp5.set (highPass1 (fs, 5000.0));
+            { const double w0 = w * 2100.0, q = 1.0;  nbBp2.set (bilinear (fs, 0, w0 / q, 0, 1.0, w0 / q, w0 * w0)); }
+            nbLpOut.set (lowPass1 (fs, 4100.0));                                                                           // 4k7 with 8.2 nF
+            nbSpecLp = std::cos (1.5707963f * t);  nbSpecHp = 1.2f * std::sin (1.5707963f * t);
+            if (isS)
+            {
+                nbEqLo.set (lowShelf (fs, 120.0, std::pow (10.0, (lo - 0.5) * 24.0 / 20.0)));
+                nbEqMid.set (peak2 (fs, 900.0, 0.8, std::pow (10.0, (mid - 0.5) * 20.0 / 20.0)));
+                nbEqHi.set (highShelf (fs, 3000.0, std::pow (10.0, (t - 0.5) * 24.0 / 20.0)));
+            }
+            nbTrim = isS ? 9.66f : (voicing == 1 ? 5.96f : 6.03f);   // measured with odmeas_nob so the three voicings land together at +5 dB (Volume -6, Drive 10)
+        }
+        // b67 Metal Zone (kind 7), from the Boss MT-2 service notes (SchematicsRead/MetalZone_MT2.md), signal path in that order:
+        //   100k / 0.015 uF high-pass (106 Hz) -> op-amp 3b, a fixed first stage (220k feedback with 100 pF; its ground leg is a 2.2k / 0.027 uF network that a
+        //   transistor follower bootstraps above about 340 Hz, so this stage is a band-pass gain of about 18 dB near 400 Hz) -> 10k / (10k with 0.047 uF) divider
+        //   (6 dB down, low-pass 680 Hz) and a 48 Hz high-pass -> op-amp 3a, the DIST stage: 1 + (1k + DIST 250k log) / 1k, 2 to 252 times, with 47 pF across the
+        //   feedback -> 2.2k into two 1SS133 silicon diodes (the clipper; the notes do not resolve their direction, so anti-parallel is assumed) -> a shelving cut
+        //   (10k into 4.7k with 0.015 uF: about -10 dB above 2 kHz) -> op-amp 4b, a gain of about 2 (5.3k feedback against two legs) -> the tone section.
+        //   Tone: HIGH and LOW are +/-15 dB shelves (the printed panel range; corners 4.5 kHz and 105 Hz, the LOW corner read from the Sallen-Key network), and the
+        //   MIDDLE band is a peak with its centre swept 200 Hz to 5 kHz (the printed MID FREQ range). Estimates, because the sheet does not give them: the MIDDLE
+        //   range (+/-12 dB here), the peak's width (Q 0.9), the shelf corners of HIGH, and the two transistor cells of stage 4b (read as plain legs).
+        void setupMetalZone (float dist, float high, float low, float mid, float midFreq)
+        {
+            kind = 7;
+            const float k = std::min (1.0f, std::max (0.0f, dist));
+            auto cl = [] (float v) { return std::min (1.0f, std::max (0.0f, v)); };
+            mzHp.set (highPass1 (fs, 106.0));
+            const auto g1 = designGainStage (fs, 12200.0f, 27.0e-9f, 220000.0f, 100.0e-12f, 2.5e6f, 0.0f);
+            mzA.set (g1.bandPass);  ge.set (g1.gbwAndEdge);  peak = g1.peakGain;
+            mzS1lp.set (lowPass1 (fs, 340.0));
+            mzLp.set (bilinear (fs, 0, 0, 0.5, 0, 2.35e-4, 1.0));
+            mzHp2.set (highPass1 (fs, 48.0));
+            const float vr = 250000.0f * audioTaper (k);
+            const auto g2 = designGainStage (fs, 1000.0f, 10.0e-6f, 1000.0f + vr, 47.0e-12f, 2.5e6f, 0.0f);
+            mzB.set (g2.bandPass);  ge2.set (g2.gbwAndEdge);  peak2g = g2.peakGain;
+            rail.setRail (3.3f);  rail2.setRail (3.3f);
+            nodeR = 2200.0f;  nodeC = 100.0e-12f;
+            dp = dn = diodeSilicon();
+            mzShelf.set (bilinear (fs, 0, 0.91 * 7.05e-5, 0.91, 0, 2.07e-4, 1.0));
+            const auto g3 = designGainStage (fs, 10470.0f, 0.22e-6f, 5300.0f, 47.0e-12f, 2.5e6f, 0.0f);
+            const auto g4 = designGainStage (fs, 11000.0f, 15.0e-9f, 5300.0f, 47.0e-12f, 2.5e6f, 0.0f);
+            mzC.set (g3.bandPass);  mzPeakC = g3.peakGain;
+            mzD.set (g4.bandPass);  mzPeakD = g4.peakGain;
+            mzLo.set (lowShelf (fs, 105.0, std::pow (10.0, (cl (low) - 0.5) * 30.0 / 20.0)));
+            mzHi.set (highShelf (fs, 4500.0, std::pow (10.0, (cl (high) - 0.5) * 30.0 / 20.0)));
+            mzMid.set (peak2 (fs, std::min (0.45 * fs, 200.0 * std::pow (25.0, (double) cl (midFreq))), 0.9, std::pow (10.0, (cl (mid) - 0.5) * 24.0 / 20.0)));
+        }
         // For the Boost section: the gain is given in dB and the Treble capacitor as a 0..1 knob (kind 0 only)
         void setupBoost (int kind_, float gainDb, float capKnob)
         {
@@ -726,10 +879,13 @@ namespace Circuit
             rail.setRail (4.5f);
             if (kind == 0)
             {
-                const double c1 = 5.0e-9 * std::pow (9.4, (double) std::min (1.0f, std::max (0.0f, capKnob)));
-                hp1.set (highPass1 (fs, 1.0 / (2.0 * 3.14159265358979 * 11000.0 * c1)));
+                // Capacitor: 3.3 nF to 103 nF (the published 5 nF sits at 0.12; 0.35 is still 11 nF, as before).
+                const double c1 = 5.0e-9 * std::pow (9.4, 1.537 * (double) std::min (1.0f, std::max (0.0f, capKnob)) - 0.184);
+                // Gain: the knob's 0 to 30 now covers -5.1 to +44 dB (the published stage tops out at 38 dB, 80 times); 8 is still 8.
+                const float eff = 1.636f * gainDb - 5.09f;
                 hp2.set (highPass1 (fs, 16.0));
-                gainLin = std::min (80.0f, std::pow (10.0f, gainDb / 20.0f));
+                gainLin = std::min (160.0f, std::pow (10.0f, eff / 20.0f));
+                trebleDesign (gainLin, c1);
             }
             else
             {
@@ -746,13 +902,12 @@ namespace Circuit
             switch (kind)
             {
                 case 0:
-                    v = gainLin * hp1.run (x);
-                    v = v > 0.0f ? 7.0f * std::tanh (v / 7.0f) : 1.8f * std::tanh (v / 1.8f);
-                    return hp2.run (v);
+                    return hp2.run (trebleStage (x));
                 case 1:
                     v = x + ge.run (bp.run (x)) * peak;
                     return rail.process (v) * gainLin;
                 case 2:
+                case 6:
                     v = hp1.run (x);
                     v = v + ge.run (bp.run (v)) * peak;
                     v = rail.process (v);
@@ -769,16 +924,137 @@ namespace Circuit
                     v = hp1.run (x);
                     v = v + ge.run (bp.run (v)) * peak;
                     v = rail.process (v);
-                    v = rcNode (v * 0.3f) * 0.033f;                      // inter-stage divider before and after the diodes, set so the small-signal total matches the published sweep (+7 to +21 dB)
+                    v = rcNode (v * 0.3f * bdTrim) * 0.033f;                      // inter-stage divider before and after the diodes, set so the small-signal total matches the published sweep (+7 to +21 dB)
                     v = v + ge2.run (bp2.run (v)) * peak2g;
                     v = rail2.process (v);                               // its own limiter: RailLimiter keeps the previous input for its anti-aliasing, so two stages cannot share one
                     return pk.run (tLp.run (v));
+                case 5:
+                {
+                    v = nbLpIn.run (hp1.run (x));
+                    float vl = 0.0f;
+                    for (int i = 0; i < nbLegs; ++i) vl += nbLeg[i].run (v) * nbPeak[i];
+                    vl = ge.run (vl);
+                    float o = v + rcNode (vl);                          // the 4558 stage: the signal plus the voltage across the feedback network, which the diodes limit
+                    o = nbClip.process (o);                             // the second, harder clip
+                    o = nbDiv.run (o);
+                    if (nb == 2)  o = nbEqHi.run (nbEqMid.run (nbEqLo.run (o)));
+                    else          o = nbLp7.run (o) * nbSpecLp + (nbHp5.run (o) + 0.7f * nbBp2.run (o)) * nbSpecHp;
+                    return nbLpOut.run (o) * nbTrim;
+                }
+                case 7:
+                {
+                    v = mzHp.run (x);
+                    v = v + mzS1lp.run (ge.run (mzA.run (v))) * peak;                    // op-amp 3b
+                    v = rail.process (v);
+                    v = mzHp2.run (mzLp.run (v));
+                    v = v + ge2.run (mzB.run (v)) * peak2g;                              // op-amp 3a, the DIST stage
+                    v = rail2.process (v);
+                    v = rcNode (v);                                                      // 2.2k into the two diodes
+                    v = mzShelf.run (v);
+                    v = v + mzC.run (v) * mzPeakC + mzD.run (v) * mzPeakD;               // op-amp 4b
+                    return mzHi.run (mzMid.run (mzLo.run (v)));
+                }
                 default: return x;
             }
         }
 
     private:
-        float peak2g = 1.0f, stage2Gain = 68.0f;
+        // b67: the Metal Zone's own filters
+        Bq mzHp, mzHp2, mzA, mzB, mzC, mzD, mzS1lp, mzLp, mzShelf, mzLo, mzMid, mzHi;
+        float mzPeakC = 0.5f, mzPeakD = 0.5f;
+        // b64: the Natural Overdrive's second clip (a resistor and a capacitor into two diodes) with its own state
+        struct NbClip
+        {
+            float r = 12000.0f, c = 2.7e-9f, vNode = 0.0f, xPrev = 0.0f, kc = 0.0f;  DiodeSpec dp, dn;
+            void reset() { vNode = xPrev = 0.0f; }
+            void setup (double fs, float r_, float c_, const DiodeSpec& d) { r = r_;  c = c_;  dp = dn = d;  kc = c * 4.0f * (float) fs;  reset(); }
+            float process (float w)
+            {
+                for (int s = 1; s <= 4; ++s)
+                {
+                    const float vin = xPrev + (w - xPrev) * (float) s * 0.25f;
+                    float u = vNode;
+                    for (int it = 0; it < 4; ++it)
+                    {
+                        const float ep = std::exp (std::min (u / dp.nVt, 40.0f)), en = std::exp (std::min (-u / dn.nVt, 40.0f));
+                        const float id  = dp.isat * (ep - 1.0f) - dn.isat * (en - 1.0f);
+                        const float did = dp.isat * ep / dp.nVt + dn.isat * en / dn.nVt;
+                        const float f  = kc * (u - vNode) + id + (u - vin) / r;
+                        u -= f / (kc + did + 1.0f / r);
+                    }
+                    vNode = u;
+                }
+                xPrev = w;
+                return vNode;
+            }
+        };
+        NbClip nbClip;
+        Bq nbLeg[3], nbLpIn, nbDiv, nbLp7, nbHp5, nbBp2, nbLpOut, nbEqLo, nbEqMid, nbEqHi;
+        float nbPeak[3] = {}, nbSpecLp = 0.7f, nbSpecHp = 0.8f, nbTrim = 1.0f;
+        int nbLegs = 2, nb = 0;
+
+        // ---- kind 0: the treble booster's transistor stage (all values read from the published analysis unless marked "estimate") ----
+        //   mirror (NPN) form of the PNP stage: emitter through R3 = 3.9k with C3 = 47 uF, base bias divider 470k / 68k (16.8 uS), collector load 10k,
+        //   Ie = 0.2055 mA (0.8 V across R3), hFE 100, so the small-signal gain is alpha Ie Rc / Vt = 78.7 (the published 80).
+        //   The source is a pickup: series resistance + inductance (estimate: 6k and 2.5 H) and the input capacitor C1, into the base node, which carries the
+        //   bias network and the junction's own base current. The collector can swing up by Ic x Rc (cut-off, about 2 V) and down by about 6 V (saturation;
+        //   estimate from 7 V - 0.8 V - 0.15 V). Trapezoidal rule for L and C1, Newton for the base node, then for the emitter node.
+        static constexpr double kTrVt = 0.02585, kTrR3 = 3900.0, kTrC3 = 47.0e-6, kTrRc = 10000.0, kTrI0 = 0.8015 / 3900.0, kTrBeta = 100.0,
+                                kTrGb = 1.0 / (470000.0 * 68000.0 / (470000.0 + 68000.0)), kTrSat = 6.0, kTrRs = 6000.0, kTrL = 2.5;
+        double trS = 1.0, trA = 0.0, trK1 = 1.0, trK2 = 1.0, trHc = 0.0, trH3 = 0.0, trIl = 0.0, trVc = 0.0, trEprev = 0.0, trUprev = 0.0, trW = 0.0;
+        void trebleDesign (float gain, double c1)
+        {
+            const double h = 1.0 / fs, alpha = kTrBeta / (kTrBeta + 1.0);
+            trS = (double) gain / (alpha * kTrI0 * kTrRc / kTrVt);        // the Gain knob scales the drive so the small-signal gain is `gain`
+            trA = h / (2.0 * kTrL);
+            trK2 = 1.0 + trA * kTrRs + trA * h / (2.0 * c1);
+            trK1 = 1.0 - trA * kTrRs - trA * h / (2.0 * c1);
+            trHc = h / (2.0 * c1);
+            trH3 = kTrC3 / h;
+        }
+        static double trLimit (double x, double& slope)                    // a positive current change is limited at the saturation current (soft knee)
+        {
+            if (x <= 0.0) { slope = 1.0; return x; }
+            const double imax = kTrSat / kTrRc / (kTrBeta / (kTrBeta + 1.0)), t = x / imax, q = 1.0 + t * t * t * t, r = std::sqrt (std::sqrt (q));
+            slope = 1.0 / (q * r);
+            return imax * t / r;
+        }
+        float trebleStage (float x)
+        {
+            const double e = -trS * (double) x;                           // PNP: the mirror stage sees the opposite sign
+            const double rhs = trK1 * trIl + trA * (e + trEprev - 2.0 * trVc - trUprev);
+            double u = trUprev;
+            for (int it = 0; it < 8; ++it)
+            {
+                const double ex = std::exp (std::min (30.0, (u - trW) / kTrVt));
+                double sl;  const double dl = trLimit (kTrI0 * (ex - 1.0), sl);
+                const double f = kTrGb * u + dl / (kTrBeta + 1.0), df = kTrGb + sl * kTrI0 * ex / kTrVt / (kTrBeta + 1.0);
+                const double step = std::max (-0.15, std::min (0.15, -(trK2 * f + trA * u - rhs) / (trK2 * df + trA)));
+                u += step;
+                if (std::fabs (step) < 1.0e-9) break;
+            }
+            u = std::max (-5.0, std::min (1.0, u));
+            {
+                const double ex = std::exp (std::min (30.0, (u - trW) / kTrVt));
+                double sl;  const double dl = trLimit (kTrI0 * (ex - 1.0), sl);
+                const double iN = kTrGb * u + dl / (kTrBeta + 1.0);
+                trVc += trHc * (iN + trIl);
+                trIl = iN;  trUprev = u;  trEprev = e;
+            }
+            const double wp = trW;
+            for (int it = 0; it < 3; ++it)                                // emitter node: C3 dw/dt + w/R3 = (change in emitter current)
+            {
+                const double ex = std::exp (std::min (30.0, (u - trW) / kTrVt));
+                double sl;  const double dl = trLimit (kTrI0 * (ex - 1.0), sl);
+                trW -= (trH3 * (trW - wp) + trW / kTrR3 - dl) / (trH3 + 1.0 / kTrR3 + sl * kTrI0 * ex / kTrVt);
+            }
+            const double ex = std::exp (std::min (30.0, (u - trW) / kTrVt));
+            double sl;  const double dl = trLimit (kTrI0 * (ex - 1.0), sl);
+            return (float) (-kTrRc * (kTrBeta / (kTrBeta + 1.0)) * dl);     // collector swing, volts: + toward cut-off (about 2 V), - toward saturation (about 6 V)
+        }
+
+
+        float peak2g = 1.0f, stage2Gain = 68.0f, bdTrim = 1.0f;
         Bq bp2, ge2, tLp, pk, lpS2;
         int kind = 0;
         double fs = 48000.0;
@@ -948,27 +1224,34 @@ namespace Circuit
     // by about 1 dB at 300 Hz and 4 dB at 10 kHz (modelled as a 3 dB shelf above 3 kHz), a detector that averages the rectified signal, a
     // gain that falls as that average rises, and an output high-pass (52 to 310 Hz, modelled at 90 Hz). The analysis gives NO ratio, attack,
     // release or detector law, so those are my own: gain = 1 / (1 + K x average), K from the Sens knob; times and mix come from the Comp knobs.
+    // v0.2: the detector's structure now follows the circuit as described in the published analysis and the maker-circuit discussions: the two rectifier
+    // transistors pull a 10 uF capacitor down in proportion to the (smoothed) level at the gain cell's OUTPUT, and 150k from the supply recharges it
+    // (1.5 s); the capacitor's voltage sets the cell's bias current, so the gain is linear in it. As one equation for the gain reduction x = 1 - gain:
+    //     dx/dt = (K A - x) / T_release,   A = smoothed |output|   (the smoothing is the 1M / 10 nF network: 10 ms; here the Attack knob)
+    // The steady state is the same gain = 1 / (1 + K x level) as before, but the recovery is a plain exponential in the gain (it starts at once),
+    // and the attack is as fast as the level demands (a bigger overload pulls the capacitor down faster).
     class DynaComp
     {
     public:
         void prepare (double sampleRate) { fs = sampleRate; hp1.set (highPass1 (fs, 32.0)); hp2.set (highPass1 (fs, 90.0));
                                            sh.set (bilinear (fs, 0, std::pow (10.0, 3.0 / 20.0), 2.0 * 3.14159265358979 * 3000.0, 0, 1, 2.0 * 3.14159265358979 * 3000.0)); reset(); }
-        void reset() { hp1.reset(); hp2.reset(); sh.reset(); env = 0.0f; grAvg = 0.0f; }
+        void reset() { hp1.reset(); hp2.reset(); sh.reset(); env = 0.0f; grAvg = 0.0f; red = 0.0f; }
         // sens 0..1, times in ms, outDb, mix 0..1. Returns the average gain reduction of the block in dB (>= 0).
         float process (float* x, int n, float sens, float atkMs, float relMs, float outDb, float mix)
         {
             const float K = 2.0f + 60.0f * std::min (1.0f, std::max (0.0f, sens));
-            const float atk = 1.0f - std::exp (-1.0f / (std::max (0.1f, atkMs) * 0.001f * (float) fs));
-            const float rel = 1.0f - std::exp (-1.0f / (std::max (5.0f, relMs) * 0.001f * (float) fs));
+            const float atk = 1.0f - std::exp (-1.0f / (std::max (0.1f, atkMs) * 0.001f * (float) fs));    // rectifier smoothing (circuit: 10 ms)
+            const float rel = 1.0f - std::exp (-1.0f / (std::max (5.0f, relMs) * 0.001f * (float) fs));    // capacitor recharge (circuit: 1.5 s)
             const float out = std::pow (10.0f, outDb / 20.0f) * trim;
             float gsum = 0.0f;
             for (int i = 0; i < n; ++i)
             {
                 const float dry = x[i];
                 float v = sh.run (hp1.run (dry));
-                const float a = std::fabs (v);
-                env += (a > env ? atk : rel) * (a - env);
-                const float g = 1.0f / (1.0f + K * env);
+                const float g = 1.0f - red;                                  // the cell's gain now (linear in the capacitor voltage)
+                env += atk * (std::fabs (v * g) - env);                      // the detector listens to the cell's output
+                red = std::min (0.9995f, red + rel * (1.5708f * K * env - red));   // and the capacitor is pulled down by it, recharged through 150k (1.5708: so K
+                                                                                       // still refers to the peak of a sine, as before, though the smoothing sees its mean)
                 gsum += g;
                 v = 0.5f * std::tanh (v * g / 0.5f);                  // the transconductance amp runs out of range
                 v = hp2.run (v) * out;
@@ -981,7 +1264,7 @@ namespace Circuit
     private:
         double fs = 48000.0;
         Bq hp1, hp2, sh;
-        float env = 0.0f, grAvg = 0.0f;
+        float env = 0.0f, grAvg = 0.0f, red = 0.0f;
     };
 
     // ---- dense linear solver for the small circuit networks below (n <= 16), double precision ---------------------------------------
@@ -1125,6 +1408,7 @@ namespace Circuit
         void reset()
         {
             hp1.reset(); hp2.reset(); lp1.reset(); lp2.reset(); bp.reset(); ge.reset(); lim.reset(); rail.reset(); tone.reset(); acHp.reset();
+            adSw1.reset(); adSw2.reset();
             vc = 0.0; iSeries = 0.0; xPrev = 0.0f; clipPrev = 0.0f;
         }
         void configure (const Params& p)
@@ -1149,7 +1433,7 @@ namespace Circuit
                 lp1.set (lowPass1 (fs, 34000.0));
                 lp2.set (lowPass1 (fs, 34000.0));
                 const float r1 = 47000.0f + rRight;
-                const auto gs = designGainStage (fs, r1, 47.0e-9f, 220000.0f, 10.0e-12f, 1.0e6f, 0.0f);
+                const auto gs = designGainStage (fs, r1, 47.0e-9f, 220000.0f, 10.0e-12f, 4.0e6f, 0.0f);   // b58: JRC4558 / RC4558, 4 MHz typical on the filed sheet (was 1 MHz)
                 bp.set (gs.bandPass);  ge.set (gs.gbwAndEdge);  peak = gs.peakGain;
                 lim.setup (220000.0f, diodeSiliconPair(), diodeSilicon());
                 rail.setRail (3.2f);
@@ -1161,10 +1445,10 @@ namespace Circuit
             // Q1 follower, then Q6 and Q7 (each inverting, 47 nF into 22k, 10 pF across its 470k, running out of collector swing)
             float v = hp1.run (0.95f * x);
             v = lp1.run (-g1 * v);
-            v = v > 0.0f ? 4.5f * std::tanh (v / 4.5f) : 3.5f * std::tanh (v / 3.5f);
+            v = adSw1.run (v, 4.5f, 3.5f);
             v = hp2.run (v);
             v = lp2.run (-g2 * v);
-            v = v > 0.0f ? 4.5f * std::tanh (v / 4.5f) : 3.5f * std::tanh (v / 3.5f);
+            v = adSw2.run (v, 4.5f, 3.5f);
             // IC1B: out = in + Vf, Vf = diode-limited (in x Zf / Zg)
             const float lin = ge.run (bp.run (v)) * peak;
             float w = v + (soft ? lim.process (lin) : lin);
@@ -1177,6 +1461,7 @@ namespace Circuit
             return (1.0f - blendAmt) * wet + blendAmt * cleanSign * 2.0f * x;     // IC3A: gain 1 + 10k / 10k
         }
     private:
+        TanhAd adSw1, adSw2;                  // b42: the two transistor stages' limits, with anti-aliasing
         double fs = 48000.0;
         Bq hp1, hp2, lp1, lp2, bp, ge, acHp;
         DiodeLimiter lim;
@@ -1315,7 +1600,7 @@ namespace Circuit
             lastBass = lastHigh = -1.0f;
             reset();
         }
-        void reset() { inHp.reset(); gainHp.reset(); chipLp.reset(); chip2Lp.reset(); outHp.reset(); net.reset(); }
+        void reset() { inHp.reset(); gainHp.reset(); chipLp.reset(); chip2Lp.reset(); outHp.reset(); net.reset(); adJ.reset(); adX.reset(); rcA.reset(); rcB.reset(); }
         // bass, high: 0..1; drive: how hard the guitar hits the chip (linear gain, 1 = unity)
         void configure (float bass, float high, float drive)
         {
@@ -1338,18 +1623,19 @@ namespace Circuit
         }
         float process (float x)
         {
-            float v = 0.85f * 1.2f * std::tanh (x * drv / 1.2f);           // the J201 source follower
+            float v = 0.85f * adJ.run (x * drv, 1.2f, 1.2f);               // the J201 source follower (b42: anti-aliased)
             v = inHp.run (v);
             v = 20.0f * (v + 9.0f * gainHp.run (v));                       // gain 20 above 12 Hz becoming 200
             v = chipLp.run (v);
-            v = railClip (v, 3.1f, 3.8f);
-            v -= 0.03f * std::tanh (v / 0.03f);                             // a touch of crossover
+            v = rcA.run (v, 3.1f, 3.8f);
+            v -= 0.03f * adX.run (v, 0.03f, 0.03f);                         // a touch of crossover
             v = net.process (v);
             v = 20.0f * chip2Lp.run (v);                                    // the second chip, gain 20
-            v = railClip (v, 3.1f, 3.8f);
+            v = rcB.run (v, 3.1f, 3.8f);
             return outHp.run (v);
         }
     private:
+        TanhAd adJ, adX;  RailClipAd rcA, rcB;      // b42: anti-aliasing histories of the clippers
         double fs = 48000.0;
         Bq inHp, gainHp, chipLp, chip2Lp, outHp;
         NodalNet net;
@@ -1376,7 +1662,7 @@ namespace Circuit
             lastFilter = -1.0f;  lastDist = -1.0f;  lastDiode = -1;
             reset();
         }
-        void reset() { hp1.reset(); hp2.reset(); ocDc.reset(); dcOut.reset(); outHp.reset(); gbw.reset(); rfLp.reset(); filt.reset(); lim.reset(); }
+        void reset() { hp1.reset(); hp2.reset(); ocDc.reset(); dcOut.reset(); outHp.reset(); gbw.reset(); rfLp.reset(); filt.reset(); lim.reset(); adJ.reset(); rcO.reset(); rcY.reset(); rcB.reset(); }
         void configure (const Params& p)
         {
             par = p;
@@ -1403,12 +1689,12 @@ namespace Circuit
         }
         float process (float x)
         {
-            float v = 0.9f * 1.5f * std::tanh (x / 1.5f);                         // JFET buffer
+            float v = 0.9f * adJ.run (x, 1.5f, 1.5f);                             // JFET buffer (b42: anti-aliased)
             // octave: gain stage, then full-wave rectification with germanium drops, mean removed
             float oct = 0.0f;
             if (par.octave > 0.001f)
             {
-                const float u = railClip (8.9f * v, 2.2f, 4.5f);
+                const float u = rcO.run (8.9f * v, 2.2f, 4.5f);
                 const float a = std::fabs (u) - 0.18f;
                 const float r = 0.5f * (a + std::sqrt (a * a + 0.0025f));
                 oct = 0.3f * (r - ocDc.run (r));
@@ -1417,16 +1703,17 @@ namespace Circuit
             // op-amp stage: gain 1 + Rf * (branch admittances), each branch a high-pass
             float y = in + rf * (hp1.run (in) / 47.0f + hp2.run (in) / 560.0f);
             y = rfLp.run (gbw.run (y));
-            y = railClip (y, 3.0f, 3.0f);
+            y = rcY.run (y, 3.0f, 3.0f);
             y = dcOut.run (y);
             y = lim.process (y);
             y = filt.run (y);
             y = 0.9f * outHp.run (y);
             if (par.boost > 0.001f)
-                y = railClip (y * (1.0f + 9.0f * par.boost * par.boost), 4.0f, 4.0f);
+                y = rcB.run (y * (1.0f + 9.0f * par.boost * par.boost), 4.0f, 4.0f);
             return y;
         }
     private:
+        TanhAd adJ;  RailClipAd rcO, rcY, rcB;       // b42: anti-aliasing histories of the clippers
         double fs = 48000.0;
         Params par;
         Bq hp1, hp2, ocDc, dcOut, outHp, gbw, rfLp, filt;

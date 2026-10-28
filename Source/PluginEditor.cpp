@@ -63,7 +63,11 @@ namespace
             { "buzzBlend", "Buzzsaw style only. Mixes in a clean copy of your input (twice as loud as the input, as in the modded circuit). 0 = all distortion. Keeps the pick attack and low end clear under the heavy part." },
             { "buzzPol", "Buzzsaw style only. Flips the clean copy upside down. With Blend up, this changes which frequencies add and which cancel against the distorted signal." },
             { "fuzzGe", "Face, Bender and Factory styles. On = germanium: soft, warm, round, with a lot of lopsided clipping and a leaky, sputtery feel. Off = silicon: tighter, brighter, harder-edged, with more gain and a less compressed sound." },
-            { "fuzzStarve", "Face and Bender styles. A weak, dying battery: less headroom, a gap at the zero crossing, and a gated, sputtering, spitty sound. 0 is a fresh battery." },
+            { "fuzzSqueal", "Feral style. How much of the fuzz is fed back through the tuned filter. Low = a fuzz with a ringing edge; past the middle it starts to oscillate and sing by itself. High settings squeal at the Pitch even when you stop playing." },
+            { "fuzzOscHz", "Feral style. The pitch of the squeal (the tuned filter in the feedback loop), 60 Hz to 8 kHz. Tune it to a note or set it high for a whistle." },
+            { "fuzzAction", "Feral style. How far the clipper's bias moves: with a slow uneven wobble and with how hard you play. More Action = the squeal gates on and off, spits and warbles; 0 = a steady, unmoving fuzz." },
+            { "fuzzActSpeed", "Feral style. How fast the bias wobble runs (about 0.1 to 15 Hz)." },
+            { "fuzzStarve", "Face, Bender and Feral styles. A weak, dying battery (in Feral it is the resting bias): less headroom, a gap at the zero crossing, and a gated, sputtering, spitty sound. 0 is a fresh battery." },
             { "fuzzInput", "Face, Bender and Factory styles. The volume knob on your guitar: turn it down and the fuzz cleans up, the way a fuzz pedal reacts to your guitar. 1 is full." },
             { "fuzzComp", "Factory style only. Compression ahead of the fuzz: higher squashes the input, so quiet notes get louder and the sound sustains more." },
             { "fuzzShape", "Nuke: moves through five wave-shaping curves (soft, sine-fold, odd-harmonic, staircase, asymmetric fold), blending neighbours." },
@@ -72,7 +76,7 @@ namespace
             { "fuzzRate", "Crusher: sample-rate reduction, from none (0) down to about 1/32 (1). More makes more aliasing, metallic and gritty." },
             { "fuzzBenderModel", "Bender style only. Early: two transistors, thick, woolly mids. Classic: three transistors, raspy and cutting. Late: three transistors with a tone sweep, tighter low end and more fizz." },
             { "fuzzBuffer", "Face, Bender and Factory styles. A buffer in front, so the pickup is not loaded: a brighter, tighter, clearer sound. Off is the authentic woolly, pickup-loaded sound (the top end is softer and the fuzz reacts more to your guitar)." },
-            { "fuzzMuffVer", "Wall style only. Standard (the original sound), Smooth (deeper mid scoop, a smoother top), Gritty (thick, a bit rough, more low end), Mid-forward (more bite and mids, tighter bass) or Heavy (more gain, fuzzy huge lows). The circuit versions are built from schematics: four Muff-type builds (including the early large-box one), an op-amp build, and a modern build with 560 pF feedback caps and a wider tone range." },
+            { "fuzzMuffVer", "Wall style only. Standard (the original sound), Smooth (deeper mid scoop, a smoother top), Gritty (thick, a bit rough, more low end), Mid-forward (more bite and mids, tighter bass) or Heavy (more gain, fuzzy huge lows). The circuit versions are built from schematics: five Muff-type builds (including the early large-box one and a small-box one), an op-amp build, and a modern build with 560 pF feedback caps and a wider tone range." },
             { "fuzzMuffDiode", "Wall style only. The clipping diodes: Silicon (the original), LED (more headroom, louder, more open, less compression) or Germanium (clips early, softer, more compressed)." },
             
             { "fuzzMuffTonePass", "Wall style only. Bypasses the tone control for the full, unfiltered fuzz." },
@@ -90,8 +94,15 @@ namespace
             { "compOutput", "Makeup gain (dB) to bring the level back up after compressing." },
             { "compMix", "Dry/wet blend for parallel compression. 1 = all compressed." },
             { "compDetHp", "High-pass on what the compressor listens to (Off, 80, 160, 320 Hz), so low palm mutes don't pump the whole sound." },
-            { "compSat", "Gentle saturation that grows with compression: tube-like (even harmonics), tape-like (odd harmonics), both, Transformer (low end only), or one of the four voiced for the compressor styles: FET stage, Opto tube stage, Mu iron + tube, Diode." },
-            { "compStyle", "The kind of compressor. Standard is the original. Thump adds Bloom, Smack and Clarity. FET is fast and punchy, Opto is smooth and slow to let go, Variable-mu is gentle glue, Sustainer is a pedal-style squeeze that lets the pick through and holds notes, Bus is light glue for chords." },
+            { "compSat", "Gentle saturation that grows with compression: tube-like (even harmonics), tape-like (odd harmonics), both, Transformer (low end only), or one of the four voiced for the compressor styles: FET stage, Opto tube stage, Mu iron + tube, Diode. Below those, the 16 shared curves of the Multiband Saturator, driven by the gain reduction in the same way." },
+            { "compStyle", "The kind of compressor. Standard is the original. Thump adds Bloom, Smack and Clarity. FET is fast and punchy, Opto is smooth and slow to let go, Variable-mu is gentle glue, Sustainer is a pedal-style squeeze that lets the pick through and holds notes, Bus is light glue for chords. Opto Sustain is an optical sustain pedal with its own knobs: Sustain, Blend, Grit, Treble and Volume. Crush Limiter is a crushing, pumping podium limiter with Crush, Crunch, Darkness, a Slow / Fast release, Mix and Volume." },
+            { "compSustain", "Opto Sustain style: how hard it squeezes. Up lowers the threshold, so quieter and quieter notes are brought up to the same level and the note holds up as it dies away. Quiet sounds below the threshold are also brought up, noise included." },
+            { "compCrush", "Crush Limiter style: how much signal goes to the limiter's gain-reduction circuit. Up squeezes harder and lifts quiet notes and every note's tail (noise too, by up to 36 dB). The loudness stays about the same. Near the top the circuit saturates and lets go very slowly (up to about 20 seconds)." },
+            { "compCrunch", "Crush Limiter style: gain after the limiter into the output stage. Up adds more and more distortion; the level rises less than the gain does. 0 = clean." },
+            { "compDark", "Crush Limiter style: a low-pass filter after the distortion, from open (0) down to about 1.2 kHz (1). It tames the fizz Crunch makes." },
+            { "compLlRel", "Crush Limiter style: how fast it lets go. Slow is about 1.7 seconds, Fast is about half that. Crush near its top slows both a lot." },
+            { "compGrit", "Opto Sustain style: a layer of hard-clipped fizz mixed in after the squeeze (it has no lows of its own). 0 = off; it sounds best low." },
+            { "compTreble", "Opto Sustain style: cuts (left) or boosts (right) the highs, up to about 12 dB around 2.5 kHz. Centre = flat." },
             { "compBloom", "Makes the main compressor work harder and let go more slowly, so notes squeeze down and then swell back up (up to 2.5x the gain reduction and 3x the release). 0 = off." },
             { "compSmack", "Level of a second, parallel compressor that runs alongside the main one. It is fast, heavy and transparent, with the lows lifted, so it adds low-end impact and thickens quiet notes without squashing the attack. 0 = off." },
             { "compClarity", "A tilt EQ on the compressor's output. Turn right for more highs and less lows (clarity, bite); turn left for warmth and thickness. 0 = flat." },
@@ -100,6 +111,7 @@ namespace
             { "blendLevelA", "Triple Blend: how much of the warm 15-inch combo you hear (dB)." },
             { "blendLevelB", "Triple Blend: how much of the smooth, Dumble-style lead amp you hear (dB)." },
             { "blendLevelC", "Triple Blend: how much of the open, clean-headroom head you hear (dB)." },
+            { "jadeDist", "Jade Chorus only: the Distortion channel, a gain stage into a pair of silicon diodes after the tone controls. 0 = off (the clean channel, untouched). Turn it up for harder, tighter, more fuzzy clipping. Circuit-derived from the service notes; not fitted to a recording." },
             { "wahEnvDir", "Envelope Filter: Up opens the filter as you play harder (the classic funk sweep); Down closes it." },
             { "wahEnvShape", "Envelope Filter: Band-pass is the vocal quack, Low-pass is rounder and bassier, High-pass is thin and edgy." },
             { "wahPos", "Filter position, 0 = heel (low, bassy) to 1 = toe (high, trebly). In Envelope mode it's the resting position; in LFO mode it's the centre of the sweep." },
@@ -123,13 +135,13 @@ namespace
             { "phaserLag", "Delays the feedback by up to 10 ms. Needs Feedback away from zero. Short values soften and slow the resonant peaks; longer ones add a comb-like, flanger-ish edge. 0 is the plain phaser." },
             { "phaserEnv", "How much your playing level also moves the sweep (envelope follower)." },
             { "chorusOn", "Chorus on/off. It sits after the phaser, before the overdrive and amp." },
-            { "chorusMode", "Chorus voicing. I, II and I+II are the classic modes (I+II is a fast, vibrato-like shimmer). Dimension, Tri-chorus, Ensemble and Detune are the wider, slower voicings." },
+            { "chorusMode", "Chorus voicing. I, II and I+II are the classic modes (I+II is a fast, vibrato-like shimmer). Dimension, Tri-chorus, Ensemble and Detune are the wider, slower voicings. The two Small Clone entries are a single dark delay line (Depth switch low or high)." },
             { "chorusMix", "Wet/dry blend of the chorus." },
             { "chorusRate", "Multiplies the speed of the mode's built-in sweep." },
             { "chorusDepth", "Multiplies how far the mode's sweep moves the pitch." },
             { "chorusTone", "Low-pass on the chorus signal (Hz). Lower = darker, warmer." },
             { "chorusHiss", "Adds the faint hiss of the analog circuit. 0 = silent." },
-            { "preDelayOn", "Delay 1 on/off. By default it sits before the amp, so its repeats go through the overdrive and amp and get compressed and distorted. Drag it after the cab (Order window) for clean repeats." },
+            { "preDelayOn", "Delay 1 on/off. By default it sits before the amp, so its repeats go through the overdrive and amp and get compressed and distorted. Drop it after the cab on the pedalboard (BOARD button) for clean repeats." },
             { "postDelayOn", "Delay 2 on/off. By default it sits after the cab, so its repeats are clean copies of the amped sound, before the reverb. Both delays have the same controls and can sit anywhere." },
             { "preDelayNote", "Free (ms) uses the Time knob. A note value sets the delay time from the tempo instead (and greys out Time)." },
             { "postDelayNote", "Free (ms) uses the Time knob. A note value sets the delay time from the tempo instead (and greys out Time)." },
@@ -159,15 +171,24 @@ namespace
             { "metroVol", "How loud the metronome is, in dB." },
             { "metroAccent", "Plays the first beat of each bar higher and louder." },
             { "tunerRef", "The tuner's reference pitch for A (427 to 453 Hz). 440 is the standard." },
-            { "fuzz2On", "Fuzz 2 on/off. A second, separate copy of the fuzz block. It is its own pedal in the Order window: by default it sits right after Fuzz 1 (stacked); drag it to the lower row of the lane to run it beside Fuzz 1 instead." },
-            { "od2On", "Drive 2 on/off. A second, separate copy of the drive block. By default it stacks after Drive 1; drag it to the lower row of its lane in the Order window to run it beside Drive 1." },
+            { "tunerMode", "Single note: shows the note you play and how far off it is. All strings: strum the whole chord and every string of the chosen tuning is read at once." },
+            { "tunerPreset", "The tuning the All strings view tunes to: 6, 7 and 8 string guitar and bass tunings. Changing a string's note yourself switches this to Custom." },
+            { "tunerCount", "How many strings the tuning has (1 to 8). Strings are numbered from the lowest." },
+            { "tunerShift", "Moves every string up or down together, in semitones. Use it to tune the same set a step down or up without changing the tuning." },
+            { "tunerN1", "The note string 1 (the lowest) is tuned to." }, { "tunerN2", "The note string 2 is tuned to." },
+            { "tunerN3", "The note string 3 is tuned to." }, { "tunerN4", "The note string 4 is tuned to." },
+            { "tunerN5", "The note string 5 is tuned to." }, { "tunerN6", "The note string 6 is tuned to." },
+            { "tunerN7", "The note string 7 is tuned to." }, { "tunerN8", "The note string 8 is tuned to." },
+            { "fuzz2On", "Fuzz 2 on/off. A second, separate copy of the fuzz block. It is its own pedal on the pedalboard (BOARD button): by default it sits right after Fuzz 1 (stacked); run a cable from the same jack into it to put it beside Fuzz 1 instead." },
+            { "od2On", "Drive 2 on/off. A second, separate copy of the drive block. By default it stacks after Drive 1; on the pedalboard (BOARD button) run a cable from the same jack into it to put it beside Drive 1." },
             { "odOn", "Overdrive pedal on/off. It sits before the amp and pushes its first stage." },
-            { "odStyle", "Transparent (a Centaur-type blend drive), Tight (a modern metal-style boost with a gate), Open (a dynamic, amp-like overdrive with a range switch), Screamer (a mid-hump drive with clipping, voicing, Bass and Mid controls), Distortion (a hard-clipped distortion with a clipping choice), Tube Driver (a full-range, warm, creamy tube-style drive), Op-Amp Distortion or Stack Drive, Blues Driver. All except Open and Tube Driver are circuit models from published component values; where the analyses leave values out the numbers are my estimates (see MODELED_GEAR)." },
+            { "odStyle", "Transparent (a Centaur-type blend drive), Tight (a modern metal-style boost with a gate), Open (a dynamic, amp-like overdrive with a range switch), Screamer (a mid-hump drive with clipping, voicing, Bass and Mid controls), Distortion (a hard-clipped distortion with a clipping choice), Tube Driver (a full-range, warm, creamy tube-style drive), Op-Amp Distortion or Stack Drive, Blues Driver, Natural Overdrive (a Nobels ODR-1 type with an ODR-1 Plus and an ODR-S voicing), Preamp Distortion (a 741 op-amp stage into an asymmetric diode clipper, after the DOD 250), or Metal Zone (a four-stage, high-gain distortion with a three-band equaliser and a sweepable mid, after the Boss MT-2). All except Open and Tube Driver are circuit models from published component values; where the analyses leave values out the numbers are my estimates (see MODELED_GEAR)." },
             { "odClip", "Screamer and Distortion (and Tight in Circuit mode): what clips the signal. 'None' (circuit mode only) lets the op-amp run into its own supply limits instead of diodes. Silicon is the classic sound; LED has more headroom (louder, more open); Germanium clips early and soft; Asymmetric clips the two halves differently, which adds even harmonics and a more amp-like feel." },
             { "odVoice", "Screamer: Classic is the familiar mid hump and gain, Mild is leaner with less gain and no hump, Open is brighter with more gain and a looser low end. Tube Driver: Classic is the standard tube drive; Mild is the Hex voicing (thick lows, soft knee, dark top); Open is the Hex voicing with more gain." },
             { "odBass", "Screamer only: how much low end goes into the clipper. Low = tight and mid-focused (the classic sound); high = fuller and thicker." },
             { "odMid", "Screamer only: cuts or boosts the mid hump before the clipper. Centre = the voicing's own hump." },
             { "odMidFreq", "Screamer only: where the mid control works, from about 350 Hz (honky, vocal) up to about 2 kHz (nasal, cutting)." },
+            { "odNob", "Natural Overdrive only. ODR-1 is the natural overdrive: a very high-gain op-amp stage with soft diode clipping in its feedback, then a second hard clip, then the Spectrum tilt from a dark to a bright voice. ODR-1 Plus adds the Boost switch: about 9 to 10 dB more gain into the same clippers. ODR-S swaps in germanium shunt clipping and a three-band Hi / Mid / Lo equaliser (Tone is Hi; Lo and Mid are behind ADV)." },
             { "odMidMod", "Distortion only: Scoop is the stock sound (a mid dip, scooped and fizzy), Flat leaves the mids alone, Boost adds a mid hump for a thicker, more lead-like tone." },
             { "odRange", "Open style only. High: more gain and a fuller, more compressed drive. Low: lighter, with more headroom and a clearer, more dynamic feel." },
             { "odGain", "Amount of drive. Transparent and Screamer blend a clean path with the gain path; Tight and Distortion send almost everything through the gain path." },
@@ -181,7 +202,7 @@ namespace
             { "odCircuit", "Transparent, Tight, Open, Screamer and Distortion: off = the original hand-tuned voicings (default). On = the circuit models (the real resistor, capacitor and diode values, solved sample by sample). Tighten works in both modes (a different recipe in each); the Clipping menu on Tight only works in circuit mode. The other pedals are always circuit models." },
             { "ampMode", "Amp mode. Hybrid (default) mixes the circuit-derived and classic shaping. Classic is the original voicing. Circuit-derived uses clipping curves from tube-stage simulations and works the power section, supply droop and preamp corners out from the circuit values." },
             { "ampBMode", "Amp B mode: Classic (the original voicing), or Circuit-derived (clipping curves and power section worked out from the circuit)." },
-            { "ampModel", "Which amp. The menu is sorted into folders by gain level: Clean, Low / mid gain and High gain (Acoustic is at the top). Amps: Twin Sparkle (sparkly), Chime Thirty (class-A), Brown Eye (tight), Slow Burn (smooth), Modern Maul (scooped), Club Crunch (crunch), Bumble Lead (smooth, singing), 5555 Block (raw to modern), Tweedle Dee (spongy breakup), Jade Chorus (solid-state), Marque Dream (tight, mid-hump), Citrus Doom (thick, loose), Revved Up (a modern boutique high-gain amp), Digital Dread (a modern digital-style amp for extreme styles), Master Cranker (80s hard rock), Harmonic Haze (rich, mid-focused), Diesel Fuel (tight, cutting), Wreck Stack (huge, very tight), Power Brawl (punchy 6L6), Cutaway (growl, flexible), Hi-Wat Headroom (tight, clean to edge), Console DI (class-A channel, no amp), Plex Appeal (a Plexi-style 100 W head with stock and modded voicings), Matt's Amp (a thick, dark, doom-friendly 70s British head, with a mixed voicing), Marmalade (a modern 50 W British-style head: thick, mid-forward crunch), Eclipse (a modern 100 W extreme-metal head with a high and a low input), Marque Five (a three-channel head), Dual Thirty (a two-channel 30 W EL84 combo), Solid Metal (a solid-state / hybrid 90s metal amp with Hybrid and JFET voicings), Cedar Twelve (a small blackface-style combo that breaks up early), Triple Blend (three amps in parallel in one amp), or Acoustic (piezo to acoustic)." },
+            { "ampModel", "Which amp. The menu is sorted into folders by gain level: Clean, Low / mid gain and High gain (Acoustic is at the top). Amps: Twin Sparkle (sparkly), Chime Thirty (class-A), Brown Eye (tight), Slow Burn (smooth), Modern Maul (scooped), Club Crunch (crunch), Bumble Lead (smooth, singing), 5555 Block (raw to modern), Tweedle Dee (spongy breakup), Jade Chorus (solid-state), Marque Dream (tight, mid-hump), Citrus Doom (thick, loose), Revved Up (a modern boutique high-gain amp), Digital Dread (a modern digital-style amp for extreme styles), Master Cranker (80s hard rock), Harmonic Haze (rich, mid-focused), Diesel Fuel (tight, cutting), Wreck Stack (huge, very tight), Power Brawl (punchy 6L6), Stolen Fire (growl, flexible), Hi-Wat Headroom (tight, clean to edge), Console DI (class-A channel, no amp), Plex Appeal (a Plexi-style 100 W head with stock and modded voicings), Matt's Amp (a thick, dark, doom-friendly 70s British head, with a mixed voicing), Marmalade (a modern 50 W British-style head: thick, mid-forward crunch), Eclipse (a modern 100 W extreme-metal head with a high and a low input), Marque Five (a three-channel head), Dual Thirty (a two-channel 30 W EL84 combo), Solid Metal (a solid-state / hybrid 90s metal amp with Hybrid and JFET voicings), Cedar Spring (a family of blackface-style combos that break up early), Triple Blend (three amps in parallel in one amp), Jazz Box (dark jazz clean), Brit Eighteen (18 W EL84 combo), Tweedle Dum (a tweed bass amp: push-pull, a little feedback), Marque One (the original single-channel Mark), Cedar Grand (a 15-inch 6L6 reverb combo), Cedar Ten (a 4x10 combo with a gain channel), Brit Forty-Five (the KT66 45 W head), Tweedle Mini (a 5 W single-ended tweed), Jubilant (a silver-jubilee-style head with cascaded clipping), or Acoustic (piezo to acoustic)." },
             { "ampBright", "Bright switch: a treble lift that fades out as the Gain goes up (like the bright switch on a vintage amp). Most noticeable at low gain." },
             { "ampBias", "Power-tube bias. Negative: hotter, with more bite and a tighter feel. Positive: colder, with a looser, crossover-style sound and more gap in the attack. 0 is the amp's own." },
             { "ampPower", "Power-amp drive: pushes the output stage into saturation for more squash and sizzle. 0 is off." },
@@ -222,71 +243,131 @@ namespace
             { "mfANoise", "Lo-Fi warble type only: tape hiss." },
             { "mfADrops", "Lo-Fi warble type only: dropouts, short drops in level like a worn tape." },
             { "mfALevel", "Lo-Fi warble type only: the output level of the effect, to match the loudness of the dry signal." },
+            { "mfAChMode", "Chorus type only: the voicing. I and II are the classic modes (I + II is a fast, vibrato-like shimmer). Dimension, Tri-chorus, Ensemble and Detune are the wider, slower voicings. The two Small Clone entries are a single dark delay line (Depth switch low or high)." },
+            { "mfAFMode", "Filter (all modes) only: low-pass, high-pass, band-pass, notch, Formant (vowel shapes) or Resonator (tuned ringing)." },
+            { "mfAFMotion", "Filter (all modes) only: what moves the frequency: nothing (Manual), an LFO, your playing level (Envelope), or random steps. Depth sets how far; Rate the speed of the LFO and steps." },
+            { "mfAVowel", "Filter (all modes) in Formant mode: morphs A - E - I - O - U." },
+            { "mfAFlip", "Filter (all modes) only: flips the sweep direction (it was a negative Depth on the old Filter pedal)." },
+            { "mfAPick", "Tremolo type only: Pick Response. A harder pick squeezes the pulse shallower, so soft notes throb more than hard ones (the amp-style tremolo)." },
             { "mfBStages", "Phaser type only: the number of all-pass stages (2 to 12). More stages = more notches and a deeper, richer sweep; 4 is the classic." },
             { "mfBEnv", "Phaser type only: how much your playing level pushes the sweep (it opens as you play harder)." },
             { "mfBLag", "Phaser type only: a small delay (0 to 10 ms) in the phaser path. It adds a flanger-like colour to the notches." },
             { "mfBNoise", "Lo-Fi warble type only: tape hiss." },
             { "mfBDrops", "Lo-Fi warble type only: dropouts, short drops in level like a worn tape." },
             { "mfBLevel", "Lo-Fi warble type only: the output level of the effect, to match the loudness of the dry signal." },
+            { "mfBChMode", "Chorus type only: the voicing. I and II are the classic modes (I + II is a fast, vibrato-like shimmer). Dimension, Tri-chorus, Ensemble and Detune are the wider, slower voicings. The two Small Clone entries are a single dark delay line (Depth switch low or high)." },
+            { "mfBFMode", "Filter (all modes) only: low-pass, high-pass, band-pass, notch, Formant (vowel shapes) or Resonator (tuned ringing)." },
+            { "mfBFMotion", "Filter (all modes) only: what moves the frequency: nothing (Manual), an LFO, your playing level (Envelope), or random steps. Depth sets how far; Rate the speed of the LFO and steps." },
+            { "mfBVowel", "Filter (all modes) in Formant mode: morphs A - E - I - O - U." },
+            { "mfBFlip", "Filter (all modes) only: flips the sweep direction (it was a negative Depth on the old Filter pedal)." },
+            { "mfBPick", "Tremolo type only: Pick Response. A harder pick squeezes the pulse shallower, so soft notes throb more than hard ones (the amp-style tremolo)." },
             { "mfCStages", "Phaser type only: the number of all-pass stages (2 to 12). More stages = more notches and a deeper, richer sweep; 4 is the classic." },
             { "mfCEnv", "Phaser type only: how much your playing level pushes the sweep (it opens as you play harder)." },
             { "mfCLag", "Phaser type only: a small delay (0 to 10 ms) in the phaser path. It adds a flanger-like colour to the notches." },
             { "mfCNoise", "Lo-Fi warble type only: tape hiss." },
             { "mfCDrops", "Lo-Fi warble type only: dropouts, short drops in level like a worn tape." },
             { "mfCLevel", "Lo-Fi warble type only: the output level of the effect, to match the loudness of the dry signal." },
+            { "mfCChMode", "Chorus type only: the voicing. I and II are the classic modes (I + II is a fast, vibrato-like shimmer). Dimension, Tri-chorus, Ensemble and Detune are the wider, slower voicings. The two Small Clone entries are a single dark delay line (Depth switch low or high)." },
+            { "mfCFMode", "Filter (all modes) only: low-pass, high-pass, band-pass, notch, Formant (vowel shapes) or Resonator (tuned ringing)." },
+            { "mfCFMotion", "Filter (all modes) only: what moves the frequency: nothing (Manual), an LFO, your playing level (Envelope), or random steps. Depth sets how far; Rate the speed of the LFO and steps." },
+            { "mfCVowel", "Filter (all modes) in Formant mode: morphs A - E - I - O - U." },
+            { "mfCFlip", "Filter (all modes) only: flips the sweep direction (it was a negative Depth on the old Filter pedal)." },
+            { "mfCPick", "Tremolo type only: Pick Response. A harder pick squeezes the pulse shallower, so soft notes throb more than hard ones (the amp-style tremolo)." },
             { "mfDStages", "Phaser type only: the number of all-pass stages (2 to 12). More stages = more notches and a deeper, richer sweep; 4 is the classic." },
             { "mfDEnv", "Phaser type only: how much your playing level pushes the sweep (it opens as you play harder)." },
             { "mfDLag", "Phaser type only: a small delay (0 to 10 ms) in the phaser path. It adds a flanger-like colour to the notches." },
             { "mfDNoise", "Lo-Fi warble type only: tape hiss." },
             { "mfDDrops", "Lo-Fi warble type only: dropouts, short drops in level like a worn tape." },
             { "mfDLevel", "Lo-Fi warble type only: the output level of the effect, to match the loudness of the dry signal." },
+            { "mfDChMode", "Chorus type only: the voicing. I and II are the classic modes (I + II is a fast, vibrato-like shimmer). Dimension, Tri-chorus, Ensemble and Detune are the wider, slower voicings. The two Small Clone entries are a single dark delay line (Depth switch low or high)." },
+            { "mfDFMode", "Filter (all modes) only: low-pass, high-pass, band-pass, notch, Formant (vowel shapes) or Resonator (tuned ringing)." },
+            { "mfDFMotion", "Filter (all modes) only: what moves the frequency: nothing (Manual), an LFO, your playing level (Envelope), or random steps. Depth sets how far; Rate the speed of the LFO and steps." },
+            { "mfDVowel", "Filter (all modes) in Formant mode: morphs A - E - I - O - U." },
+            { "mfDFlip", "Filter (all modes) only: flips the sweep direction (it was a negative Depth on the old Filter pedal)." },
+            { "mfDPick", "Tremolo type only: Pick Response. A harder pick squeezes the pulse shallower, so soft notes throb more than hard ones (the amp-style tremolo)." },
+            { "mfAShift", "How far every partial moves, in Hz (positive = up, negative = down; fine control near zero, up to 2 kHz either way). In the Shifted-feedback flanger it is the shift of each trip round the feedback loop; in the Frequency shifter it is the shift itself, or the carrier frequency in Ring mode. Rate and Depth swing it by up to two octaves." },
+            { "mfAFsMode", "Frequency shifter only. Shift (single sideband): every partial moves up or down by Shift Hz. Ring modulator: multiplies by a tone at the Shift frequency, giving sum and difference tones (bell-like, metallic). Spread: the left side is shifted up and the right side down (mono: both together)." },
+            { "mfAVocCar", "Vocoder only: the sound that gets shaped by the voice. Your guitar uses the plugin input as it is. Synth follows your pitch (a saw and a square one tracked from your playing, so play single notes). Noise is a whisper. Drone is a fixed chord-less buzz at the Drone note." },
+            { "mfAVocBands", "Vocoder only: how many frequency bands analyse and rebuild the sound. More bands = clearer words, fewer = a thicker, more robotic sound." },
+            { "mfAVocNote", "Vocoder with the Drone carrier: the pitch of the drone." },
+            { "mfAVocSib", "Vocoder only: adds hiss that follows the highest part of the voice, so s, t and f sounds come through." },
+            { "mfAVocResp", "Vocoder only: how fast the bands react. Low = smooth and blurry, high = crisp and percussive." },
+            { "mfBShift", "How far every partial moves, in Hz (positive = up, negative = down; fine control near zero, up to 2 kHz either way). In the Shifted-feedback flanger it is the shift of each trip round the feedback loop; in the Frequency shifter it is the shift itself, or the carrier frequency in Ring mode. Rate and Depth swing it by up to two octaves." },
+            { "mfBFsMode", "Frequency shifter only. Shift (single sideband): every partial moves up or down by Shift Hz. Ring modulator: multiplies by a tone at the Shift frequency, giving sum and difference tones (bell-like, metallic). Spread: the left side is shifted up and the right side down (mono: both together)." },
+            { "mfBVocCar", "Vocoder only: the sound that gets shaped by the voice. Your guitar uses the plugin input as it is. Synth follows your pitch (a saw and a square one tracked from your playing, so play single notes). Noise is a whisper. Drone is a fixed chord-less buzz at the Drone note." },
+            { "mfBVocBands", "Vocoder only: how many frequency bands analyse and rebuild the sound. More bands = clearer words, fewer = a thicker, more robotic sound." },
+            { "mfBVocNote", "Vocoder with the Drone carrier: the pitch of the drone." },
+            { "mfBVocSib", "Vocoder only: adds hiss that follows the highest part of the voice, so s, t and f sounds come through." },
+            { "mfBVocResp", "Vocoder only: how fast the bands react. Low = smooth and blurry, high = crisp and percussive." },
+            { "mfCShift", "How far every partial moves, in Hz (positive = up, negative = down; fine control near zero, up to 2 kHz either way). In the Shifted-feedback flanger it is the shift of each trip round the feedback loop; in the Frequency shifter it is the shift itself, or the carrier frequency in Ring mode. Rate and Depth swing it by up to two octaves." },
+            { "mfCFsMode", "Frequency shifter only. Shift (single sideband): every partial moves up or down by Shift Hz. Ring modulator: multiplies by a tone at the Shift frequency, giving sum and difference tones (bell-like, metallic). Spread: the left side is shifted up and the right side down (mono: both together)." },
+            { "mfCVocCar", "Vocoder only: the sound that gets shaped by the voice. Your guitar uses the plugin input as it is. Synth follows your pitch (a saw and a square one tracked from your playing, so play single notes). Noise is a whisper. Drone is a fixed chord-less buzz at the Drone note." },
+            { "mfCVocBands", "Vocoder only: how many frequency bands analyse and rebuild the sound. More bands = clearer words, fewer = a thicker, more robotic sound." },
+            { "mfCVocNote", "Vocoder with the Drone carrier: the pitch of the drone." },
+            { "mfCVocSib", "Vocoder only: adds hiss that follows the highest part of the voice, so s, t and f sounds come through." },
+            { "mfCVocResp", "Vocoder only: how fast the bands react. Low = smooth and blurry, high = crisp and percussive." },
+            { "mfDShift", "How far every partial moves, in Hz (positive = up, negative = down; fine control near zero, up to 2 kHz either way). In the Shifted-feedback flanger it is the shift of each trip round the feedback loop; in the Frequency shifter it is the shift itself, or the carrier frequency in Ring mode. Rate and Depth swing it by up to two octaves." },
+            { "mfDFsMode", "Frequency shifter only. Shift (single sideband): every partial moves up or down by Shift Hz. Ring modulator: multiplies by a tone at the Shift frequency, giving sum and difference tones (bell-like, metallic). Spread: the left side is shifted up and the right side down (mono: both together)." },
+            { "mfDVocCar", "Vocoder only: the sound that gets shaped by the voice. Your guitar uses the plugin input as it is. Synth follows your pitch (a saw and a square one tracked from your playing, so play single notes). Noise is a whisper. Drone is a fixed chord-less buzz at the Drone note." },
+            { "mfDVocBands", "Vocoder only: how many frequency bands analyse and rebuild the sound. More bands = clearer words, fewer = a thicker, more robotic sound." },
+            { "mfDVocNote", "Vocoder with the Drone carrier: the pitch of the drone." },
+            { "mfDVocSib", "Vocoder only: adds hiss that follows the highest part of the voice, so s, t and f sounds come through." },
+            { "mfDVocResp", "Vocoder only: how fast the bands react. Low = smooth and blurry, high = crisp and percussive." },
+            { "mfALoVoice", "Lo-Fi warble only. Warble is the original crushed, wobbly pedal. Cassette is a worn tape deck: soft tape saturation instead of bit crushing, a low head bump, a steeper top roll-off, more fast flutter and steady hiss without crackle." },
+            { "mfBLoVoice", "Lo-Fi warble only. Warble is the original crushed, wobbly pedal. Cassette is a worn tape deck: soft tape saturation instead of bit crushing, a low head bump, a steeper top roll-off, more fast flutter and steady hiss without crackle." },
+            { "mfCLoVoice", "Lo-Fi warble only. Warble is the original crushed, wobbly pedal. Cassette is a worn tape deck: soft tape saturation instead of bit crushing, a low head bump, a steeper top roll-off, more fast flutter and steady hiss without crackle." },
+            { "mfDLoVoice", "Lo-Fi warble only. Warble is the original crushed, wobbly pedal. Cassette is a worn tape deck: soft tape saturation instead of bit crushing, a low head bump, a steeper top roll-off, more fast flutter and steady hiss without crackle." },
+            { "mfAPhVoice", "Phaser only. Four-stage JFET is the classic orange-box sweep (the JFET all-pass chain, Manual sets the centre). Small Stone is four non-inverting OTA all-pass stages swept around 700 Hz (Manual is ignored; Rate, Depth, Mix and Envelope work as usual): a softer, rounder sweep. Small Stone, Color on adds the Color switch's feedback, which puts resonant peaks between the notches. Uni-Vibe is four all-pass stages with different capacitors (15 nF, 220 nF, 470 pF, 4.7 nF) swept by one lamp, so they do not move in lockstep: Mix 0.5 is Chorus, Mix 1 is Vibrato; Depth is the Intensity knob and the lamp lags a little behind the LFO (Manual and Feedback are ignored)." },
+            { "mfBPhVoice", "Phaser only. Four-stage JFET is the classic orange-box sweep (the JFET all-pass chain, Manual sets the centre). Small Stone is four non-inverting OTA all-pass stages swept around 700 Hz (Manual is ignored; Rate, Depth, Mix and Envelope work as usual): a softer, rounder sweep. Small Stone, Color on adds the Color switch's feedback, which puts resonant peaks between the notches. Uni-Vibe is four all-pass stages with different capacitors (15 nF, 220 nF, 470 pF, 4.7 nF) swept by one lamp, so they do not move in lockstep: Mix 0.5 is Chorus, Mix 1 is Vibrato; Depth is the Intensity knob and the lamp lags a little behind the LFO (Manual and Feedback are ignored)." },
+            { "mfCPhVoice", "Phaser only. Four-stage JFET is the classic orange-box sweep (the JFET all-pass chain, Manual sets the centre). Small Stone is four non-inverting OTA all-pass stages swept around 700 Hz (Manual is ignored; Rate, Depth, Mix and Envelope work as usual): a softer, rounder sweep. Small Stone, Color on adds the Color switch's feedback, which puts resonant peaks between the notches. Uni-Vibe is four all-pass stages with different capacitors (15 nF, 220 nF, 470 pF, 4.7 nF) swept by one lamp, so they do not move in lockstep: Mix 0.5 is Chorus, Mix 1 is Vibrato; Depth is the Intensity knob and the lamp lags a little behind the LFO (Manual and Feedback are ignored)." },
+            { "mfDPhVoice", "Phaser only. Four-stage JFET is the classic orange-box sweep (the JFET all-pass chain, Manual sets the centre). Small Stone is four non-inverting OTA all-pass stages swept around 700 Hz (Manual is ignored; Rate, Depth, Mix and Envelope work as usual): a softer, rounder sweep. Small Stone, Color on adds the Color switch's feedback, which puts resonant peaks between the notches. Uni-Vibe is four all-pass stages with different capacitors (15 nF, 220 nF, 470 pF, 4.7 nF) swept by one lamp, so they do not move in lockstep: Mix 0.5 is Chorus, Mix 1 is Vibrato; Depth is the Intensity knob and the lamp lags a little behind the LFO (Manual and Feedback are ignored)." },
             { "mfAOn", "Switches Mod FX A on." },
-            { "mfAType", "The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono), Harmonic tremolo (lows and highs pulse in opposite directions), Tremolo, Shifted-feedback flanger, Pitch modulation (a pitch-shifted voice swung by the LFO) Stutter (rhythmic, tempo-synced repeats), Chorus (a bucket-brigade chorus; Manual picks the mode), Phaser (four stages; Manual is the centre frequency) Lo-Fi warble (tape / cassette wobble and dirt), the filter sweeps (low-pass, band-pass, notch, vowel), Auto-wah (a band-pass that follows your playing) or the Slicer (a step gate). Tremolo and Wobble also have their own blocks (Scapes page) and can sit anywhere on the Order board." },
+            { "mfAType", "The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono), Harmonic tremolo (lows and highs pulse in opposite directions), Wobble (a loosely held tremolo-arm vibrato), Tremolo (with Bias and Pick Response), Shifted-feedback flanger, Pitch modulation (a pitch-shifted voice swung by the LFO), Stutter (rhythmic, tempo-synced repeats), Chorus (a bucket-brigade chorus; the Mode menu picks the voicing), Phaser (Manual is the centre frequency), Lo-Fi warble (tape / cassette wobble and dirt), the filter sweeps (low-pass, band-pass, notch, vowel), Auto-wah (a band-pass that follows your playing), the Slicer (a step gate) or Filter (all modes): the whole old Filter pedal, the Frequency shifter / ring mod (every partial moves by the same Hz) or the Vocoder (a voice or your playing shapes a synth, noise or drone). The old stand-alone Chorus, Phaser, Lo-Fi and Filter pedals are these types now." },
             { "mfAPos", "Before the amp: the effect hits the amp's input (and its gain). After the cab: it is applied to the finished sound, in stereo." },
-            { "mfAShape", "The LFO wave: Sine, Triangle, Soft square, Ramp up, Ramp down, Square or a slow wandering Random. Ramps and random make odd, tape-like or warped-record movement." },
-            { "mfAFidelity", "1 is clean. Lower rolls off the lows and highs and adds a little saturation, like a worn tape or cassette. Chorus: lower adds hiss. (The Lo-Fi warble has its own Noise and Dropouts knobs.)" },
-            { "mfARate", "How fast the effect moves, in Hz (used when Note is Free). For the Rotary this is the horn speed: about 0.8 Hz is slow, 6.7 Hz is fast; the drum follows more slowly, like the real thing." },
+            { "mfAShape", "The LFO wave: Sine, Triangle, Soft square, Ramp up, Ramp down, Square or a slow wandering Random. Ramps and random make odd, tape-like or warped-record movement. Optical and Bias are for the Tremolo type (Optical elsewhere acts as Random). The Phaser and Lo-Fi use all of them; the Filter (all modes) has its own Motion menu." },
+            { "mfAFidelity", "1 is clean. Lower rolls off the lows and highs and adds a little saturation, like a worn tape or cassette. Chorus: lower adds hiss (0 = the old Hiss at full). (The Lo-Fi warble has its own Noise and Dropouts knobs.)" },
+            { "mfARate", "How fast the effect moves, in Hz (used when Note is Free). For the Rotary this is the horn speed: about 0.8 Hz is slow, 6.7 Hz is fast; the drum follows more slowly, like the real thing. Chorus: the speed relative to the mode's own (1 = as built)." },
             { "mfANote", "Free uses the Rate knob. A note value locks the speed to the tempo (one note length per cycle)." },
             { "mfADepth", "How far the effect sweeps." },
-            { "mfAFeedback", "Flangers: positive rings, negative sounds hollow. Phaser: resonance. Lo-Fi warble: the dirt (either sign). Other types ignore it." },
-            { "mfAManual", "Flangers: the centre delay time (0.3 to 7.8 ms): low = bright and jet-like, high = deep and slow. Rotary: the balance between horn (high) and drum (low). Pitch modulation: the interval in semitones (centre = unison). Stutter: the number of repeats (1 to 8). Chorus: the mode (I, II, I + II, Dimension, Tri-chorus, Ensemble, Detune). Phaser: the centre frequency (100 Hz to 2.4 kHz). Lo-Fi warble: the random drift. Other types ignore it." },
-            { "mfATone", "Rolls off the top end of the effect (not the dry signal)." },
+            { "mfAFeedback", "Flangers: positive rings, negative sounds hollow. Phaser: resonance. Lo-Fi warble: the dirt (either sign). Filters: the resonance (either sign). Frequency shifter: shifted repeats (either sign). Vocoder: sharpness of the bands. Other types ignore it." },
+            { "mfAManual", "Flangers: the centre delay time (0.3 to 7.8 ms): low = bright and jet-like, high = deep and slow. Rotary: the balance between horn (high) and drum (low). Pitch modulation: the interval in semitones (centre = unison). Stutter: the number of repeats (1 to 8). Phaser: the centre frequency (80 Hz to 3 kHz). Lo-Fi warble: the random drift. Filters: the cutoff (40 Hz to 12 kHz); in Formant mode it shifts the vowel, in Resonator mode it is the pitch; the Vowel sweep type uses it as the vowel. Slicer: the pattern. Frequency shifter: the delay of the shifted repeats (1 to 120 ms). Vocoder: formant shift, one octave either way. Other types ignore it." },
+            { "mfATone", "Rolls off the top end of the effect (not the dry signal). Vocoder: the top of the frequency range it analyses." },
             { "mfAMix", "Dry to wet. Vibrato and Uni-V sound like a pure vibrato at 100%; lower values blend in the dry signal for a flanger/chorus-like character." },
             { "mfBOn", "Switches Mod FX B on." },
-            { "mfBType", "The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono), Harmonic tremolo (lows and highs pulse in opposite directions), Tremolo, Shifted-feedback flanger, Pitch modulation (a pitch-shifted voice swung by the LFO) Stutter (rhythmic, tempo-synced repeats), Chorus (a bucket-brigade chorus; Manual picks the mode), Phaser (four stages; Manual is the centre frequency) Lo-Fi warble (tape / cassette wobble and dirt), the filter sweeps (low-pass, band-pass, notch, vowel), Auto-wah (a band-pass that follows your playing) or the Slicer (a step gate)." },
+            { "mfBType", "The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono), Harmonic tremolo (lows and highs pulse in opposite directions), Wobble (a loosely held tremolo-arm vibrato), Tremolo (with Bias and Pick Response), Shifted-feedback flanger, Pitch modulation (a pitch-shifted voice swung by the LFO), Stutter (rhythmic, tempo-synced repeats), Chorus (a bucket-brigade chorus; the Mode menu picks the voicing), Phaser (Manual is the centre frequency), Lo-Fi warble (tape / cassette wobble and dirt), the filter sweeps (low-pass, band-pass, notch, vowel), Auto-wah (a band-pass that follows your playing), the Slicer (a step gate) or Filter (all modes): the whole old Filter pedal, the Frequency shifter / ring mod (every partial moves by the same Hz) or the Vocoder (a voice or your playing shapes a synth, noise or drone). The old stand-alone Chorus, Phaser, Lo-Fi and Filter pedals are these types now." },
             { "mfBPos", "Before the amp: the effect hits the amp's input (and its gain). After the cab: it is applied to the finished sound, in stereo." },
-            { "mfBShape", "The LFO wave: Sine, Triangle, Soft square, Ramp up, Ramp down, Square or a slow wandering Random. Ramps and random make odd, tape-like or warped-record movement." },
-            { "mfBFidelity", "1 is clean. Lower rolls off the lows and highs and adds a little saturation, like a worn tape or cassette. Chorus: lower adds hiss. (The Lo-Fi warble has its own Noise and Dropouts knobs.)" },
-            { "mfBRate", "How fast the effect moves, in Hz (used when Note is Free). For the Rotary this is the horn speed: about 0.8 Hz is slow, 6.7 Hz is fast; the drum follows more slowly, like the real thing." },
+            { "mfBShape", "The LFO wave: Sine, Triangle, Soft square, Ramp up, Ramp down, Square or a slow wandering Random. Ramps and random make odd, tape-like or warped-record movement. Optical and Bias are for the Tremolo type (Optical elsewhere acts as Random). The Phaser and Lo-Fi use all of them; the Filter (all modes) has its own Motion menu." },
+            { "mfBFidelity", "1 is clean. Lower rolls off the lows and highs and adds a little saturation, like a worn tape or cassette. Chorus: lower adds hiss (0 = the old Hiss at full). (The Lo-Fi warble has its own Noise and Dropouts knobs.)" },
+            { "mfBRate", "How fast the effect moves, in Hz (used when Note is Free). For the Rotary this is the horn speed: about 0.8 Hz is slow, 6.7 Hz is fast; the drum follows more slowly, like the real thing. Chorus: the speed relative to the mode's own (1 = as built)." },
             { "mfBNote", "Free uses the Rate knob. A note value locks the speed to the tempo (one note length per cycle)." },
             { "mfBDepth", "How far the effect sweeps." },
-            { "mfBFeedback", "Flangers: positive rings, negative sounds hollow. Phaser: resonance. Lo-Fi warble: the dirt (either sign). Other types ignore it." },
-            { "mfBManual", "Flangers: the centre delay time (0.3 to 7.8 ms): low = bright and jet-like, high = deep and slow. Rotary: the balance between horn (high) and drum (low). Pitch modulation: the interval in semitones (centre = unison). Stutter: the number of repeats (1 to 8). Chorus: the mode (I, II, I + II, Dimension, Tri-chorus, Ensemble, Detune). Phaser: the centre frequency (100 Hz to 2.4 kHz). Lo-Fi warble: the random drift. Other types ignore it." },
-            { "mfBTone", "Rolls off the top end of the effect (not the dry signal)." },
+            { "mfBFeedback", "Flangers: positive rings, negative sounds hollow. Phaser: resonance. Lo-Fi warble: the dirt (either sign). Filters: the resonance (either sign). Frequency shifter: shifted repeats (either sign). Vocoder: sharpness of the bands. Other types ignore it." },
+            { "mfBManual", "Flangers: the centre delay time (0.3 to 7.8 ms): low = bright and jet-like, high = deep and slow. Rotary: the balance between horn (high) and drum (low). Pitch modulation: the interval in semitones (centre = unison). Stutter: the number of repeats (1 to 8). Phaser: the centre frequency (80 Hz to 3 kHz). Lo-Fi warble: the random drift. Filters: the cutoff (40 Hz to 12 kHz); in Formant mode it shifts the vowel, in Resonator mode it is the pitch; the Vowel sweep type uses it as the vowel. Slicer: the pattern. Frequency shifter: the delay of the shifted repeats (1 to 120 ms). Vocoder: formant shift, one octave either way. Other types ignore it." },
+            { "mfBTone", "Rolls off the top end of the effect (not the dry signal). Vocoder: the top of the frequency range it analyses." },
             { "mfBMix", "Dry to wet. Vibrato and Uni-V sound like a pure vibrato at 100%; lower values blend in the dry signal for a flanger/chorus-like character." },
             { "mfCOn", "Switches Mod FX C on." },
-            { "mfCType", "The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono), Harmonic tremolo (lows and highs pulse in opposite directions), Tremolo, Shifted-feedback flanger, Pitch modulation (a pitch-shifted voice swung by the LFO) Stutter (rhythmic, tempo-synced repeats), Chorus (a bucket-brigade chorus; Manual picks the mode), Phaser (four stages; Manual is the centre frequency) Lo-Fi warble (tape / cassette wobble and dirt), the filter sweeps (low-pass, band-pass, notch, vowel), Auto-wah (a band-pass that follows your playing) or the Slicer (a step gate)." },
+            { "mfCType", "The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono), Harmonic tremolo (lows and highs pulse in opposite directions), Wobble (a loosely held tremolo-arm vibrato), Tremolo (with Bias and Pick Response), Shifted-feedback flanger, Pitch modulation (a pitch-shifted voice swung by the LFO), Stutter (rhythmic, tempo-synced repeats), Chorus (a bucket-brigade chorus; the Mode menu picks the voicing), Phaser (Manual is the centre frequency), Lo-Fi warble (tape / cassette wobble and dirt), the filter sweeps (low-pass, band-pass, notch, vowel), Auto-wah (a band-pass that follows your playing), the Slicer (a step gate) or Filter (all modes): the whole old Filter pedal, the Frequency shifter / ring mod (every partial moves by the same Hz) or the Vocoder (a voice or your playing shapes a synth, noise or drone). The old stand-alone Chorus, Phaser, Lo-Fi and Filter pedals are these types now." },
             { "mfCPos", "Before the amp: the effect hits the amp's input (and its gain). After the cab: it is applied to the finished sound, in stereo." },
-            { "mfCShape", "The LFO wave: Sine, Triangle, Soft square, Ramp up, Ramp down, Square or a slow wandering Random. Ramps and random make odd, tape-like or warped-record movement." },
-            { "mfCFidelity", "1 is clean. Lower rolls off the lows and highs and adds a little saturation, like a worn tape or cassette. Chorus: lower adds hiss. (The Lo-Fi warble has its own Noise and Dropouts knobs.)" },
-            { "mfCRate", "How fast the effect moves, in Hz (used when Note is Free). For the Rotary this is the horn speed: about 0.8 Hz is slow, 6.7 Hz is fast; the drum follows more slowly, like the real thing." },
+            { "mfCShape", "The LFO wave: Sine, Triangle, Soft square, Ramp up, Ramp down, Square or a slow wandering Random. Ramps and random make odd, tape-like or warped-record movement. Optical and Bias are for the Tremolo type (Optical elsewhere acts as Random). The Phaser and Lo-Fi use all of them; the Filter (all modes) has its own Motion menu." },
+            { "mfCFidelity", "1 is clean. Lower rolls off the lows and highs and adds a little saturation, like a worn tape or cassette. Chorus: lower adds hiss (0 = the old Hiss at full). (The Lo-Fi warble has its own Noise and Dropouts knobs.)" },
+            { "mfCRate", "How fast the effect moves, in Hz (used when Note is Free). For the Rotary this is the horn speed: about 0.8 Hz is slow, 6.7 Hz is fast; the drum follows more slowly, like the real thing. Chorus: the speed relative to the mode's own (1 = as built)." },
             { "mfCNote", "Free uses the Rate knob. A note value locks the speed to the tempo (one note length per cycle)." },
             { "mfCDepth", "How far the effect sweeps." },
-            { "mfCFeedback", "Flangers: positive rings, negative sounds hollow. Phaser: resonance. Lo-Fi warble: the dirt (either sign). Other types ignore it." },
-            { "mfCManual", "Flangers: the centre delay time (0.3 to 7.8 ms): low = bright and jet-like, high = deep and slow. Rotary: the balance between horn (high) and drum (low). Pitch modulation: the interval in semitones (centre = unison). Stutter: the number of repeats (1 to 8). Chorus: the mode (I, II, I + II, Dimension, Tri-chorus, Ensemble, Detune). Phaser: the centre frequency (100 Hz to 2.4 kHz). Lo-Fi warble: the random drift. Other types ignore it." },
-            { "mfCTone", "Rolls off the top end of the effect (not the dry signal)." },
+            { "mfCFeedback", "Flangers: positive rings, negative sounds hollow. Phaser: resonance. Lo-Fi warble: the dirt (either sign). Filters: the resonance (either sign). Frequency shifter: shifted repeats (either sign). Vocoder: sharpness of the bands. Other types ignore it." },
+            { "mfCManual", "Flangers: the centre delay time (0.3 to 7.8 ms): low = bright and jet-like, high = deep and slow. Rotary: the balance between horn (high) and drum (low). Pitch modulation: the interval in semitones (centre = unison). Stutter: the number of repeats (1 to 8). Phaser: the centre frequency (80 Hz to 3 kHz). Lo-Fi warble: the random drift. Filters: the cutoff (40 Hz to 12 kHz); in Formant mode it shifts the vowel, in Resonator mode it is the pitch; the Vowel sweep type uses it as the vowel. Slicer: the pattern. Frequency shifter: the delay of the shifted repeats (1 to 120 ms). Vocoder: formant shift, one octave either way. Other types ignore it." },
+            { "mfCTone", "Rolls off the top end of the effect (not the dry signal). Vocoder: the top of the frequency range it analyses." },
             { "mfCMix", "Dry to wet. Vibrato and Uni-V sound like a pure vibrato at 100%; lower values blend in the dry signal for a flanger/chorus-like character." },
             { "mfDOn", "Switches Mod FX D on." },
-            { "mfDType", "The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono), Harmonic tremolo (lows and highs pulse in opposite directions), Tremolo, Shifted-feedback flanger, Pitch modulation (a pitch-shifted voice swung by the LFO) Stutter (rhythmic, tempo-synced repeats), Chorus (a bucket-brigade chorus; Manual picks the mode), Phaser (four stages; Manual is the centre frequency) Lo-Fi warble (tape / cassette wobble and dirt), the filter sweeps (low-pass, band-pass, notch, vowel), Auto-wah (a band-pass that follows your playing) or the Slicer (a step gate)." },
+            { "mfDType", "The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono), Harmonic tremolo (lows and highs pulse in opposite directions), Wobble (a loosely held tremolo-arm vibrato), Tremolo (with Bias and Pick Response), Shifted-feedback flanger, Pitch modulation (a pitch-shifted voice swung by the LFO), Stutter (rhythmic, tempo-synced repeats), Chorus (a bucket-brigade chorus; the Mode menu picks the voicing), Phaser (Manual is the centre frequency), Lo-Fi warble (tape / cassette wobble and dirt), the filter sweeps (low-pass, band-pass, notch, vowel), Auto-wah (a band-pass that follows your playing), the Slicer (a step gate) or Filter (all modes): the whole old Filter pedal, the Frequency shifter / ring mod (every partial moves by the same Hz) or the Vocoder (a voice or your playing shapes a synth, noise or drone). The old stand-alone Chorus, Phaser, Lo-Fi and Filter pedals are these types now." },
             { "mfDPos", "Before the amp: the effect hits the amp's input (and its gain). After the cab: it is applied to the finished sound, in stereo." },
-            { "mfDShape", "The LFO wave: Sine, Triangle, Soft square, Ramp up, Ramp down, Square or a slow wandering Random. Ramps and random make odd, tape-like or warped-record movement." },
-            { "mfDFidelity", "1 is clean. Lower rolls off the lows and highs and adds a little saturation, like a worn tape or cassette. Chorus: lower adds hiss. (The Lo-Fi warble has its own Noise and Dropouts knobs.)" },
-            { "mfDRate", "How fast the effect moves, in Hz (used when Note is Free). For the Rotary this is the horn speed: about 0.8 Hz is slow, 6.7 Hz is fast; the drum follows more slowly, like the real thing." },
+            { "mfDShape", "The LFO wave: Sine, Triangle, Soft square, Ramp up, Ramp down, Square or a slow wandering Random. Ramps and random make odd, tape-like or warped-record movement. Optical and Bias are for the Tremolo type (Optical elsewhere acts as Random). The Phaser and Lo-Fi use all of them; the Filter (all modes) has its own Motion menu." },
+            { "mfDFidelity", "1 is clean. Lower rolls off the lows and highs and adds a little saturation, like a worn tape or cassette. Chorus: lower adds hiss (0 = the old Hiss at full). (The Lo-Fi warble has its own Noise and Dropouts knobs.)" },
+            { "mfDRate", "How fast the effect moves, in Hz (used when Note is Free). For the Rotary this is the horn speed: about 0.8 Hz is slow, 6.7 Hz is fast; the drum follows more slowly, like the real thing. Chorus: the speed relative to the mode's own (1 = as built)." },
             { "mfDNote", "Free uses the Rate knob. A note value locks the speed to the tempo (one note length per cycle)." },
             { "mfDDepth", "How far the effect sweeps." },
-            { "mfDFeedback", "Flangers: positive rings, negative sounds hollow. Phaser: resonance. Lo-Fi warble: the dirt (either sign). Other types ignore it." },
-            { "mfDManual", "Flangers: the centre delay time (0.3 to 7.8 ms): low = bright and jet-like, high = deep and slow. Rotary: the balance between horn (high) and drum (low). Pitch modulation: the interval in semitones (centre = unison). Stutter: the number of repeats (1 to 8). Chorus: the mode (I, II, I + II, Dimension, Tri-chorus, Ensemble, Detune). Phaser: the centre frequency (100 Hz to 2.4 kHz). Lo-Fi warble: the random drift. Other types ignore it." },
-            { "mfDTone", "Rolls off the top end of the effect (not the dry signal)." },
+            { "mfDFeedback", "Flangers: positive rings, negative sounds hollow. Phaser: resonance. Lo-Fi warble: the dirt (either sign). Filters: the resonance (either sign). Frequency shifter: shifted repeats (either sign). Vocoder: sharpness of the bands. Other types ignore it." },
+            { "mfDManual", "Flangers: the centre delay time (0.3 to 7.8 ms): low = bright and jet-like, high = deep and slow. Rotary: the balance between horn (high) and drum (low). Pitch modulation: the interval in semitones (centre = unison). Stutter: the number of repeats (1 to 8). Phaser: the centre frequency (80 Hz to 3 kHz). Lo-Fi warble: the random drift. Filters: the cutoff (40 Hz to 12 kHz); in Formant mode it shifts the vowel, in Resonator mode it is the pitch; the Vowel sweep type uses it as the vowel. Slicer: the pattern. Frequency shifter: the delay of the shifted repeats (1 to 120 ms). Vocoder: formant shift, one octave either way. Other types ignore it." },
+            { "mfDTone", "Rolls off the top end of the effect (not the dry signal). Vocoder: the top of the frequency range it analyses." },
             { "mfDMix", "Dry to wet. Vibrato and Uni-V sound like a pure vibrato at 100%; lower values blend in the dry signal for a flanger/chorus-like character." },
             { "postDelayStyle", "Forward: normal repeats. Reverse: each repeat is played backwards, swelling up to the delay time. Combine it with Ping-Pong in the menu above for reversed echoes bouncing between the sides. (Warble is ignored in Reverse.)" },
             { "preDelayDuck", "Ducking: the repeats of Delay 1 dip while you play and swell back when you stop, so they stay out of the way of your notes. 0 = off." },
@@ -298,6 +379,18 @@ namespace
             { "preDelayHoldMode", "Freeze: the delay loops what it holds and ignores new playing. Infinite: the repeats never die away, and new playing keeps adding to them." },
             { "preDelayTaps", "Multi-tap: extra repeats at fractions of the delay time, ahead of the main repeat. The main repeat and the feedback stay at the full time. Not available as a separate sound in Reverse." },
             { "preDelayTapLevel", "How loud the extra taps are. Needs a Multi-Tap pattern." },
+            { "preDelaySat", "Saturation of the sound going into the delay, on every pass round the loop, so each repeat is a little more driven than the last. Pick the flavour with the menu. 0 = none beyond what the mode already does." },
+            { "preDelayGroove", "Swing: the odd repeats land late and the even ones stay on the grid, like a shuffled feel. 0 = straight. Not available in Reverse." },
+            { "preDelayFeel", "Pushes the whole run of repeats early (rush, below 0) or late (drag, above 0) by up to a quarter of the delay time, without changing the feedback. Not available in Reverse." },
+            { "preDelayAccent", "Plays the repeats at alternating levels. Above 0 the on-beat repeats stand out over the swung ones; below 0 the other way round. Works with Groove, or on its own. In Ping-Pong it favours one side." },
+            { "preDelayEqLow", "Echo EQ: boosts or cuts the bass of the repeats (shelf at 200 Hz)." },
+            { "preDelayEqMid", "Echo EQ: boosts or cuts the middle of the repeats, at the Mid Freq." },
+            { "preDelayEqMidHz", "The centre of the middle band of the echo EQ." },
+            { "preDelayEqHigh", "Echo EQ: boosts or cuts the treble of the repeats (shelf at 4 kHz)." },
+            { "preDelayEqDecay", "How the echo EQ builds up. Low: every repeat gets the same EQ. High: the EQ is applied again on every repeat, so the repeats get steadily darker (or thinner, or brighter) as they fade, like worn tape." },
+            { "preDelayPitch", "Pitch-shifts the repeats: every time a repeat goes round the loop it is moved by this many semitones, so the echoes climb (or fall) in steps: +12 gives repeats an octave higher each time, +7 a rising fifth. The first repeat is not shifted. The loop's tone filter keeps climbing repeats from running away, but keep Feedback moderate. 0 = off. Delay times under about 60 ms are only partly corrected for the shifter's own delay." },
+            { "preDelayPitchFine", "A fine pitch amount for the repeats in cents (100 cents = a semitone), on top of Repeat Pitch. Small amounts give a detuned, chorused wash." },
+            { "preDelayPitchMix", "How much of each repeat that goes round the loop is shifted. 1 = all of it, so every repeat is further from the original. Lower: the repeats also keep coming round unshifted, so you hear the original echo plus a shifted ghost." },
             { "postDelayDuck", "Ducking: the repeats of Delay 2 dip while you play and swell back when you stop, so they stay out of the way of your notes. 0 = off." },
             { "postDelayDuckRel", "How quickly the repeats come back after you stop playing (the ducking release)." },
             { "postDelayModDepth", "Slowly wobbles the delay time, so the repeats shimmer and drift like a chorus. 0 = off." },
@@ -307,6 +400,18 @@ namespace
             { "postDelayHoldMode", "Freeze: the delay loops what it holds and ignores new playing. Infinite: the repeats never die away, and new playing keeps adding to them." },
             { "postDelayTaps", "Multi-tap: extra repeats at fractions of the delay time, ahead of the main repeat. The main repeat and the feedback stay at the full time. Not available as a separate sound in Reverse." },
             { "postDelayTapLevel", "How loud the extra taps are. Needs a Multi-Tap pattern." },
+            { "postDelaySat", "Saturation of the sound going into the delay, on every pass round the loop, so each repeat is a little more driven than the last. Pick the flavour with the menu. 0 = none beyond what the mode already does." },
+            { "postDelayGroove", "Swing: the odd repeats land late and the even ones stay on the grid, like a shuffled feel. 0 = straight. Not available in Reverse." },
+            { "postDelayFeel", "Pushes the whole run of repeats early (rush, below 0) or late (drag, above 0) by up to a quarter of the delay time, without changing the feedback. Not available in Reverse." },
+            { "postDelayAccent", "Plays the repeats at alternating levels. Above 0 the on-beat repeats stand out over the swung ones; below 0 the other way round. Works with Groove, or on its own. In Ping-Pong it favours one side." },
+            { "postDelayEqLow", "Echo EQ: boosts or cuts the bass of the repeats (shelf at 200 Hz)." },
+            { "postDelayEqMid", "Echo EQ: boosts or cuts the middle of the repeats, at the Mid Freq." },
+            { "postDelayEqMidHz", "The centre of the middle band of the echo EQ." },
+            { "postDelayEqHigh", "Echo EQ: boosts or cuts the treble of the repeats (shelf at 4 kHz)." },
+            { "postDelayEqDecay", "How the echo EQ builds up. Low: every repeat gets the same EQ. High: the EQ is applied again on every repeat, so the repeats get steadily darker (or thinner, or brighter) as they fade, like worn tape." },
+            { "postDelayPitch", "Pitch-shifts the repeats: every time a repeat goes round the loop it is moved by this many semitones, so the echoes climb (or fall) in steps: +12 gives repeats an octave higher each time, +7 a rising fifth. The first repeat is not shifted. The loop's tone filter keeps climbing repeats from running away, but keep Feedback moderate. 0 = off. Delay times under about 60 ms are only partly corrected for the shifter's own delay." },
+            { "postDelayPitchFine", "A fine pitch amount for the repeats in cents (100 cents = a semitone), on top of Repeat Pitch. Small amounts give a detuned, chorused wash." },
+            { "postDelayPitchMix", "How much of each repeat that goes round the loop is shifted. 1 = all of it, so every repeat is further from the original. Lower: the repeats also keep coming round unshifted, so you hear the original echo plus a shifted ghost." },
             { "hmOn", "Switches the harmonizer on: two extra voices that follow the note you play. It adds a little delay (shown to your DAW)." },
             { "hmPos", "Before the amp: the harmony is mono and goes through the amp's gain with your playing. After the cab: the harmony is added to the finished sound, in stereo, with a pan for each voice." },
             { "hmMode", "Interval: each voice is a fixed number of semitones away. Scale: each voice is a number of steps up or down the scale you choose, so the harmony stays in key (it listens to the note you are playing)." },
@@ -338,7 +443,7 @@ namespace
             { "reverbDrive", "Spring type only: pushes the spring's driver. Low is clean; higher thins the lows and adds the soft, lopsided clip that makes a hit spring splash and drip. Off at 0." },
             { "reverbDrag", "Pulls the tail's pitch. In the middle (as voiced) nothing happens. Move it and the tail glides up (right) or down (left), by up to 2 octaves, then settles; turn it while the tail rings for the swirling pitch bends. The Steps menu rounds the destination to musical steps. Applies to every type except Classic." },
             { "reverbWDrive", "Dirties the send before it enters the reverb, so the whole tail is gritty (the dry sound is untouched). 0 = off." },
-            { "reverbWDriveType", "Soft: smooth clipping. Fold: the signal folds back on itself (glassy, metallic). Crush: coarse steps and a lowered sample rate." },
+            { "reverbWDriveType", "Soft: smooth clipping. Fold: the signal folds back on itself (glassy, metallic). Crush: coarse steps and a lowered sample rate. The rest of the list is the shared saturation curves (the Multiband Saturator's)." },
             { "reverbDuckRel", "How quickly the reverb comes back after you stop playing, in ms (Duck sets how far it is turned down while you play)." },
             { "reverbFocus", "The pitch Purity narrows the tail towards, in Hz." },
             { "reverbPurity", "Narrows the reverb tail towards the Focus frequency, so it rings as a single tone. 0 = off. It thins the tail a lot at high settings." },
@@ -441,14 +546,14 @@ namespace
             { "cabMotionRate", "How fast the Motion changes: low is a slow drift, high is livelier." },
             { "cabDynMode", "Tight (modern): quick and controlled. Vintage (spongy): slower, softer and more compressed." },
             { "ampQuality", "Oversampling for the amp's distortion. Best (4x) sounds smoothest but uses the most CPU and adds the most delay. Balanced (2x) is about half the CPU. Lowest latency has no added delay and the least CPU, but high-gain settings can sound slightly fizzier." },
-            { "ampVoicing", "The amp's voicing, with four positions per amp (the fourth was added in v63: Clean Studio, Chime Thirty Jangle, Hot-Rod Mid push, Slow Burn Sustain, Modern Maul Chunk, Club Crunch Bright, Bumble Lead Blues, 5555 Block Buzz, Tweedle Dee Gritty, Jade Chorus Shimmer, Marque Dream Singing, Citrus Doom Fuzz, Revved Up Polished, Digital Dread Lead, Master Cranker Boosted, Harmonic Haze Boost, Diesel Fuel Open, Wreck Stack Smooth, Power Brawl Bottom, Cutaway Brilliant, Hi-Wat Headroom Open, Console DI Air, Plex Appeal Modded + Jumped, Matt's Amp Mix, Marmalade Sharp, Eclipse Hi Pulled / Hi Pushed / Lo Pushed / Lo Pulled). Clean: Sparkly, Edge push (a small old amp turned up) or Boutique (fuller mids, more compression). Chime Thirty: Chime, Treble boost or Normal (a darker, rounder, thicker channel without the top boost). Hot-Rod: Tight, Heavy (deep but controlled lows, more gain, forward upper mids) or Brown (a thicker, saggier, mid-rich crunch). Slow Burn: Smooth, Lead or Crunch (a low-gain channel). Modern Maul: Scooped, Clarity or Vintage (spongy, looser, fatter lows). Club Crunch: Crunch, Pushed or Jumped (both channels linked: fatter, hotter, more sag). Bumble Lead: Jazz, Rock or Lead (the boosted lead mode). 5555 Block: Raw, Modern or Crunch (a low-gain rhythm channel). Tweedle Dee: Soft, Cranked or Four-ten (a 4x10-style voicing with more headroom and bigger lows). Jade Chorus: Glass, Warm or Funk (tight, percussive and scooped). Marque Dream: Rhythm, Lead or Vintage (an early-style sound with lower gain and thick creamy mids). Citrus Doom: Stoner, Wall or Bass stack (massive low mids, a cleaner top, a grind only when pushed). Revved Up: Tight (the main high-gain channel), Lead (more gain, mid hump, sustain) or Crunch (an open, lower-gain channel). Digital Dread: Thall (ultra-tight, scooped, hard clipping), Industrial (harsh, gritty, fizzy upper mids) or Cavern (huge, slow, dark, for drop tunings). Master Cranker: Stock (the classic 80s master-volume sound), Modded (an extra gain stage: tighter, smoother, more saturated) or Cranked (master wide open: loose, saggy, loud). Harmonic Haze: Lead, Crunch or Clean. Diesel Fuel: Lead, High gain or Crunch. Wreck Stack: Lead, Crunch or Clean. Power Brawl: Scooped lead, Mid-boosted lead or Crunch. Cutaway: Lead, Sludge or Clean. Plex Appeal: Stock (bright input, volumes up), Jumped (both inputs linked), Modded (cascade stage, smaller bright cap, diode clipper, softer feedback) or Modded + Jumped. Matt's Amp: Graphic (early 70s, dark and saggy), Heavy (bass-cut input, doomy), Bright (modern, more top) or Mix (its gain stages into a Marshall-style stack). Does nothing in Acoustic mode." },
-            { "ampTune", "Focus: tightens the low end and trims bass and gain so low-tuned guitars stay clear. Turn it up as your tuning gets lower (about 1 per semitone below E standard). Only the Slow Burn, Modern Maul, 5555 Block, Marque Dream, Revved Up and Digital Dread amps use it." },
+            { "ampVoicing", "The amp's voicing, with four positions per amp (Cedar Spring has a fifth, Boost; Slow Burn has Clean (the SLO-100's clean channel); Marque Dream has IV Lead, Citrus Doom has Model T, and Matt's Amp has Clean 100 and Tight Voice as fifth and sixth; the fourth was added in v63: Clean Studio, Chime Thirty Jangle, Hot-Rod Mid push, Slow Burn Sustain, Modern Maul Chunk, Club Crunch Bright, Bumble Lead Blues, 5555 Block Buzz, Tweedle Dee Gritty, Jade Chorus Shimmer, Marque Dream Singing, Citrus Doom Fuzz, Revved Up Polished, Digital Dread Bottom, Master Cranker Boosted, Harmonic Haze Boost, Diesel Fuel Open, Wreck Stack Smooth, Power Brawl Bottom, Stolen Fire Brilliant, Hi-Wat Headroom Open, Console DI Air, Plex Appeal Modded + Jumped, Matt's Amp Mix, Marmalade Sharp, Eclipse Hi Pulled / Hi Pushed / Lo Pushed / Lo Pulled). Clean: Sparkly, Edge push (a small old amp turned up) or Boutique (fuller mids, more compression). Chime Thirty: Chime, Treble boost or Normal (a darker, rounder, thicker channel without the top boost). Hot-Rod: Tight, Heavy (deep but controlled lows, more gain, forward upper mids) or Brown (a thicker, saggier, mid-rich crunch). Slow Burn: Smooth, Lead or Crunch (a low-gain channel). Modern Maul: Scooped, Clarity or Vintage (spongy, looser, fatter lows). Club Crunch: Crunch, Pushed or Jumped (both channels linked: fatter, hotter, more sag). Bumble Lead: Jazz, Rock or Lead (the boosted lead mode). 5555 Block: Raw, Modern or Crunch (a low-gain rhythm channel). Tweedle Dee: Soft, Cranked or Four-ten (a 4x10-style voicing with more headroom and bigger lows). Jade Chorus: Glass, Warm or Funk (tight, percussive and scooped). Marque Dream: Rhythm, Lead or Vintage (an early-style sound with lower gain and thick creamy mids). Citrus Doom: Stoner, Wall or Bass stack (massive low mids, a cleaner top, a grind only when pushed). Revved Up: Tight (the main high-gain channel), Lead (more gain, mid hump, sustain) or Crunch (an open, lower-gain channel). Digital Dread: Thall (very high gain, almost no sag, a deep cut around 350 Hz and an open top), Industrial (harsh, gritty, fizzy upper mids), Cavern (huge, slow, dark, for drop tunings) or Bottom (a tight, very low-pitched chug with a scooped 500 Hz and a lifted 2 kHz). Master Cranker: Stock (the classic 80s master-volume sound), Modded (an extra gain stage: tighter, smoother, more saturated) or Cranked (master wide open: loose, saggy, loud). Harmonic Haze: Lead, Crunch or Clean. Diesel Fuel: Lead, High gain or Crunch. Wreck Stack: Lead, Crunch or Clean. Power Brawl: Scooped lead, Mid-boosted lead or Crunch. Stolen Fire: Lead, Sludge or Clean. Plex Appeal: Stock (bright input, volumes up), Jumped (both inputs linked), Modded (cascade stage, smaller bright cap, diode clipper, softer feedback) or Modded + Jumped. Matt's Amp: Graphic (early 70s, dark and saggy), Heavy (bass-cut input, doomy), Bright (modern, more top) or Mix (its gain stages into a Marshall-style stack). Does nothing in Acoustic mode." },
+            { "ampTune", "Focus: tightens the low end and trims bass and gain so low-tuned guitars stay clear. Turn it up as your tuning gets lower (about 1 per semitone below E standard). Only the high-gain amps use it (Brown Eye, Slow Burn, Modern Maul, 5555 Block, Marque Dream, Citrus Doom, Revved Up, Digital Dread, Master Cranker, Harmonic Haze, Diesel Fuel, Wreck Stack, Power Brawl, Stolen Fire, Matt's Amp, Marmalade, Eclipse, Marque Five and Solid Metal)." },
             { "ampGain", "Amount of preamp gain for the chosen amp. Since v39 the top of the knob (above about 55%) adds extra gain on top of the old range, most on the high-gain amps, for heavier modern metal and djent saturation; the lower part is unchanged." },
             { "bass", "Bass control (dB), added to the amp's own voicing." },
             { "lowMid", "Low-mid control (dB), around 400-500 Hz." },
             { "highMid", "High-mid control (dB), around 1.2-2 kHz." },
             { "treble", "Treble control (dB)." },
-            { "presence", "Power-amp presence: adds treble after the clipping, like a real amp's presence knob." },
+            { "presence", "Power-amp presence: adds treble after the clipping, like a real amp's presence knob. On Chime Thirty and Dual Thirty this knob is Cut instead: a treble roll-off after the preamp, off at 0, as voiced at the default, and 8 dB darker at 1." },
             { "acBody", "The size and shape of the acoustic guitar body being imitated: Dreadnought, Jumbo (bigger, lower), Parlor / OM (smaller, more midrange) or Nylon classical (softer top)." },
             { "acBodyAmt", "How strongly the body resonances are applied. 0 = just the piezo signal." },
             { "acFix", "Corrects the pickup. Piezo: removes the nasal 'quack' (about 2.3 kHz) and glassy edge (about 4.8 kHz) and fills in the hollow low mids. Magnetic: cuts the boxy low mids, lifts the air above 3 kHz and brings back some pick attack. Electric: cuts the pickup peak (about 2.8 kHz) and the low-mid mud, and lifts the air above 4 kHz." },
@@ -461,7 +566,7 @@ namespace
             { "acRoom", "Short early reflections for a sense of room and stereo width." },
             { "acLevel", "Output level of the acoustic section (dB)." },
             { "cabOn", "Cab section on/off. Off = only the amp's own low-pass. (Not used in Acoustic mode.)" },
-            { "blk_cabCbn", "The cabinet shape used by this block's built-in model, in folders by speaker count: 1x (1x12, 1x10, 1x15, 1x8), 2x (2x12, 2x10), 4x (4x12 and 4x10) and Oversized ported cabs (deeper, tighter lows and cleaner low mids, for downtuned playing). Open backs lose bass; closed cabs add thump near 100 Hz." },
+            { "blk_cabCbn", "The cabinet shape used by this block's built-in model, in folders by speaker count: 1x (1x12, 1x10, 1x15, 1x8), 2x (2x12, 2x10), 4x (4x12 and 4x10) Oversized ported cabs (deeper, tighter lows and cleaner low mids, for downtuned playing) and No cabinet (the speaker alone: no box resonance and no cabinet low cut). Open backs lose bass; closed cabs add thump near 100 Hz." },
             { "cabRoom", "How much room is added to the built-in cab models. The type is chosen in the menu above." },
             { "cabRoomType", "Original: a short, dark ambience (as in earlier versions). Studio room, Large studio room and Living room are modelled from room-microphone recordings: a longer tail, more bass than treble, a dark top. Each has its own decay time." },
             { "cabMeasured", "On (default for new sessions): the mic position and distance controls follow what recordings show, which is a smaller change than the earlier setting. Off: the earlier, stronger behaviour. Sessions saved before v71 open with this off, so they sound the same." },
@@ -478,7 +583,7 @@ namespace
             { "blk_cabSrc", "Built-in model: the plugin builds the cab from speaker, mic and position. IR file: load your own WAV or AIFF impulse response." },
             { "blk_cabSpk", "Speaker for the built-in model, in folders. Realistic: hand-built speaker models by cab type (1x12, 2x12, 4x12, 4x12 oversized), plus Classic (older styles): five speakers fitted to close-mic recordings of older rock and metal cabs. Idealized: four smooth speakers of our own, as starting points. Mix ready: speakers fitted to the measured frequency response of mixed (already EQ'd) cab recordings: 4x12 and compact cabs. Mix-ready speakers are closest to their recordings with the Flat mic and the 4x12 Closed cabinet. The folders say what each is typically used for; any speaker works with any cabinet." },
             { "blk_cabMic", "Mic for the built-in model: six general mics, six aimed at heavier playing (Dynamic Aggressive, Dynamic Punch, Dynamic Scoop, Ribbon Dark, Condenser Warm, and a dynamic + ribbon blend), or Flat for no mic colouring." },
-            { "blk_cabPos", "Mic position: 0 = centre of the speaker's dust cap (bright, direct), 1 = the cone's edge (darker, warmer)." },
+            { "blk_cabPos", "Mic position: 0 = centre of the speaker's dust cap (bright, direct), 1 = the cone's edge (darker, warmer). Past 1 (up to 1.6) is beyond the edge, darker still; below 0 (down to -0.4) is the centre of the cap angled in, brighter than 0." },
             { "blk_cabDist", "Mic distance (inches): close = more bass (proximity effect), far = a little less top and a later arrival." },
             { "blk_cabAng", "Mic angle (degrees): pointing the mic off-axis loses highs." },
             { "blk_cabTight", "Low end of the built-in cab: right = tighter (less below about 150 Hz), left = fuller. Centre = unchanged." },
@@ -492,6 +597,17 @@ namespace
             { "blk_cabLowCut", "Low cut on this block alone, before the blend." },
             { "blk_cabHighCut", "High cut on this block alone, before the blend." },
             { "eqOn", "Post EQ on/off. It sits after the cab, before the textures, delays and reverb." },
+            { "pgOn", "Program EQ on/off. A passive-style equaliser that runs just before the Post EQ. At 0 dB everywhere with Warmth at 0 it leaves the sound alone." },
+            { "pgLowBoost", "Program EQ low boost: a gradual shelf of bass lift below the chosen low frequency (up to 18 dB)." },
+            { "pgLowCut", "Program EQ low attenuate: a wider bass cut around the same frequency. Using Boost and Attenuate together gives a tight, lifted low end with a scoop just above it." },
+            { "pgLowHz", "Program EQ low frequency: where the low boost and low attenuate act." },
+            { "pgHighBoost", "Program EQ high boost: a peak at the chosen high frequency (up to 24 dB)." },
+            { "pgHighHz", "Program EQ high boost frequency." },
+            { "pgBandwidth", "Program EQ high boost bandwidth: left is broad and gentle, right is sharp and narrow." },
+            { "pgHighCut", "Program EQ high attenuate: a wide, smooth cut of the top end (up to 24 dB)." },
+            { "pgHighCutHz", "Program EQ high attenuate frequency: the cut is already well under way here and starts lower down." },
+            { "pgDrive", "Program EQ warmth: a touch of tube-and-iron saturation after the EQ, a little more on the lows. 0 = off." },
+            { "pgLevel", "Program EQ output level." },
             { "eqMode", "Graphic: fixed-width bands. Mod: the Q knob changes every band's width together." },
             { "eqQ", "Mod mode: width of all bands (higher = narrower)." },
             { "eqLowCut", "Post EQ high-pass (Hz): removes everything below this." },
@@ -512,18 +628,92 @@ namespace
             { "vpOn", "Volume / pan on/off." },
             { "vpLevel", "Level of this spot in the chain (dB). All the way down mutes." },
             { "vpPan", "Moves the signal left or right (stereo signals only)." },
-            { "mbOn", "Multiband compressor on/off: three bands compressed separately." },
-            { "mbThrL", "Low band threshold (dB): level above which it is squashed." },
-            { "mbThrM", "Mid band threshold (dB)." },
-            { "mbThrH", "High band threshold (dB)." },
-            { "mbRatio", "How hard each band is squashed above its threshold." },
-            { "mbAttack", "How fast the compressors grab." },
-            { "mbRelease", "How fast they let go." },
-            { "mbX1", "Crossover between low and mid bands (Hz)." },
-            { "mbX2", "Crossover between mid and high bands (Hz)." },
-            { "mbOut", "Makeup gain after compression (dB)." },
+            { "mbOn", "Multiband compressor on/off: four bands compressed separately." },
+            { "mbX1", "Split 1 (Hz): where the lowest band ends. The three splits are kept in order." },
+            { "mbX2", "Split 2 (Hz): the middle split between the two halves of the spectrum." },
+            { "mbX3", "Split 3 (Hz): where the top band begins." },
+            { "mbThr1", "Band 1 (lows) threshold (dB): level above which it is squashed." },
+            { "mbThr2", "Band 2 threshold (dB)." },
+            { "mbThr3", "Band 3 threshold (dB)." },
+            { "mbThr4", "Band 4 (highs) threshold (dB)." },
+            { "mbRatio1", "Band 1 ratio: how hard it is squashed above its threshold." },
+            { "mbRatio2", "Band 2 ratio." },
+            { "mbRatio3", "Band 3 ratio." },
+            { "mbRatio4", "Band 4 ratio." },
+            { "mbAtk1", "Band 1 attack (ms): how fast the compressor grabs." },
+            { "mbAtk2", "Band 2 attack (ms)." },
+            { "mbAtk3", "Band 3 attack (ms)." },
+            { "mbAtk4", "Band 4 attack (ms)." },
+            { "mbRel1", "Band 1 release (ms): how fast it lets go." },
+            { "mbRel2", "Band 2 release (ms)." },
+            { "mbRel3", "Band 3 release (ms)." },
+            { "mbRel4", "Band 4 release (ms)." },
+            { "mbGain1", "Band 1 makeup gain (dB), after compression." },
+            { "mbGain2", "Band 2 makeup gain (dB)." },
+            { "mbGain3", "Band 3 makeup gain (dB)." },
+            { "mbGain4", "Band 4 makeup gain (dB)." },
+            { "mbOut", "Makeup gain for all four bands after compression (dB)." },
             { "mbMix", "Dry / compressed balance (parallel compression)." },
+            { "msOn", "Multiband saturator on/off: four bands, each driven into the same kind of curve by its own amount." },
+            { "msType", "The curve every band uses (a band can override it on the TYPE tab, behind ADV). Tape (smooth, odd), Tube (off-centre, even), Diode (soft knee), Transformer (smooth round-off), Hard clip; Triode (even + odd, lopsided), Pentode (odd, edgy), Germanium (soft on one side, long on the other); Iron (a transformer core: the lows saturate first, the rest stays clean), Tape + (head bump, and the highs squash first); Foldback (peaks fold over), Rectify (half-wave: an octave-up edge), Bit crush (coarse steps); Line Xfmr (a very clean input transformer: a whisper of 2nd and 3rd harmonic that grows with level, so Drive 12 is subtle and Drive 36 and up starts to bite); FET stage (a symmetric, tighter-kneed tanh) and Opto tube stage (a soft, lopsided tube curve), both from the compressor's saturation menu. The same list is in the Delay, Reverb wet drive and Compressor saturation menus." },
+            { "msBias", "Pushes the curve off-centre for even harmonics (on top of the type's own)." },
+            { "msType1", "Band 1 curve. Global uses the Type menu above; any other choice gives this band its own curve." },
+            { "msType2", "Band 2 curve (Global = the Type menu)." },
+            { "msType3", "Band 3 curve (Global = the Type menu)." },
+            { "msType4", "Band 4 curve (Global = the Type menu)." },
+            { "msMix1", "Band 1 mix: how much of this band is saturated (times the main Mix). Low values keep this band's own punch and clean top." },
+            { "msMix2", "Band 2 mix (times the main Mix)." },
+            { "msMix3", "Band 3 mix (times the main Mix)." },
+            { "msMix4", "Band 4 mix (times the main Mix)." },
+            { "msTone1", "Band 1 tone: a tilt ahead of the curve. Up sends more highs into it (brighter, edgier), down sends more lows." },
+            { "msTone2", "Band 2 tone (tilt ahead of the curve)." },
+            { "msTone3", "Band 3 tone (tilt ahead of the curve)." },
+            { "msTone4", "Band 4 tone (tilt ahead of the curve)." },
+            { "msDyn1", "Band 1 dynamics: how the drive follows the playing level. Up: loud notes are driven harder (touch-sensitive). Down: loud notes are driven less (evens things out)." },
+            { "msDyn2", "Band 2 dynamics (drive follows the level)." },
+            { "msDyn3", "Band 3 dynamics (drive follows the level)." },
+            { "msDyn4", "Band 4 dynamics (drive follows the level)." },
+            { "msLoCut", "Low Cut (Hz): a high-pass on the saturator's output, to keep the added lows from getting muddy. 20 Hz is off." },
+            { "msHiCut", "High Cut (Hz): a low-pass on the saturator's output, to take the fizz off the added highs. 20 kHz is off." },
+            { "msAuto", "Auto level: keeps the saturator's output loudness close to its input's, whatever the drive, mix and curve." },
+            { "msX1", "Split 1 (Hz): where the lowest band ends. The three splits are kept in order." },
+            { "msX2", "Split 2 (Hz): the middle split between the two halves of the spectrum." },
+            { "msX3", "Split 3 (Hz): where the top band begins." },
+            { "msDrive1", "Band 1 (lows) drive (dB): how hard it is pushed into the curve. Small signals keep their level." },
+            { "msDrive2", "Band 2 drive (dB)." },
+            { "msDrive3", "Band 3 drive (dB)." },
+            { "msDrive4", "Band 4 (highs) drive (dB)." },
+            { "msLevel1", "Band 1 level (dB) after saturation. Hard drive lowers a band's loudness; raise this to bring it back." },
+            { "msLevel2", "Band 2 level (dB)." },
+            { "msLevel3", "Band 3 level (dB)." },
+            { "msLevel4", "Band 4 level (dB)." },
+            { "msOut", "Output level of the whole saturator (dB)." },
+            { "msMix", "Dry / saturated balance (each band is blended with itself, so there is no phase mismatch)." },
             { "gxOn", "Gate / expander on/off." },
+            { "tsOn", "Transient shaper on/off. It sits in the Gate's place on the board and runs right after the gate. Attack, Body and Sustain change the loudness of the start of each note, the stretch just after it, and the tail, separately." },
+            { "tsAttack", "The start of each note (the pick). Up makes the attack louder and snappier, down softens it (up to 12 dB either way). It only reacts to how fast the level rises, so it works the same however hard you play." },
+            { "tsSustain", "The body and tail of each note. Down shortens notes and tightens palm mutes (up to 12 dB lower between the attacks), up lengthens them and brings up the tail. Boosting does not lift anything below about -75 dBFS, but it will lift hiss above that, so put the shaper after a gate when you boost." },
+            { "tsBody", "The stretch just after the attack, while the note is still near its peak level: the body of a chord or a pluck. Up fills it out, down thins it (up to 12 dB either way). It sits between Attack and Sustain and does not touch either. At 0 the shaper behaves exactly as it did before Body existed." },
+            { "tsBod1", "Multiband, band 1 (lows, up to Split 1): the body just after the attack, added to the main Body." },
+            { "tsBod2", "Multiband, band 2 (between Split 1 and Split 2): the body just after the attack, added to the main Body." },
+            { "tsBod3", "Multiband, band 3 (between Split 2 and Split 3): the body just after the attack, added to the main Body." },
+            { "tsBod4", "Multiband, band 4 (above Split 3): the body just after the attack, added to the main Body." },
+            { "tsSpeed", "How long the 'attack' part of a note lasts. Slow: a long window (about 80 ms), good for slower playing and chords. Fast: a short window (about 10 ms), for tight, fast picking." },
+            { "tsMulti", "Splits the sound into four bands, each with its own Attack and Sustain (the SHAPER BANDS box next to this one). Use it to bring out the pick of the low strings without the hiss on top, to tighten the lows while the highs ring, and so on. The main Attack and Sustain are added to every band. Off = one band, as before. The bands add back together with a flat level, but the crossovers change the phase a little, so there is a small difference even with every band at 0." },
+            { "tsX1", "Multiband: where the first band (the lows) ends. The splits keep in order, at least a quarter of an octave apart." },
+            { "tsX2", "Multiband: where the second band (low mids) ends." },
+            { "tsX3", "Multiband: where the third band (high mids) ends and the fourth (the top) begins." },
+            { "tsAtk1", "Multiband, band 1 (lows, up to Split 1): the start of each note, up to 12 dB either way, added to the main Attack." },
+            { "tsAtk2", "Multiband, band 2 (between Split 1 and Split 2): the start of each note, added to the main Attack." },
+            { "tsAtk3", "Multiband, band 3 (between Split 2 and Split 3): the start of each note, added to the main Attack." },
+            { "tsAtk4", "Multiband, band 4 (above Split 3): the start of each note, added to the main Attack. Good for the pick click." },
+            { "tsSus1", "Multiband, band 1 (lows, up to Split 1): the body and tail, up to 12 dB either way, added to the main Sustain. Down tightens palm mutes." },
+            { "tsSus2", "Multiband, band 2 (between Split 1 and Split 2): the body and tail, added to the main Sustain." },
+            { "tsSus3", "Multiband, band 3 (between Split 2 and Split 3): the body and tail, added to the main Sustain." },
+            { "tsSus4", "Multiband, band 4 (above Split 3): the body and tail, added to the main Sustain. Turn it down to take hiss and fizz out of the tails." },
+            { "tsFocus", "High-pass on what the shaper listens to (the sound itself is not filtered). Raise it if low notes make the shaper pump, or to make it follow the pick rather than the low string's body. (Single band only: with Multiband on, each band listens to its own range.)" },
+            { "tsOut", "Output level of the shaper (dB), to make up for the loudness the shaping adds or takes away." },
+            { "tsMix", "Dry / shaped balance. 1 = all shaped." },
             { "dmOn", "DI Match on/off. It reshapes the tone of your guitar before the amp, so one guitar can sound like another (single coil to humbucker, for example). It sits at the end of the input stage, after the Transpose." },
             { "gxKey", "What the gate listens to when it decides to open or close. The input listens to your dry playing at the start of the chain, so the gate can sit after the amp and cut its hiss and ring-out, yet still follow your picking. Needs no extra cable or routing." },
             { "dmSource", "What your own pickups are. Pick a type, or Measured to teach the plug-in your guitar with Learn." },
@@ -543,7 +733,7 @@ namespace
             { "tremMode", "Tremolo: both sides pulse together. Stereo: the left and right sides alternate (an auto-pan feel)." },
             { "tremShape", "Shape of the pulse: sine (smooth), triangle, or soft square (choppy)." },
             { "tremRate", "Speed in Hz (used when Note is Free)." },
-            { "tremPick", "Only when the Tremolo sits in the amp's FX loop (drag it there in the Order window or on the chain strip): how much playing harder fills in the dips, as a loud signal squeezes a real amp's bias swing. 0 = the dips are the same depth at every volume." },
+            { "tremPick", "Only when the Tremolo sits in the amp's FX loop (drop it on the loop jacks in the pedalboard window, or drag it there on the chain strip): how much playing harder fills in the dips, as a loud signal squeezes a real amp's bias swing. 0 = the dips are the same depth at every volume." },
             { "wahNote", "Free uses the LFO Rate knob. A note value locks the wah sweep to the tempo (one note length per cycle)." },
             { "phaserNote", "Free uses the Rate knob. A note value locks the phaser sweep to the tempo (one note length per cycle)." },
             { "wobNote", "Free uses the Rate knob. A note value locks the wobble to the tempo (one note length per cycle)." },
@@ -551,8 +741,8 @@ namespace
             { "granSizeNote", "Free uses the Size knob. A note value makes every grain exactly that long at the tempo." },
             { "granDensNote", "Free uses the Density knob. A note value starts one grain per note length, so the cloud pulses with the tempo." },
             { "granPosNote", "Free uses the Position knob. A note value reads grains from exactly that many beats back in the loop." },
-            { "preDelayMode", "Delay character. Digital: clean and bright. Analog: darker, bucket-brigade style, with soft saturation and a slight wobble. Tape: dark and saturated with wow, flutter and drift. Lo-Fi: dark with reduced sample rate and bit depth. Oil-can: dark and warm with a heavy built-in wobble. Organ: the same on a very short delay, for a lush vibrato. The Lo-Fi and Warble knobs add to the mode." },
-            { "postDelayMode", "Delay character. Digital: clean and bright. Analog: darker, bucket-brigade style, with soft saturation and a slight wobble. Tape: dark and saturated with wow, flutter and drift. Lo-Fi: dark with reduced sample rate and bit depth. Oil-can: dark and warm with a heavy built-in wobble. Organ: the same on a very short delay, for a lush vibrato. The Lo-Fi and Warble knobs add to the mode." },
+            { "preDelayMode", "Delay character. Digital: clean and bright. Analog: darker, bucket-brigade style, with soft saturation and a slight wobble. Tape: dark and saturated with wow, flutter and drift. Lo-Fi: dark with reduced sample rate and bit depth. Oil-can: dark and warm with a heavy built-in wobble. Organ: the same on a very short delay, for a lush vibrato. The Lo-Fi and Warble knobs add to the mode. Tape Sustain, Three-Head Tape, Chorus Bucket, Studio Tape, Dub Echo and Memory Man are echo styles (approximations of how those kinds of machine behave): each sets its own tone, saturation, bass trim and wobble." },
+            { "postDelayMode", "Delay character. Digital: clean and bright. Analog: darker, bucket-brigade style, with soft saturation and a slight wobble. Tape: dark and saturated with wow, flutter and drift. Lo-Fi: dark with reduced sample rate and bit depth. Oil-can: dark and warm with a heavy built-in wobble. Organ: the same on a very short delay, for a lush vibrato. The Lo-Fi and Warble knobs add to the mode. Tape Sustain, Three-Head Tape, Chorus Bucket, Studio Tape, Dub Echo and Memory Man are echo styles (approximations of how those kinds of machine behave): each sets its own tone, saturation, bass trim and wobble." },
             { "tpOn", "Transpose on/off. It is the first effect in the chain, so everything after it (fuzz, overdrive, amp) plays the shifted notes. While it is on it adds a small delay, which the plugin reports to your DAW." },
             { "tpSemis", "Shift the pitch by whole semitones (-24 to +24)." },
             { "tpFine", "Fine pitch shift in cents (hundredths of a semitone), for detuning." },
@@ -567,28 +757,35 @@ namespace
             { "fuzzMix", "Blend between your clean guitar (0) and the fuzz (1). Around 0.3 to 0.6 keeps the note defined under the fuzz. The clean part is delayed to match the fuzz, so the two stay in phase." },
             { "fuzzAuto", "Auto level: a slow level follower keeps the fuzz about as loud as the clean guitar going into it, whatever the Gain and style. The Level knob then works relative to its -9 dB starting point. It holds its setting during silence." },
             { "eqAuto", "Auto level: a slow level follower keeps the Post EQ's output at the loudness of its input, so boosting or cutting bands changes the tone, not the volume. The Level knob still trims on top of it." },
+            { "ampAOn", "Amp A on / off. Off: nothing comes out of Amp A and its processing stops (use it to hear Amp B or a NAM pedal on its own, or to save CPU). Switching fades over one block, so it does not click." },
             { "ampBOn", "Turns on the parallel Amp B. It gets the same signal as Amp A (after the overdrive pedal) and runs its own preamp and tone stack. Each cab block then picks Amp A, Amp B or both. Uses about as much CPU as Amp A again. Not available with the Acoustic amp." },
             { "ampBModel", "Which electric amp Amp B is (the Acoustic and Triple Blend amps are only available as Amp A). Use a different one from Amp A for layered tones, such as a tight high-gain with a cleaner amp underneath." },
             { "ampBVoicing", "Amp B's voicing: the same four-position switch as Amp A's, with the names for Amp B's model." },
             { "ampBUseOd", "Lets the overdrive pedal feed Amp B too (it always feeds Amp A). Turn it off to hear Amp B without the pedal's boost." },
             { "ampBGain", "Amp B's preamp gain." },
-            { "ampBTight", "Amp B's tightness: raises the high-passes between its gain stages (Hot-Rod, Lead and High-Gain only)." },
+            { "ampBTight", "Amp B's tightness: raises the high-passes between its gain stages (the high-gain amps only)." },
             { "ampBBass", "Amp B bass (dB)." },
             { "ampBLowMid", "Amp B low mid (dB)." },
             { "ampBHighMid", "Amp B high mid (dB)." },
             { "ampBTreble", "Amp B treble (dB)." },
-            { "ampBPresence", "Amp B presence: treble on its power stage." },
+            { "ampBPresence", "Amp B presence: treble on its power stage. On Chime Thirty and Dual Thirty this knob is Cut instead (a treble roll-off, off at 0, as voiced at the default)." },
             { "ampALevel", "Amp A's level while Amp B is on (dB). Balance the two amps with this and B Level." },
             { "ampBLevel", "Amp B's level (dB)." },
             { "ampAPan", "Where Amp A sits in the stereo field (left to right). With the cab blocks on it adds to the Pan of the block carrying Amp A; a block set to A + B ignores it." },
             { "ampBPan", "Where Amp B sits in the stereo field (left to right). With the cab blocks on it adds to the Pan of the block carrying Amp B; a block set to A + B ignores it." },
             { "blk_cabAmp", "Which amp feeds this cab block: Amp A, Amp B, or both added together (about 3 dB quieter each, so the sum is not much louder). Only matters while Amp B is on." },
+            { "ampBLead", "Amp B's lead boost: more gain in the first stages, a little more mid push and sag, with the level trimmed to match. For solos." },
+            { "ampBDepth", "Amp B's low-end depth: a shelf below about 90 Hz after its preamp (up to +6 dB) for a bigger thump." },
+            { "ampBMidHz", "Slides Amp B's pre-gain mid push up or down in frequency. The middle position is the amp's own." },
+            { "ampBMid", "How much extra mid push goes in before Amp B's gain stages (up to +8 dB), for a more focused, aggressive mid." },
+            { "ampBFizz", "Rolls off the top of Amp B after its preamp (from 12 kHz down to about 6 kHz over the first 60% of the knob; above that a second pole joins and the slope doubles) to remove fizz without dulling the pick attack as much as turning Presence down." },
+            { "ampBChug", "A fast noise gate on Amp B's output that cuts the gain's hiss between palm mutes. 0 = off. Too high cuts quiet notes." },
             { "mtLead", "Lead boost: more gain in the first stages, a little more mid push and sag, with the level trimmed to match. For solos." },
-            { "mtTight", "Raises the high-passes between the gain stages (up to about 2.8 times), so low palm mutes stay clear and fast." },
+            { "mtTight", "Raises the high-passes between the gain stages (up to about 2.8 times, 5.6 times on the Brown Eye, whose real amp has a Fat to Tight coupling switch), so low palm mutes stay clear and fast." },
             { "mtDepth", "Low-end depth: a shelf below about 90 Hz after the preamp (up to +6 dB) for a bigger thump." },
             { "mtMidHz", "Slides the pre-gain mid push up or down in frequency. The middle position is the amp's own." },
             { "mtMid", "How much extra mid push goes in before the gain stages (up to +8 dB), for a more focused, aggressive mid." },
-            { "mtFizz", "Rolls off the top after the preamp (from 12 kHz down to about 3.8 kHz) to remove fizz without dulling the pick attack as much as turning Presence down." },
+            { "mtFizz", "Rolls off the top after the preamp (from 12 kHz down to about 6 kHz over the first 60% of the knob; above that a second pole joins and the slope doubles, down to a 2.4 kHz corner at the top) to remove fizz without dulling the pick attack as much as turning Presence down." },
             { "mtChug", "A fast noise gate after the preamp that cuts the gain's hiss between palm mutes. 0 = off. Too high cuts quiet notes." },
             { "reverbType", "Reverb character. Classic is the original simple reverb. Room is short and natural, Hall is large and smooth, Plate is bright and dense, Ambient is long, lush and slowly moving, Cathedral is huge and dark, Spring is short and boingy, Soft Plate is dense and gently moving, Tumble has echoes that tumble over each other, Abyss is huge, dark and drifting, Black Hole is enormous, ultra-dense and swirling (with a Gravity setting). All are hand-tuned approximations. Size, Damp and Width work on every type except IR Reverb, which plays a loaded or generated impulse response (see Reverb Shaping)." },
             { "reverbPreNote", "Free uses the Pre-Dly knob. A note value sets the pre-delay to that note length (up to 250 ms)." },
@@ -699,6 +896,7 @@ namespace
                 { "Power Chip (cranked, open)", "A cranked power-amp chip into a passive Low / High network. Gain is how hard it is hit; Mix blends the clean signal back in." },
                 { "Doom (octave, rat-type, boost)", "An octave-up into a rat-type distortion, then a clean boost. Gain, Tone (filter), Octave and Boost; the diodes are in ADV." },
                 { "Distortion + Reverb (3 programs, order switch)", "A distortion and a reverb in one: Gain is the distortion, Reverb how much reverb, Decay and Mod shape it. Order puts the reverb after the distortion (clean wash) or before it (a thick, muddy wall of sound). Programs: Ambient (large and long), Octave Down (a dark octave-down in the tail) and Reverse (reversed trails fed back). Hold freezes the tails like a sustain pedal. Built from a description of a real pedal, not a schematic." },
+                { "Feral (self-oscillating, wandering bias)", "A fuzz that can sing on its own. Squeal feeds the output back through a tuned filter (Pitch); past a point it oscillates. Action moves the clipper's bias with a slow, uneven LFO (Speed) and with how hard you play, so the squeal gates in and out, spits and warbles. Starve sets the resting bias." },
                 { "Metal Pedal (Cut, 5-band EQ, gate, boost)", "A tight, modern distortion: Cut (a pre-gain high-pass for tightness), Gain, a five-band EQ after the distortion (plus or minus 12 dB: Bass, Low-Mid, Mid, High-Mid, Treble), a boost and a noise gate. An approximation from descriptions, not a schematic." } } },
             { "fuzzBenderModel", {
                 { "Early (2 stage)", "Two transistors: thick, woolly, round mids and a lower gain." },
@@ -713,7 +911,8 @@ namespace
                 { "Circuit (later build)", "The later build of the same fuzz, solved from its own schematic: smaller coupling caps (tighter lows), smaller capacitors in series with the diodes, lower stage gains and a shallower mid dip. Quieter and less compressed than the first circuit." },
                 { "Circuit (op-amp build)", "An op-amp version of the fuzz, solved from its schematic: an inverting booster, a resonant low-pass (about 1 kHz) with the sustain control after it, an op-amp clipper with three diodes each way, and a Muff-style tone network. Very high gain; Sustain mostly sets how hard the clipper is driven." },
                 { "Circuit (modern build)", "A modern Muff-type build solved from a board's parts list: more gain than the later build, a different tone network and a bigger low end." },
-                { "Circuit (early large-box build)", "The early 1970s large-enclosure build, solved from a traced schematic of nine units: the first circuit's booster and two clippers with bigger coupling caps, a 33k / 12 nF tone network and 1N914 diodes. Rounder and more open on top than the first circuit; the tone control sweeps from a thick, dark bass to a bright mid bite." } } },
+                { "Circuit (early large-box build)", "The early 1970s large-enclosure build, solved from a traced schematic of nine units: the first circuit's booster and two clippers with bigger coupling caps, a 33k / 12 nF tone network and 1N914 diodes. Rounder and more open on top than the first circuit; the tone control sweeps from a thick, dark bass to a bright mid bite." },
+                { "Circuit (small-box build)", "The small-enclosure Muff, solved from its schematic: a booster and two clipping stages with emitter resistors and 560 pF feedback caps, 0.1 uF coupling (a tighter, thinner low end than the large builds), and a two-way tone circuit (the Tone knob sweeps between its low-pass and high-pass sides). The real pedal has no Sustain control; here Sustain only lowers the level into the first clipper, and at maximum it is the pedal." } } },
             { "fuzzMuffDiode", {
                 { "Silicon", "The original clipping." },
                 { "LED (open)", "More headroom, louder, more open and less compressed." },
@@ -748,8 +947,11 @@ namespace
                 { "Opto", "A soft knee and a slow grab. The release slows down the longer and deeper it squeezes, so it is smooth and hard to hear." },
                 { "Variable-mu", "Very soft knee and a ratio that deepens as the signal gets louder: gentle, even glue." },
                 { "Sustainer", "A pedal-style squeeze that lets the first part of the pick through, then holds the note up with a long release." },
-                { "Bus", "Light glue (4:1 at most, slow attack) that holds chords together without flattening the pick." },
+                { "Bus", "Light glue after a classic mix-bus compressor: a smooth knee, attack from 0.1 ms to tens of ms (the Attack knob covers it), and a release that stretches the longer it works. Use the ratio box for 2:1, 4:1 or 10:1." },
+                { "RMS (VCA)", "A clean, tight, hard-knee compressor after the classic feed-forward RMS design: it reads the true power of the signal, its ratio runs from 1:1 to infinity, the release lets go at a steady rate in dB per second (so a deep squeeze takes longer to recover than a light one), and the attack grabs faster the harder the hit." },
                 { "Thump", "The Standard compressor with three extras that belong together: Bloom (works harder and lets go slowly, so notes squeeze down and swell back), Smack (a fast parallel compressor with lifted lows for low-end impact) and Clarity (a tilt EQ: right = bite, left = warmth)." },
+                { "Crush Limiter", "A late-1960s podium-microphone limiter pushed past its design, the kind used for crushed drums and pumping, gritty tones: a limiter with a 1.3 ms attack and a very slow release (about 1.7 s, half that on Fast, far slower with Crush up high). Crush squeezes harder and lifts the quiet parts and tails, Crunch drives the output stage, Darkness rolls off the fizz, Mix blends it with the clean signal and Volume sets the level." },
+                { "Opto Sustain", "An optical sustain pedal in the squeeze-and-swell style: Sustain sets how hard it squeezes (it is as close to infinite ratio as it goes), the attack is very fast and fixed, and the release is about half a second, so a note dips when it is hit and then rises as it dies away. Blend mixes in the dry sound, Grit adds a layer of hard-clipped fizz, Treble cuts or boosts the top end and Volume sets the output. Built from published descriptions only; every number is my own reading." },
                 { "Dyna (OTA)", "A squashing pedal compressor from a published analysis: Threshold sets how hard it squeezes (lower = more), Attack, Release, Output and Mix work as labelled, and the ratio, ratio curve and detector are my own estimates because the analysis does not give them. Ratio, Auto makeup and the extras are ignored." } } },
             { "odStyle", {
                 { "Transparent", "A Centaur-type overdrive: a gain pot that fades the clean signal out as the clipped path comes in, germanium clipping, and an active treble shelf (Tone). Edge adds extra top end into the clipper. Component values the published analysis does not give are my estimates." },
@@ -760,6 +962,9 @@ namespace
                 { "Tube Driver", "A full-range, warm, creamy tube-style drive that keeps a lot of the clean signal at low Drive and turns thick and compressed when pushed, a lead boost for rhythm and solos. Drive, Bass (a low cut: tight at 0, full at 1) and Treble; Bright behind ADV." },
                 { "Op-Amp Distortion", "A single op-amp gain stage (1.5 to 213 times) into a diode clipper, with a 720 Hz low-cut at full gain, so it is mid-forward and bright. The Clipping menu picks the diodes; the stock pedal has germanium." },
                 { "Stack Drive", "Two gain stages (up to 70 dB) into red-LED clipping, then a tone section with a mid scoop. Gain and Tone. The tone section is my approximation: the analysis does not list its component values." },
+                { "Natural Overdrive", "A natural-sounding, mid-forward overdrive after the Nobels ODR-1: an input low-pass near 2.7 kHz, up to about 44 dB of gain in a stage with soft 1N4148 clipping in its feedback, a second harder clip, and a Spectrum control that tilts from a dark voice (about 700 Hz roll-off) to a bright one (5 kHz and an upper-mid lift). Drive, Spectrum and a Voicing menu: ODR-1, ODR-1 Plus (Boost on) and ODR-S. The Spectrum curve and the second filter stage are my estimates; the schematics do not give them in a readable form." },
+                { "Preamp Distortion", "A raw, mid-70s preamp distortion after the DOD 250: one 741 op-amp stage with a very wide Gain range (about 10 to 47 dB; the gain leg is a 4.7 nF capacitor, so the more you turn up the more it is mostly treble that gets amplified), then a clipper with one silicon diode on the positive side and two on the negative side, so the two halves of the wave clip at different levels. There is no tone control. The 741 is slow, so at full gain the top end stops near 5 kHz. The 741 output swing is my estimate." },
+                { "Metal Zone", "A high-gain distortion after the Boss MT-2, read from its service notes: a fixed first stage that is mostly a mid band-pass, a Dist stage of 2 to 252 times, two silicon diodes, a second stage, then a tone section with High and Low shelves (+/-15 dB) and a Middle band you can sweep from 200 Hz to 5 kHz. Dist, Low, Mid, Mid Freq and High. The notes do not resolve the diode direction or the Middle range, so those parts are my estimates." },
                 { "Blues Driver", "A two-stage, diode-clipped overdrive in the style of a classic blues pedal: from a touch of grit to full crunch, with a gentle bump around 120 Hz that keeps it warm. Gain and Tone. Several inter-stage and tone-network values were not legible in the source, so those are my estimates." } } },
             { "odClip", {
                 { "Silicon (classic)", "The classic clipping: tight, even, familiar." },
@@ -771,6 +976,10 @@ namespace
                 { "Classic (mid hump, tube)", "Screamer: the familiar mid hump with the full gain range. Tube Driver: the standard tube drive." },
                 { "Mild (lean, Hex)", "Screamer: less gain and no extra hump. Tube Driver: the Hex voicing, with thick lows, a soft knee and a dark top." },
                 { "Open (bright, Hex hot)", "Screamer: more gain, a looser low end and extra top end. Tube Driver: the Hex voicing with more gain." } } },
+            { "odNob", {
+                { "ODR-1 (natural overdrive)", "The stock circuit: Drive 250k, 4558 stage with feedback diodes, second hard clip, Spectrum tilt." },
+                { "ODR-1 Plus (Boost on)", "The Plus model with its Boost switch on: a third ground leg (270 ohm with 2.2 uF) in the gain stage adds about 9 to 10 dB." },
+                { "ODR-S (germanium, 3-band)", "The Special: a 500k Drive, germanium shunt clipping after the gain stage, and a three-band Hi / Mid / Lo equaliser in place of Spectrum. The transistor stage and the equaliser's ranges are my estimates." } } },
             { "odMidMod", {
                 { "Scoop (stock)", "A mid dip: scooped, fizzy and aggressive." },
                 { "Flat", "Leaves the mids alone." },
@@ -796,7 +1005,7 @@ namespace
                 { "Club Crunch (crunch)", "A classic British rock-crunch amp: open, mid-forward, loose and dynamic. It stays clear at low gain. Voicing: Crunch is the main sound; Pushed is a hard-rock lead tone; Jumped is both channels linked, fatter and hotter." },
                 { "Bumble Lead (smooth, singing)", "A boutique-style amp with lots of clean headroom that turns into a smooth, vocal, compressed lead when you push it. Voicing: Jazz (off) is clean, round and warm; Rock (on) is pushed and mid-forward." },
                 { "5555 Block (raw to modern)", "A tight, aggressive three-stage high-gain amp for chugging rhythm and lead. Voicing: Raw (off) is bright and edgy; Modern (on) has more gain, a tighter low end and a smoother top. Has the Modern Metal controls and Focus." },
-                { "Tweedle Dee (spongy breakup)", "A small, low-power combo that breaks up early and soft, with a lot of sag. It cleans up when you play softly. Voicing: Soft (off) is spongy and honky; Cranked (on) is louder, spittier and thicker." },
+                { "Tweedle Dee (spongy breakup)", "A small, low-power combo that breaks up early and soft, with a lot of sag. It cleans up when you play softly. Voicing: Soft (off) is spongy and honky; Cranked (on) is louder, spittier and thicker; Jumped has the two channels jumpered: more gain and fuller lows (the Four-ten voicing is Tweedle Dum now)." },
                 { "Jade Chorus (solid-state)", "A stiff, solid-state style clean with huge headroom and no sag, great under chorus. Voicing: Glass (off) is bright and wide open; Warm (on) is rounder and darker." },
                 { "Marque Dream (tight, mid-hump)", "A tight, creamy high-gain amp with a mid hump. Voicing: Rhythm (off) is tight and punchy for chunk; Lead (on) has more gain, a big mid hump and long sustain. Has the Modern Metal controls and Focus." },
                 { "Citrus Doom (thick, loose)", "A thick, loose, heavy amp with a huge low end for doom, stoner and sludge. Voicing: Stoner (off) is fuzzy and saturated; Wall (on) is huge, deep and slow, with more headroom." },
@@ -807,7 +1016,7 @@ namespace
                 { "Diesel Fuel (tight, cutting)", "A tight, thick, upper-mid-aggressive high-gain amp with little power-stage compression, so it stays fast and cutting. Voicing: Lead, High gain, Crunch, or Open (less compression, more presence). Has the Modern Metal controls and Focus." },
                 { "Wreck Stack (huge, very tight)", "A huge, very tight modern stack with a stiff big-bottle power stage: a firm low end, a scooped low mid and a hard, controlled top. Voicing: Lead, Crunch, Clean or Smooth (rounder, less bite). Has the Modern Metal controls and Focus." },
                 { "Power Brawl (punchy 6L6)", "A punchy modern 6L6-style amp with a choice of mid voicings. Voicing: Scooped lead, Mid-boosted lead (warm and creamy), Crunch, or Bottom (extra low end). Has the Modern Metal controls and Focus." },
-                { "Cutaway (growl, flexible)", "A growly, cutting lead whose mids sit in a different range from most high-gain amps, so it fits in a mix. Voicing: Lead, Sludge (lower gain, looser, darker), Clean (warm, high headroom) or Brilliant (a chimey clean). Has the Modern Metal controls and Focus." },
+                { "Stolen Fire (growl, flexible)", "A growly, cutting lead whose mids sit in a different range from most high-gain amps, so it fits in a mix. Voicing: Lead, Sludge (lower gain, looser, darker), Clean (warm, high headroom) or Brilliant (a chimey clean). Has the Modern Metal controls and Focus." },
                 { "Hi-Wat Headroom (tight, clean to edge)", "A stiff, punchy British amp with a lot of clean headroom: tight bass, a forward upper mid and a bright top, clean until you push it, then a hard, fast crunch. Voicing: Normal, Brilliant (more top and gain), Linked (both channels jumped and the power stage working) or Open (even more headroom). Presence works through the feedback loop." },
                 { "Plex Appeal (Plexi-style, mod options)", "A Plexi-style 100 W British head, solved from its schematic and the common mods. Voicing: Stock (bright input, volumes up, open and hairy), Jumped (both inputs linked: thicker, darker, more gain), Modded (a cascade gain stage, a smaller bright cap, a diode clipper after a pre-tone-stack master and softer feedback: tighter, more sustain, less fizz) or Modded + Jumped." },
                 { "Matt's Amp (thick, dark, doom-friendly)", "A thick, dark, saggy 1970s British 100 to 120 W head with a wide bass and treble network. Voicing: Graphic (early 70s, a fixed top cap on the plate), Heavy (a bass-cut input cap, doomy low mids), Bright (a modern version with more top) or Mix (its gain stages feeding a Marshall-style stack)." },
@@ -816,10 +1025,17 @@ namespace
                 { "Marque Five (three channels, clean to lead)", "A modern three-channel 100 W head that goes from clean to tight lead, with a bass / middle / treble stack and presence. Voicing: Clean (lots of headroom, sparkly), Crunch (edge of breakup to crunch), Lead (tight, bright, very saturated) or Extreme (the lead with the mid contour out: scooped and very bright). Has the Modern Metal controls and Focus." },
                 { "Dual Thirty (two channels, chimey crunch)", "A two-channel 30 W combo in the chimey EL84 family, with a hotter front end than Chime Thirty. Voicing: Channel 1 (two cascaded gain stages with the tone controls after them: chime that thickens into crunch), Channel 2 (a single high-gain pentode stage: bright and a little thin, hard-clipping), Pushed (Channel 1 with the volume and master well up: power-stage grit and sag) or Cut (Channel 1 with the top cut well in: darker and rounder)." },
                 { "Solid Metal (solid-state, 90s metal)", "A solid-state and hybrid metal amp with stiff transistor power: no sag, big tight bottom, hard symmetric clipping and a scooped mid range. Voicing: Hybrid Hi-Gain (two op-amp stages into LED clippers, then a tube stage: the 90s hybrid-metal sound), Hybrid Classic OD (the lower-gain overdrive of the same circuit: warmer, less fizz), JFET Lead (two JFET stages into zener and diode clipping: harsh, bright, scooped) or JFET Crunch (the same amp's clean-to-crunch channel: soft JFET clipping, looser)." },
-                { "Cedar Twelve (small combo, early breakup)", "A small blackface-style combo (two 6V6s, about 22 W) that runs out of headroom much sooner than the big American combo: it compresses and rounds off as you turn it up. Voicing: Blackface (clean to breakup, round low mids), Spanky (brighter, thinner lows, more bite), Cranked (volume well up: sag and a mid-forward singing breakup) or Big Spring (a 40 W two-6L6 combo with a 15-inch speaker: fuller lows, darker top, a little more headroom)." },
+                { "Cedar Spring (blackface combos, early breakup)", "A family of blackface-style spring-reverb combos that run out of headroom much sooner than the big American combo: they compress and round off as you turn them up. Voicing: Blackface (a 22 W two-6V6 1x12: clean to breakup, round low mids), Spanky (brighter, thinner lows, more bite), Cranked (volume well up: sag and a mid-forward singing breakup), Silverface (the later drip-edge Deluxe Reverb: tighter, brighter, more headroom) or Boost (the silverface Volume Boost pulled: more gain, a tighter low end). The big 6L6 combo that used to be Big Spring is Cedar Grand now, and Quad Ten is Cedar Ten." },
                 { "Triple Blend (three amps in one)", "Three amps played together inside one amp, the way some touring players run a rig: a warm 15-inch combo, a smooth Dumble-style lead amp and an open, clean-headroom head, all into the same cab. One Gain knob drives all three; the Warm, Smooth and Open knobs set how much of each you hear. Voicing: Three-in-One (an even mix), Warm (the combo leads), Open (the clean head leads) or Singing (the lead amp leads and sings). Placeholder parts for now: they will be fitted to captures." },
                 { "Jazz Box (dark jazz clean)", "A big, dark, solid-state jazz clean: a lot of headroom, a warm low-mid hump and a rolled-off top. Voicing: Jazz, Archtop (a little brighter), Dark Room (the roundest) or Pushed (turned up for a soft, dark breakup). Not matched to any real amp." },
                 { "Brit Eighteen (18 W EL84 combo)", "A small British EL84 combo: chimey and mid-forward, and it breaks up early. Voicing: Clean, Crunch, Cranked or Brilliant. Not matched to any real amp." },
+                { "Tweedle Dum (tweed bass amp, push-pull 4x10)", "A tweed-era bass amp played as a guitar amp: push-pull 6L6 power, a tube rectifier and a little global feedback with a Presence control, so it is bigger, tighter and cleaner than Tweedle Dee but still sags into a rich, spongy crunch. Voicing: Tweed Normal (the normal channel), Tweed Bright (the jumped, bright channel: more gain, thinner lows), Cranked (rectifier sag, loose and thick) or Silverface (a later solid-state-rectifier version: stiffer, more headroom, scooped mids)." },
+                { "Marque One (the original single-channel Mark)", "The original single-channel Mark-style head, split out of Marque Dream's Mark I voicing: four 6L6s, a bright stack and hot, mid-hump gain with looser lows than the later channels. Voicing: Mark I (as measured), Clean (Volume 1 low), Lead Boost (the footswitch boost: more gain and a mid push) or Graphic EQ (the scooped, hi-fi graphic setting)." },
+                { "Cedar Grand (6L6 reverb combo, 15-inch)", "A big 6L6 reverb combo split out of the Cedar Spring family, with its own supply and feedback: fuller lows, more headroom and a later, harder breakup than Cedar Spring's small combos. Voicing: Big Spring (the fitted late-breakup sound), Brownface (older and darker: looser, lower gain), Cranked (volume well up) or Bright (bright cap in, more bite)." },
+                { "Cedar Ten (4x10 combo, clean to gain channel)", "A four-10 combo with a clean channel and a gain channel, split out of the Cedar Spring family's Quad Ten voicing: 6L6 power, a solid-state rectifier and a Presence control. Voicing: Clean (headroom and a forward mid), Pushed, Drive (the gain channel at crunch) or Lead (the gain channel wide open)." },
+                { "Brit Forty-Five (KT66, the original 45 W head)", "The original KT66 45 W head, split out of the Plexi idea: a Bassman circuit with British voicing, a tube rectifier that sags, and much lower gain than Plex Appeal, so it stays clean for a long time and then breaks up thick and soft. Voicing: Normal, Bright (the jumped, brighter input), Cranked or Pushed (the gain well up)." },
+                { "Tweedle Mini (5 W single-ended tweed)", "A 5 W single-ended tweed: one 6V6 and no feedback, so it is the earliest and softest breakup in the plug-in, with the even-order grit of a class-A output stage. Voicing: Champ (the 5 W starter amp), Princeton (a little more headroom and a tone control), Cranked (flat out: heavy compression and sag) or Edge (the clean end, pushed just to the edge)." },
+                { "Jubilant (silver-jubilee-style, cascaded clipping)", "A silver-jubilee-style 100 W head: a blackface-like clean channel and a lead channel with two clipping stages after the gain stages, which gives a thick, smooth compression unlike the other British heads. Voicing: Clean, Rhythm (one clipping stage), Lead (two clipping stages) or Lead Hi (more gain and presence)." },
                 { "Console DI (class-A channel, no amp)", "A recording-console channel instead of a guitar amp: wide, clean, with a little even-order colour from the transformers, and a low shelf and a 12 kHz high shelf. Turn the cab off for a direct sound. Voicing: Console, Pushed (the input driven into thick saturation), Funk (160 Hz high-pass, 3.2 kHz lift, a little compression) or Air (low and high shelves both up). No compressor is built in: use the Compressor section for a squashed funk sound." } } },
             { "ampBModel", {
                 { "Twin Sparkle (sparkly)", "A bright, sparkly clean amp with lots of headroom." },
@@ -841,7 +1057,7 @@ namespace
                 { "Diesel Fuel (tight, cutting)", "A tight, upper-mid-aggressive high-gain amp. Voicing: Lead, High gain, Crunch or Open." },
                 { "Wreck Stack (huge, very tight)", "A huge, very tight modern stack. Voicing: Lead, Crunch, Clean or Smooth." },
                 { "Power Brawl (punchy 6L6)", "A punchy modern 6L6-style amp. Voicing: Scooped, Mid-boosted, Crunch or Bottom." },
-                { "Cutaway (growl, flexible)", "A growly, cutting lead. Voicing: Lead, Sludge, Clean or Brilliant." },
+                { "Stolen Fire (growl, flexible)", "A growly, cutting lead. Voicing: Lead, Sludge, Clean or Brilliant." },
                 { "Hi-Wat Headroom (tight, clean to edge)", "A stiff, punchy British amp with a lot of clean headroom. Voicing: Normal, Brilliant, Linked or Open." },
                 { "Console DI (class-A channel, no amp)", "A recording-console channel: wide and clean with a little transformer colour. Voicing: Console, Pushed, Funk or Air." },
                 { "Plex Appeal (Plexi-style, mod options)", "A Plexi-style head. Voicing: Stock, Jumped, Modded or Modded + Jumped." },
@@ -851,7 +1067,16 @@ namespace
                 { "Marque Five (three channels, clean to lead)", "A modern three-channel head. Voicing: Clean, Crunch, Lead or Extreme." },
                 { "Dual Thirty (two channels, chimey crunch)", "A two-channel 30 W EL84 combo. Voicing: Channel 1, Channel 2, Pushed or Cut." },
                 { "Solid Metal (solid-state, 90s metal)", "A solid-state / hybrid metal amp. Voicing: Hybrid Hi-Gain, Hybrid Classic OD, JFET Lead or JFET Crunch." },
-                { "Cedar Twelve (small combo, early breakup)", "A small blackface-style combo that breaks up early. Voicing: Blackface, Spanky, Cranked or Big Spring."  } } },
+                { "Cedar Spring (blackface combos, early breakup)", "A family of blackface-style combos that break up early. Voicing: Blackface, Spanky, Cranked, Silverface or Boost." },
+                { "Jazz Box (dark jazz clean)", "A big, dark, solid-state jazz clean. Voicing: Jazz, Archtop, Dark Room or Pushed." },
+                { "Brit Eighteen (18 W EL84 combo)", "A small British EL84 combo that breaks up early. Voicing: Clean, Crunch, Cranked or Brilliant." },
+                { "Tweedle Dum (tweed bass amp, push-pull 4x10)", "A tweed-era bass amp played as a guitar amp: push-pull 6L6 power, a tube rectifier and a little global feedback with a Presence control, so it is bigger, tighter and cleaner than Tweedle Dee but still sags into a rich, spongy crunch. Voicing: Tweed Normal (the normal channel), Tweed Bright (the jumped, bright channel: more gain, thinner lows), Cranked (rectifier sag, loose and thick) or Silverface (a later solid-state-rectifier version: stiffer, more headroom, scooped mids)." },
+                { "Marque One (the original single-channel Mark)", "The original single-channel Mark-style head, split out of Marque Dream's Mark I voicing: four 6L6s, a bright stack and hot, mid-hump gain with looser lows than the later channels. Voicing: Mark I (as measured), Clean (Volume 1 low), Lead Boost (the footswitch boost: more gain and a mid push) or Graphic EQ (the scooped, hi-fi graphic setting)." },
+                { "Cedar Grand (6L6 reverb combo, 15-inch)", "A big 6L6 reverb combo split out of the Cedar Spring family, with its own supply and feedback: fuller lows, more headroom and a later, harder breakup than Cedar Spring's small combos. Voicing: Big Spring (the fitted late-breakup sound), Brownface (older and darker: looser, lower gain), Cranked (volume well up) or Bright (bright cap in, more bite)." },
+                { "Cedar Ten (4x10 combo, clean to gain channel)", "A four-10 combo with a clean channel and a gain channel, split out of the Cedar Spring family's Quad Ten voicing: 6L6 power, a solid-state rectifier and a Presence control. Voicing: Clean (headroom and a forward mid), Pushed, Drive (the gain channel at crunch) or Lead (the gain channel wide open)." },
+                { "Brit Forty-Five (KT66, the original 45 W head)", "The original KT66 45 W head, split out of the Plexi idea: a Bassman circuit with British voicing, a tube rectifier that sags, and much lower gain than Plex Appeal, so it stays clean for a long time and then breaks up thick and soft. Voicing: Normal, Bright (the jumped, brighter input), Cranked or Pushed (the gain well up)." },
+                { "Tweedle Mini (5 W single-ended tweed)", "A 5 W single-ended tweed: one 6V6 and no feedback, so it is the earliest and softest breakup in the plug-in, with the even-order grit of a class-A output stage. Voicing: Champ (the 5 W starter amp), Princeton (a little more headroom and a tone control), Cranked (flat out: heavy compression and sag) or Edge (the clean end, pushed just to the edge)." },
+                { "Jubilant (silver-jubilee-style, cascaded clipping)", "A silver-jubilee-style 100 W head: a blackface-like clean channel and a lead channel with two clipping stages after the gain stages, which gives a thick, smooth compression unlike the other British heads. Voicing: Clean, Rhythm (one clipping stage), Lead (two clipping stages) or Lead Hi (more gain and presence)." } } },
             { "wowMode", {
                 { "Octave up", "Heel: normal pitch. Toe: one octave up." },
                 { "Two octaves up", "Heel: normal pitch. Toe: two octaves up." },
@@ -897,7 +1122,13 @@ namespace
                 { "Passive stack: American lead", "The stack of an American lead amp: a combo-style stack with a lighter load, so the response is a little more open." },
                 { "Passive stack: chime (class A)", "A chime-style stack with big treble range and a bass control that sets how much low end gets through: open, glassy and mid-cut at the top. The 'Cut' character is approximated with the Treble knob turned down." },
                 { "Passive stack: high-gain, 680 pF", "A two-channel high-gain amp's stack from its schematic: 220k treble, 1M bass, 22k mid, 47.5k slope, 680 pF treble cap and 0.02 uF caps. Close to the British lead stack with a slightly smaller treble pot and mid pot: a little darker and tighter. Mid is the average of Low Mid and High Mid." },
-                { "Passive stack: high-gain, 500 pF", "The same stack with a 500 pF treble cap, as on that amp's second channel: a little brighter and more open at the top." } } },
+                { "Passive stack: high-gain, 500 pF", "The same stack with a 500 pF treble cap, as on that amp's second channel: a little brighter and more open at the top." },
+                { "Passive stack: orange-style (driven from a plate)", "A stack driven from a tube plate: 250k treble, 500k bass, 25k mid, 39k slope and a 560 pF treble cap." },
+                { "Passive stack: Dumble-style (Rock setting)", "The passive stack read from a 1970s boutique preamp sheet (Rock setting): a 330 pF treble cap and a big mid control that moves the mid hump." },
+                { "Passive stack: German high-gain (200k treble, 500k bass)", "The stack of a German four-channel high-gain head, read from a hand-drawn sheet: 200k treble, 500k bass, 22k mid, 39k slope, a 560 pF treble cap and two 22 nF capacitors. It is close to the orange-style stack with a lighter treble pot." },
+                { "Passive stack: bass head (270 pF, linear pots)", "The stack of a four-6550 bass head from its 1973 schematic: 250k treble, 1M bass, 25k mid, 56k slope, 270 pF treble cap and two 0.022 uF caps, all linear pots. A British-style layout with a much bigger bass pot." },
+                { "Passive stack: American, bright (1000 pF)", "The American combo stack with the treble cap raised from 250 pF to 1000 pF, as when the bright switch of a three-channel American lead amp is in: the Treble knob opens up much lower in frequency." },
+                { "Passive stack: solid-state combo (150 pF, 0.082 uF)", "The tone stack of a 1983 two-channel solid-state combo from its service notes: 250k treble (linear), 250k bass (audio), 10k mid, 100k slope, a 150 pF treble cap and 0.082 uF / 0.047 uF caps, driven from a 12k source. A deep, wide mid notch near 520 Hz (about 26 dB down at the middle settings) that the Mid knob fills in; treble and bass ranges of about 17 and 14 dB. Needs a lot of gain behind it, which the makeup gain supplies." } } },
             { "%sFeel", {
                 { "Loose feel (low feedback)", "Sags and blooms: fuller, looser lows and a softer top end." },
                 { "Normal feel", "The amp as voiced." },
@@ -911,7 +1142,12 @@ namespace
                 { "Passive stack: American lead", "The stack of an American lead amp: a combo-style stack with a lighter load, so the response is a little more open." },
                 { "Passive stack: chime (class A)", "A chime-style stack with big treble range and a bass control that sets how much low end gets through: open, glassy and mid-cut at the top. The 'Cut' character is approximated with the Treble knob turned down." },
                 { "Passive stack: high-gain, 680 pF", "A two-channel high-gain amp's stack from its schematic: 220k treble, 1M bass, 22k mid, 47.5k slope, 680 pF treble cap and 0.02 uF caps. Close to the British lead stack with a slightly smaller treble pot and mid pot: a little darker and tighter. Mid is the average of Low Mid and High Mid." },
-                { "Passive stack: high-gain, 500 pF", "The same stack with a 500 pF treble cap, as on that amp's second channel: a little brighter and more open at the top." } } },
+                { "Passive stack: high-gain, 500 pF", "The same stack with a 500 pF treble cap, as on that amp's second channel: a little brighter and more open at the top." },
+                { "Passive stack: orange-style (driven from a plate)", "A stack driven from a tube plate: 250k treble, 500k bass, 25k mid, 39k slope and a 560 pF treble cap." },
+                { "Passive stack: Dumble-style (Rock setting)", "The passive stack read from a 1970s boutique preamp sheet (Rock setting): a 330 pF treble cap and a big mid control that moves the mid hump." },
+                { "Passive stack: German high-gain (200k treble, 500k bass)", "The stack of a German four-channel high-gain head, read from a hand-drawn sheet: 200k treble, 500k bass, 22k mid, 39k slope, a 560 pF treble cap and two 22 nF capacitors. It is close to the orange-style stack with a lighter treble pot." },
+                { "Passive stack: bass head (270 pF, linear pots)", "The stack of a four-6550 bass head from its 1973 schematic: 250k treble, 1M bass, 25k mid, 56k slope, 270 pF treble cap and two 0.022 uF caps, all linear pots. A British-style layout with a much bigger bass pot." },
+                { "Passive stack: American, bright (1000 pF)", "The American combo stack with the treble cap raised from 250 pF to 1000 pF, as when the bright switch of a three-channel American lead amp is in: the Treble knob opens up much lower in frequency." } } },
             { "%sFeel", {
                 { "Loose feel (low feedback)", "Sags and blooms: fuller, looser lows and a softer top end." },
                 { "Normal feel", "The amp as voiced." },
@@ -945,15 +1181,16 @@ namespace
                 { "4x12 Straight", "A 4x12 with a square front. The mic hears a more direct, upper-mid focused sound." },
                 { "4x12 Angled", "A 4x12 with the top speakers angled up. A little less upper-mid focus and a touch more air and low warmth than the straight front. The difference is small." },
                 { "4x12 Open Back", "Four 12-inch speakers in an open-back cabinet: airy and loose, with less bass than a closed cab." },
-                { "Oversized 4x12 Straight (ported)", "A large, deep, ported 4x12 with a square front. The box resonance sits lower, so the lows are deeper and tighter, the boxy low mids are cleaned up and the upper mids stay focused. Good for downtuned and djent rhythm." },
-                { "Oversized 4x12 Angled (ported)", "The same big ported cab with an angled front: the same deep, tight lows, with slightly smoother upper mids and a little more air." },
+                { "Oversized 4x12 Straight (ported)", "A large ported 4x12 with a square front. Against the closed 4x12 it adds a narrow rise near 95 Hz and a little less below 70 Hz; the rest is the same. Good for downtuned rhythm." },
+                { "Oversized 4x12 Angled (ported)", "The same big ported cab with an angled front: the same low end, with slightly smoother upper mids and a little more air." },
                 { "1x12 Closed", "One 12-inch speaker in a closed cabinet: a tight, focused low end with more thump than the open back." },
                 { "1x10 Open", "One 10-inch speaker in an open-back cabinet: small, quick and bright, with a thin low end." },
                 { "2x10 Open", "Two 10-inch speakers in an open-back cabinet: snappy and open, with a scooped, airy low mid." },
                 { "4x10 Closed", "Four 10-inch speakers in a closed cabinet: punchy and fast, with a firm low end and a defined top." },
                 { "1x15 Closed", "One 15-inch speaker in a closed cabinet: big, round lows and a soft top, like a bass-leaning combo." },
                 { "1x8 Small", "One 8-inch speaker in a tiny cabinet: very little low end and a honky, radio-like midrange." },
-                { "Oversized 2x12 (ported)", "A deep, ported 2x12: the tight, clean low end of the oversized 4x12 in a smaller package." } } },
+                { "Oversized 2x12 (ported)", "A ported 2x12: the closed 2x12 with most of the oversized 4x12's rise near 95 Hz." },
+                { "No cabinet (speaker only)", "No box at all: no cabinet low cut, no box resonances and no narrow cabinet modes (the Box knob does nothing). You hear the speaker, mic and position only, with its low roll-off moved down to 30 Hz. Use it when you want a full-range, cab-free sound, or to build the low end yourself with the EQ." } } },
             { "cabSpk", {
                 { "Modern Tight", "A tight, controlled low end with sharp upper mids, for modern high gain." },
                 { "Vintage Crunch", "Warm and punchy with a rounded top end." },
@@ -1003,7 +1240,17 @@ namespace
                 { "Ideal Warm", "Smooth with a warm low mid and a softer top: easy on bright amps." },
                 { "Ideal Presence", "Smooth with a clear 3 to 5 kHz presence and a slightly scooped low mid: cutting without harshness." },
                 { "Ideal Wide Open", "Smooth and wide, with extended highs and a light mid lift: the most open of the idealized speakers." },
-                { "Big Fifteen", "A large-diameter (15-inch-style) speaker: a big, loose low thump, a scooped low mid, a forward 2 to 3 kHz and a top that rolls off early. Pairs with small-combo amps for a bigger, rounder sound." } } },
+                { "Big Fifteen", "A large-diameter (15-inch-style) speaker: a big, loose low thump, a scooped low mid, a forward 2 to 3 kHz and a top that rolls off early. Pairs with small-combo amps for a bigger, rounder sound." },
+                { "Jensen-Style Ten", "A 10-inch driver in the Jensen mould: lively upper mids, an open top and a lower thump than a 12. For the four-ten and two-ten combos." },
+                { "Paper Eight", "A small 8-inch paper-cone driver: bright, honky, a lot of cone breakup, very little bass. For the 5 W combos." },
+                { "Battery Three-Inch", "A 3-inch driver from a battery practice amp: a tiny, boxy, forward voice with almost no lows. A lo-fi colour." },
+                { "Telephone", "A telephone earpiece: a narrow band from about 300 Hz to 3.4 kHz. Not a guitar speaker; for effect." },
+                { "Transistor Radio", "A small transistor-radio speaker: a nasal midrange hump, rolled-off lows and highs and some rattle. For effect." },
+                { "Cardboard Box", "A driver in a cardboard box: boxy low mids, a dull top and a dip in the upper mids. A cheap-and-nasty colour." },
+                { "PA Horn", "A PA horn driver: no lows, a hard 2 to 4.5 kHz push and a bright top. Cutting and harsh; try it on a clean tone." },
+                { "Studio Tweeter", "A studio tweeter on its own: highs only, from about 1 kHz up. For use as a bright layer or as an effect." },
+                { "Cracked Cone", "A guitar speaker with a damaged cone: the usual voice with a lot of added breakup and rattle in the upper mids." },
+                { "Tin Can", "A resonant tin-can voice: a strong honk near 800 Hz and almost nothing above 3 kHz. A deliberately odd colour." } } },
             { "cabMic", {
                 { "Dynamic Bright", "A bright dynamic mic with a presence peak: cutting and aggressive." },
                 { "Dynamic Full", "A fuller dynamic mic with more low mids." },
@@ -1031,7 +1278,8 @@ namespace
                 { "Tube", "An asymmetric triode-style stage with even and odd harmonics and a touch of top-end loss." },
                 { "Treble", "A one-transistor treble booster from published component values: bass is cut below about 3 kHz before the gain (up to 38 dB) and the stage clips lopsidedly. Saturation moves the input capacitor from 5 nF (stock, thin) to 47 nF (fuller)." },
                 { "Mid", "A mid-forward boost: trims the bass and pushes around 900 Hz with a gentle clip, so leads cut through." },
-                { "FET", "A transparent solid-state stage with very little top loss and mostly even harmonics. Keeps the guitar's own character." } } },
+                { "FET", "A transparent solid-state stage with very little top loss and mostly even harmonics. Keeps the guitar's own character." } ,
+                { "Tape", "A cassette four-track's channel in front of its tape: a head bump near 90 Hz, the rumble cut, and a soft, symmetrical saturation where the lows give way first. The top rolls off like a cassette, and closes further as you push. Add the Cassette voicing of Lo-Fi (Mod page) for the wobble and hiss." } } },
             { "bsTightStyle", {
                 { "Mid hump", "A low cut plus a mid hump around 720 Hz: tight and vocal." },
                 { "Low cut", "Only a low cut, with no other colour." },
@@ -1047,19 +1295,22 @@ namespace
                 { "Rotary", "A rotating horn and drum with speed inertia. Rate is the horn speed; Manual balances horn and drum." },
                 { "Auto-pan", "Pans between the left and right (a plain tremolo if the signal is mono)." },
                 { "Harmonic tremolo", "The lows and the highs pulse in opposite directions." },
-                { "Tremolo", "Plain volume tremolo. Depth is how far the volume dips; set Mix to 1 for full-depth pulsing. Shape: Sine, Triangle, Soft square or Optical (a lagging lamp, round and amp-like)." },
+                { "Tremolo", "Plain volume tremolo. Depth is how far the volume dips; set Mix to 1 for full-depth pulsing. Shape: any wave; Optical is a lagging lamp (round and amp-like) and Bias has narrow dips like an amp tremolo that wobbles the power tubes. Pick Response makes a harder pick shallower." },
                 { "Shifted-feedback flanger", "A flanger whose feedback is frequency-shifted by the Shift knob on each trip, so the sweep spirals up or down and the notches move. Needs Feedback above zero (either sign)." },
                 { "Pitch modulation", "A pitch-shifted voice mixed with your signal. Manual sets the interval in whole semitones (centre = unison, up to an octave either way). The LFO swings the pitch around it: small Depth = detune/chorus, large Depth = siren and dive-bomb sweeps. Feedback sends the shifted voice back so repeats climb or fall. Use a Ramp shape for endless rising or falling." },
                 { "Stutter (rhythmic repeats)", "Locks to the tempo (set Note) and chops the sound into repeats. Each cycle the last stretch of what you played is looped. Depth is how much of each cycle is stuttered (low = a short flurry at the end of the beat, 1 = the whole beat); Manual is the number of repeats (1 to 8); Mix blends it with the live signal. Unlike Glitch in the Grain section, it is rhythmic and always on the beat, with no random jumps." },
-                { "Chorus", "The stand-alone Chorus as a type: Manual picks the mode (I, II, I + II, Dimension, Tri-chorus, Ensemble, Detune), Rate is the speed relative to the mode's own (1 Hz = as built), Depth is the depth, Fidelity below 1 adds hiss. Mono, like the Chorus block." },
-                { "Phaser", "The stand-alone Phaser as a type. Manual is the centre frequency, Feedback the resonance; Stages (2 to 12), Envelope and Lag are their own knobs. Shape: Sine, Triangle or Random. Mono." },
-                { "Lo-Fi warble", "The stand-alone Lo-Fi as a type: tape / cassette wobble. Rate and Depth set the warble, Manual the random drift, Tone the top end, Feedback the dirt; Noise, Dropouts and Level are their own knobs. Mono." },
+                { "Chorus", "The old Chorus as a type: the Mode menu picks the voicing (I, II, I + II, Dimension, Tri-chorus, Ensemble, Detune, Small Clone low or high depth), Rate is the speed relative to the mode's own (1 = as built), Depth is the depth, Tone the top end, Fidelity below 1 adds hiss. Mono." },
+                { "Phaser", "The old Phaser as a type. Manual is the centre frequency (80 Hz to 3 kHz), Feedback the resonance; Stages (2 to 12), Envelope and Lag are their own knobs. Every LFO shape works. Mono." },
+                { "Lo-Fi warble", "The old Lo-Fi as a type: tape / cassette wobble. Rate and Depth set the warble, Manual the random drift, Tone the top end, Feedback the dirt; Noise, Dropouts and Level are their own knobs. Every LFO shape works. Mono." },
                 { "Filter sweep (low-pass)", "A low-pass filter swept by the LFO (Rate, Depth). Manual is the cutoff, Feedback the resonance, Shape Random makes random steps. This is the Filter block as a slot type." },
                 { "Filter sweep (band-pass)", "A band-pass filter swept by the LFO: the classic auto-wah sweep. Manual is the centre, Feedback the resonance." },
                 { "Notch sweep", "A notch (a narrow gap) swept by the LFO: a hollow, phaser-like sweep." },
                 { "Vowel sweep (formant)", "Vowel formants swept by the LFO. Manual picks the vowel (A E I O U), Feedback the sharpness." },
                 { "Auto-wah (envelope)", "A band-pass that opens when you play harder and closes as the note dies. Manual is the centre, Feedback the resonance, Depth how far it opens (Rate is not used)." },
                 { "Slicer (step gate)", "Chops the sound with an eight-step pattern that repeats. Manual picks the pattern, Rate is the step speed (use Note to lock it to the tempo), Depth how far the gaps cut, Tone how soft the steps are, Mix blends with the live signal." },
+                { "Filter (all modes)", "The old Filter pedal as a type. Filter Mode: low-pass, high-pass, band-pass, notch, formant or resonator. Filter Motion: manual, LFO, envelope (your playing) or random steps. Manual is the cutoff, Feedback the resonance, Depth the sweep size (Sweep Down flips it), Vowel the formant vowel." },
+                { "Frequency shifter / ring mod", "Moves every partial by the same number of Hz, so the harmonics stop lining up: slow shifts spiral like a barber-pole phaser, big ones sound metallic and clangy. Mode picks Shift (single sideband), Ring modulator or Spread (left up, right down). Shift is in Hz and goes to 2 kHz either way; Feedback and Delay make shifted repeats." },
+                { "Vocoder (talk through a synth)", "A voice (or any sound) shapes a synth. The modulator is the host's sidechain input when your DAW routes one in (send a vocal track to this plugin's sidechain), otherwise your own playing. Carrier picks what is shaped: your guitar, a synth that follows your pitch, noise (a whisper) or a fixed drone. Formant moves the bands up or down an octave." },
                 { "Wobble (tremolo-arm vibrato)", "Pitch vibrato like a loosely held tremolo arm (this was the separate Wobble pedal). Feedback sets the random drift of the arm (either direction); Manual and Tone are not used." } } },
             { "mfAPos", {
                 { "Before the amp", "The effect feeds the amp (so it is affected by the amp's gain)." },
@@ -1073,7 +1324,30 @@ namespace
                 { "Ramp down", "Falls slowly and jumps back up." },
                 { "Square", "Jumps quickly between the two ends." },
                 { "Random (wandering)", "A slow, uneven wander that never repeats exactly." },
-                { "Optical (tremolo only)", "A lamp-and-photocell feel: the dips round off and recover slowly. Only the Tremolo type uses it; other types treat it as Random." } } },
+                { "Optical (tremolo only)", "A lamp-and-photocell feel: the dips round off and recover slowly. Only the Tremolo type uses it; other types treat it as Random." },
+                { "Bias (tremolo only)", "The amp-style tremolo wave: the dips are narrow and the full-level part is wide, like a tremolo that wobbles the power tubes' bias. Only the Tremolo type uses it." } } },
+            { "mfAChMode", {
+                { "I", "The gentler, slower chorus setting." },
+                { "II", "The deeper, faster chorus setting." },
+                { "I + II", "Both settings together for a wide, lush sound." },
+                { "Dimension", "A very slow, shallow, two-line widener. You hear a soft thickening more than a sweep. Try Mix at 0.3 to 0.5." },
+                { "Tri-chorus", "Three lines a third of a cycle apart: a smooth, wide, swirling chorus." },
+                { "Ensemble", "A string-machine style ensemble: three lines with a slow sweep and a faint fast shimmer on top." },
+                { "Detune", "Two longer lines drifting slowly in opposite directions, a few cents sharp and flat, like a doubled take." },
+                { "Small Clone (low depth)", "A single-line bucket-brigade chorus after the Small Clone with its Depth switch low: one dark, slowly swept delay line summed with the dry signal. The sweep figures are my estimates; the schematic is not in the EHX book." },
+                { "Small Clone (high depth)", "The same single-line chorus with the Depth switch high: a wider sweep that bends the pitch more, the seasick swirl the pedal is known for. Estimated, like the low setting." } } },
+            { "mfAFMode", {
+                { "Low-pass", "Lets the lows through and cuts the highs." },
+                { "High-pass", "Lets the highs through and cuts the lows." },
+                { "Band-pass", "Passes a band around the cutoff: the classic wah sound." },
+                { "Notch", "Cuts a narrow band around the cutoff: a hollow, phaser-like sweep." },
+                { "Formant (vowel)", "Vowel shapes: the Vowel knob morphs A - E - I - O - U and Manual shifts the formants up or down." },
+                { "Resonator (tuned)", "Tuned ringing combs: Manual is the pitch, Feedback how long it rings." } } },
+            { "mfAFMotion", {
+                { "Manual", "Nothing moves: the cutoff stays where Manual puts it." },
+                { "LFO", "The LFO sweeps the cutoff (Rate, Depth)." },
+                { "Envelope (follows your playing)", "Playing harder pushes the cutoff up (Depth sets how far, Sweep Down flips it)." },
+                { "Random steps", "The cutoff jumps to a new random place at the Rate speed, with a short glide." } } },
             { "preDelayHoldMode", {
                 { "Freeze", "The delay loops what it holds and ignores new playing." },
                 { "Infinite", "The repeats never die away, and new playing keeps adding to them." } } },
@@ -1212,7 +1486,13 @@ namespace
                 { "Tape", "Darker still, with strong saturation and plenty of wow and flutter." },
                 { "Lo-Fi", "Dark, with reduced sample rate and bit depth: crunchy, degraded repeats." },
                 { "Oil-can", "Dark and warm with a heavy, smooth, always-on chorus-like wobble of the repeats, like a rotating-disc delay. Mod depth adds to the built-in wobble; Mod rate is limited to 2.5 Hz here." },
-                { "Organ (short oil-can)", "The oil-can character on a very short delay (the Time knob is squeezed into 6 to 70 ms) with a deeper, faster wobble. At 100% Mix it is a lush, dark vibrato; lower Mix gives a thick chorus-like doubling. Keep Feedback low." } } },
+                { "Organ (short oil-can)", "The oil-can character on a very short delay (the Time knob is squeezed into 6 to 70 ms) with a deeper, faster wobble. At 100% Mix it is a lush, dark vibrato; lower Mix gives a thick chorus-like doubling. Keep Feedback low." },
+                { "Tape Sustain", "A single-head tape loop: warm and saturating, with the bass trimmed inside the loop so the repeats build up without turning to mud. A little wobble." },
+                { "Three-Head Tape", "Tape echo with two extra heads at a third and two thirds of the delay time (the Multi-Tap menu can still choose another pattern), a gentle wobble and some bass trim." },
+                { "Chorus Bucket", "A dark bucket-brigade echo with its own chorus-like movement built in (Mod depth adds more). Soft and watery." },
+                { "Studio Tape", "A bright, clean tape echo: a little saturation, very little wobble, a touch of bass trim." },
+                { "Dub Echo", "Dark and heavily saturated, with the bass cut hard inside the loop, so the repeats thin out and swirl as they fade. Wobbles a lot." },
+                { "Memory Man", "A dark analog bucket-brigade echo in the style of a Deluxe Memory Man: soft, slightly gritty repeats that smear and darken as they build, with a gentle chorus/vibrato sweep always on the delay line (Mod rate and Mod depth set the Speed and Depth; depth never goes fully still). An estimate of the idea, not yet matched to the real unit." } } },
             { "widMode", {
                 { "Wide: Classic", "The default widening: a balanced amount of smearing and lift." },
                 { "Wide: Desktop", "Tuned for small speakers: more lift in the low mids and highs." },
@@ -1256,7 +1536,9 @@ namespace
                 { "Dimension", "A very slow, shallow, two-line widener. You hear a soft thickening more than a sweep. Try Mix at 0.3 to 0.5." },
                 { "Tri-chorus", "Three lines a third of a cycle apart: a smooth, wide, swirling chorus." },
                 { "Ensemble", "A string-machine style ensemble: three lines with a slow sweep and a faint fast shimmer on top." },
-                { "Detune", "Two longer lines drifting slowly in opposite directions, a few cents sharp and flat, like a doubled take." } } },
+                { "Detune", "Two longer lines drifting slowly in opposite directions, a few cents sharp and flat, like a doubled take." },
+                { "Small Clone (low depth)", "A single-line bucket-brigade chorus after the Small Clone with its Depth switch low: one dark, slowly swept delay line summed with the dry signal. The sweep figures are my estimates; the schematic is not in the EHX book." },
+                { "Small Clone (high depth)", "The same single-line chorus with the Depth switch high: a wider sweep that bends the pitch more, the seasick swirl the pedal is known for. Estimated, like the low setting." } } },
             { "eqMode", {
                 { "Graphic", "All nine bands have the same medium Q (1.4)." },
                 { "Mod (custom Q)", "Each band has its own Q, narrower in the mids and wider at the ends. The Q knob scales them." } } },
@@ -1296,8 +1578,35 @@ juce::String comboItemTip (const juce::String& paramId, const juce::String& item
     if (id == "postDelayMode") id = "preDelayMode";
     if (id == "postDelayHoldMode") id = "preDelayHoldMode";
     if (id == "postDelayTaps") id = "preDelayTaps";
+    if (id == "postDelaySatType") id = "preDelaySatType";
+    if (id == "preDelaySatType" || id.endsWith ("WDriveType") || id == "compSat" || id.startsWith ("msType"))      // b64: the shared saturation curves
+    {
+        static const std::pair<const char*, const char*> uni[] =
+        {
+            { "Tape", "Smooth tanh round-off: odd harmonics, no DC." },
+            { "Tube", "A tanh curve pushed off-centre: even harmonics (warm), with the DC it makes taken out." },
+            { "Diode", "A soft knee: gentle, fast-rounding peaks." },
+            { "Transformer", "A smooth, wide round-off that never quite stops rising." },
+            { "Hard clip", "Straight to a flat ceiling: harsh, odd harmonics." },
+            { "Triode", "Lopsided: the top half is squashed harder than the bottom (even and odd harmonics)." },
+            { "Pentode", "An exponential knee: odd harmonics with an edgy, buzzy top." },
+            { "Germanium", "Soft on one side, long on the other: a sagging, fuzzy asymmetry." },
+            { "Iron (core)", "A transformer core. Only in the Multiband Saturator does it saturate the lows first; in the other blocks it uses the plain tape curve." },
+            { "Tape + (bump)", "Tape with a head bump and the highs squashing first. Only in the Multiband Saturator; in the other blocks it uses the plain tape curve." },
+            { "Foldback", "The peaks fold back over themselves: glassy, metallic." },
+            { "Rectify", "Half-wave rectifier: an octave-up edge." },
+            { "Bit crush", "Coarse steps (about 6 bits)." },
+            { "Line Xfmr", "A very clean input transformer: only a whisper of 2nd and 3rd harmonic that grows with level." },
+            { "FET stage", "Symmetric with a tighter knee and a lower ceiling: odd-harmonic edge, the compressor's FET stage." },
+            { "Opto tube stage", "A soft, lopsided tube curve with a long gentle knee: even harmonics, the compressor's opto stage." },
+        };
+        const juce::String nm = itemText.startsWith ("Curve: ") ? itemText.substring (7) : itemText;
+        for (auto& e : uni)
+            if (nm == e.first && (id != "compSat" || itemText.startsWith ("Curve: ")))
+                return e.second;
+    }
     if (id.startsWith ("mfB") || id.startsWith ("mfC") || id.startsWith ("mfD"))
-        if (id.endsWith ("Type") || id.endsWith ("Pos") || id.endsWith ("Shape"))
+        if (id.endsWith ("Type") || id.endsWith ("Pos") || id.endsWith ("Shape") || id.endsWith ("ChMode") || id.endsWith ("FMode") || id.endsWith ("FMotion"))
             id = "mfA" + id.substring (3);
 
     if (id.endsWith ("Note"))
@@ -1529,7 +1838,7 @@ namespace
             { 0xff2e1216, 0xff12060a, 0xffd8b86a, 0xff7f6428, 0xff1a1416, 0xff0a0708, 0xffe8cf86, 0xff3a2a22, 0xff1a120e, 0xff8a6a48, 3, 0xffd8b878, 0xff6a5020, 0xffff6a4a },
             // v0.2 amp (look 28): Solid Metal (black vinyl, chrome piping, black plate with white and red lettering, black grille cloth)
             { 0xff161618, 0xff060607, 0xffd2d4d8, 0xff6a6c72, 0xff0c0c0e, 0xff050506, 0xffe0e2e6, 0xff1e1e22, 0xff0c0c0e, 0xff8a8c92, 3, 0xffe8e8ec, 0xff5a1010, 0xffff2a2a },
-            // v0.2 amp (look 29): Cedar Twelve (deep teal tolex, cream piping, black plate with cream lettering, silver-wheat grille cloth)
+            // v0.2 amp (look 29): Cedar Spring (deep teal tolex, cream piping, black plate with cream lettering, silver-wheat grille cloth)
             { 0xff17302e, 0xff08141a, 0xffeadfbf, 0xff8a8268, 0xff0e0f10, 0xff060707, 0xfff0e6c8, 0xff3a3a32, 0xff201e18, 0xffa89c7c, 3, 0xffeadcb4, 0xff4a4426, 0xffff9a4a },
             // v0.2 amp (look 30): Triple Blend (oxblood tolex, brass piping, black plate with brass lettering, dark wheat grille cloth)
             { 0xff3a1418, 0xff160608, 0xffd8b070, 0xff7a5a28, 0xff0e0c0c, 0xff060505, 0xffe8c488, 0xff3a2c22, 0xff22160e, 0xffa88a58, 3, 0xffd8b070, 0xff5a3a14, 0xffffb050 },
@@ -1537,8 +1846,17 @@ namespace
             { 0xff1c1e22, 0xff08090b, 0xffc8ccd2, 0xff6a6e76, 0xff0e0f12, 0xff060608, 0xffdce0e6, 0xff2a2c32, 0xff121316, 0xff80848c, 3, 0xffd0d4da, 0xff3a3e46, 0xff8ab4ff },
             // b14 amp (look 32): Brit Eighteen (cream-and-green basket, brown tolex look: olive tolex, gold piping, dark plate with gold lettering, tan cloth)
             { 0xff2a2c1a, 0xff0e1006, 0xffd8c078, 0xff7a6a2c, 0xff14140c, 0xff080804, 0xffe6d290, 0xff3a3622, 0xff201e12, 0xff9a8a58, 3, 0xffd8c078, 0xff5a4e1a, 0xffffc84a },
+            // b66 split amps (looks 33 to 39): Tweedle Dum (lacquered tweed, cream plate, diamond cloth), Marque One (black vinyl, chrome, wicker cloth), Cedar Grand (brownface brown tolex, tan cloth),
+            // Cedar Ten (black tolex, chrome piping, grey grille), Brit Forty-Five (black tolex, gold plate, tan cloth), Tweedle Mini (light tweed, cream plate), Jubilant (silver tolex, gold plate)
+            { 0xffb89a5c, 0xff7a5f30, 0xff3a2a14, 0xff1e1408, 0xffe9dcb4, 0xffb59d66, 0xff2b1a08, 0xff6a5430, 0xff3a2c14, 0xffcdb27c, 1, 0xfff0e6c8, 0xff8a7a50, 0xffffcf6a },
+            { 0xff1a1a1a, 0xff080808, 0xffc9ccd0, 0xff767a82, 0xff0d0d0e, 0xff050506, 0xffe8e8ea, 0xff8a7448, 0xff4a3c20, 0xffc2a870, 3, 0xffd8dade, 0xff5a5a60, 0xffff9a3a },
+            { 0xff4a3220, 0xff22160c, 0xffe0cfa0, 0xff8a7a50, 0xff1a1410, 0xff0a0806, 0xfff0e0b8, 0xffb09a6e, 0xff6a5636, 0xffd8c590, 3, 0xffe3d4a8, 0xff6a5430, 0xffffa850 },
+            { 0xff1c1c20, 0xff09090b, 0xffd0d4da, 0xff7a808a, 0xff0c0d10, 0xff050608, 0xffe0e4ea, 0xff2e2f33, 0xff141518, 0xff8e929a, 3, 0xffe8eaee, 0xff3a3e46, 0xff5ac8ff },
+            { 0xff17161a, 0xff070709, 0xffe8d49a, 0xff8a7436, 0xff12100c, 0xff060504, 0xffe8d49a, 0xff3a3226, 0xff1a150d, 0xffb8a064, 3, 0xffe9dcb0, 0xff8a7a46, 0xffffc85a },
+            { 0xffcbb27a, 0xff8c7442, 0xff3a2a14, 0xff1e1408, 0xffd9c9a0, 0xffa89466, 0xff2b1a08, 0xff7a6038, 0xff463618, 0xffd6c088, 1, 0xfff0e6c8, 0xff8a7a50, 0xffffd88a },
+            { 0xff9aa0a8, 0xff5c626a, 0xff1c1d20, 0xff0a0a0c, 0xff16171a, 0xff08080a, 0xffe8cf86, 0xff2a2a2e, 0xff121316, 0xffa4a8b0, 3, 0xffe8cf86, 0xff6a5a2a, 0xffffd04a },
         };
-        return themes[juce::jlimit (0, 32, index)];
+        return themes[juce::jlimit (0, 39, index)];
     }
 
     // The look for an amp model (the ampModel parameter's value): Acoustic wears the Chime Thirty look,
@@ -1546,7 +1864,7 @@ namespace
     // the two v61 amps (13, 14) are looks 12 and 13, the v62 Master Cranker amp (15) is look 14, and the five v95 amps (16 to 20) are looks 15 to 19.
     int themeForModel (int model)
     {
-        return model == 5 ? 1 : model >= 6 ? juce::jmin (model - 1, 32) : juce::jlimit (0, 4, model);
+        return model == 5 ? 1 : model >= 6 ? juce::jmin (model - 1, 39) : juce::jlimit (0, 4, model);
     }
 
     // Upper-case text with a little extra space between the letters (used for titles).
@@ -1886,6 +2204,17 @@ void AmpLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Button& butt
 
     if (button.getComponentID() == "tab")   // page tabs: plain text, with a glowing line under the chosen one
     {
+        if (button.getProperties().getWithDefault ("locked", false))        // b56: a small padlock at the right edge
+        {
+            const auto amber = juce::Colour (0xffe6a23c);
+            const float px = r.getRight() - 12.0f, py = r.getY() + 9.0f;
+            g.setColour (amber);
+            g.fillRoundedRectangle (px, py + 4.0f, 8.0f, 6.0f, 1.2f);
+            juce::Path shackle;
+            shackle.addArc (px + 1.5f, py, 5.0f, 8.0f, -juce::MathConstants<float>::halfPi, juce::MathConstants<float>::halfPi, true);
+            shackle.addArc (px + 1.5f, py, 5.0f, 8.0f, juce::MathConstants<float>::halfPi, juce::MathConstants<float>::pi * 1.5f, true);
+            g.strokePath (shackle, juce::PathStrokeType (1.2f));
+        }
         if (button.getToggleState())
         {
             g.setColour (ui::accent.withAlpha (0.16f));
@@ -1929,10 +2258,10 @@ static const juce::String& captionForId (const juce::String& idIn)
         { "eqMode", "Type" }, { "chorusMode", "Mode" }, { "compDetHp", "Detector HP" }, { "compRatio", "Ratio" }, { "compSat", "Saturation" }, { "compStyle", "Style" },
         { "filtMode", "Type" }, { "filtMotion", "Motion" }, { "fuzzBenderModel", "Model" }, { "fuzzMuffDiode", "Diodes" }, { "fuzzMuffVer", "Version" },
         { "fuzzVerbProg", "Program" }, { "gxMode", "Mode" }, { "granScale", "Scale" }, { "granShape", "Grain shape" }, { "hmKey", "Key" }, { "hmMode", "Mode" },
-        { "hmScale", "Scale" }, { "hmTrack", "Tracking" }, { "lfShape", "Shape" }, { "mfAShape", "Shape" }, { "mfAType", "Type" }, { "mfAPos", "Position" },
-        { "noiseGrossScene", "Scene" }, { "odClip", "Clipping" }, { "odMidMod", "Mids" }, { "odStyle", "Style" }, { "odVoice", "Voice" }, { "phaserShape", "Shape" },
+        { "hmScale", "Scale" }, { "hmTrack", "Tracking" }, { "lfShape", "Shape" }, { "mfAShape", "Shape" }, { "mfAChMode", "Mode" }, { "mfAFsMode", "Mode" }, { "mfALoVoice", "Voicing" }, { "mfAPhVoice", "Voicing" }, { "mfAVocCar", "Carrier" }, { "mfAVocBands", "Bands" }, { "mfAVocNote", "Drone note" }, { "mfAFMode", "Filter" }, { "mfAFMotion", "Motion" }, { "mfAType", "Type" }, { "mfAPos", "Position" },
+        { "noiseGrossScene", "Scene" }, { "odClip", "Clipping" }, { "odMidMod", "Mids" }, { "odNob", "Voicing" }, { "odStyle", "Style" }, { "odVoice", "Voice" }, { "phaserShape", "Shape" },
         { "preDelayMode", "Type" }, { "postDelayMode", "Type" }, { "postDelayStyle", "Playback" }, { "preDelayStyle", "Playback" }, { "preDelayHoldMode", "Hold" }, { "postDelayHoldMode", "Hold" },
-        { "preDelayTaps", "Taps" }, { "postDelayTaps", "Taps" }, { "reverbDragMode", "Drag" }, { "reverbGravity", "Gravity" }, { "reverbIrSource", "IR" },
+        { "preDelayTaps", "Taps" }, { "postDelayTaps", "Taps" }, { "preDelaySatType", "Saturation" }, { "postDelaySatType", "Saturation" }, { "reverbDragMode", "Drag" }, { "reverbGravity", "Gravity" }, { "reverbIrSource", "IR" },
         { "reverbReturn", "Return" }, { "dmSource", "Your pickups" }, { "dmTarget", "Match to" }, { "gxKey", "Listens to" }, { "reverbSymphPitch", "Symphony" }, { "reverbTremShape", "Trem shape" }, { "reverbWDriveType", "Wet drive" }, { "reverbType", "Type" },
         { "shimmerMode", "Shimmer" }, { "shimmerPitch", "Pitch" }, { "ringMode", "Mode" }, { "ringWave", "Wave" }, { "synWave1", "Wave 1" }, { "synWave2", "Wave 2" },
         { "synOct2", "Osc 2" }, { "synTrack", "Tracking" }, { "tremShape", "Shape" }, { "tpRange", "Strings" }, { "wahEnvDir", "Direction" }, { "wahEnvShape", "Filter" },
@@ -2164,21 +2493,32 @@ void Panel::setPresetHandler (std::function<void (juce::Component&)> handler)
     resized();
 }
 
+void Panel::ensureAdvButton()
+{
+    if (advBtnAdded)
+        return;
+    advBtnAdded = true;
+    advButton.setClickingTogglesState (true);
+    advButton.setColour (juce::TextButton::buttonColourId, ui::knobBody);
+    advButton.setColour (juce::TextButton::buttonOnColourId, ui::accent2);
+    advButton.setColour (juce::TextButton::textColourOffId, ui::textDim);
+    advButton.setColour (juce::TextButton::textColourOnId, juce::Colours::black);
+    advButton.setTooltip ("Basic / Advanced. Off: only the main controls are shown. On: all of them, including any extra panel beside this one. Hidden controls keep their settings and still work.");
+    advButton.onClick = [this] { setAdvancedShown (advButton.getToggleState()); if (onAdvancedChanged) onAdvancedChanged (advancedShown); };
+    addAndMakeVisible (advButton);
+}
+
+void Panel::enableAdvButton()
+{
+    ensureAdvButton();
+    resized();
+}
+
 void Panel::markAdvanced (juce::Component* c)
 {
     if (c == nullptr)
         return;
-    if (advancedComps.empty())
-    {
-        advButton.setClickingTogglesState (true);
-        advButton.setColour (juce::TextButton::buttonColourId, ui::knobBody);
-        advButton.setColour (juce::TextButton::buttonOnColourId, ui::accent2);
-        advButton.setColour (juce::TextButton::textColourOffId, ui::textDim);
-        advButton.setColour (juce::TextButton::textColourOnId, juce::Colours::black);
-        advButton.setTooltip ("Basic / Advanced. Off: only the main controls of this panel are shown. On: all of them. Hidden controls keep their settings and still work.");
-        advButton.onClick = [this] { setAdvancedShown (advButton.getToggleState()); if (onAdvancedChanged) onAdvancedChanged (advancedShown); };
-        addAndMakeVisible (advButton);
-    }
+    ensureAdvButton();
     advancedComps.push_back (c);
     resized();
 }
@@ -2489,14 +2829,14 @@ void Panel::resized()
     auto area = getLocalBounds().reduced (12, 8);
     area.removeFromTop (22);   // the title
 
-    if (! advancedComps.empty())
+    if (advBtnAdded)
     {
         advButton.setBounds (getWidth() - 12 - 44, 7, 44, 18);
         advButton.setVisible (advAvailable);
     }
     if (onPreset)
     {
-        const bool advShown = ! advancedComps.empty() && advAvailable;
+        const bool advShown = advBtnAdded && advAvailable;
         presetButton.setBounds (getWidth() - 12 - 40 - (advShown ? 48 : 0), 7, 40, 18);
         presetButton.toFront (false);
     }
@@ -3322,17 +3662,157 @@ TunerView::TunerView (StarterAmpProcessor& p) : Panel ("TUNER  (OUTPUT MUTED WHI
     setVisible (false);
     refSlider.setSliderStyle (juce::Slider::LinearHorizontal);
     refSlider.setTextBoxStyle (juce::Slider::TextBoxLeft, false, 70, 18);
-    refSlider.textFromValueFunction = [] (double v) { return "A = " + juce::String ((int) std::lround (v)) + " Hz"; };
     refSlider.setTooltip ("The reference pitch for A (427 to 453 Hz). 440 is the standard. Double-click to reset.");
     refAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (proc.apvts, "tunerRef", refSlider);
+    refSlider.textFromValueFunction = [] (double v) { return "A = " + juce::String ((int) std::lround (v)) + " Hz"; };        // after the attachment, which sets its own
     refSlider.updateText();
     addAndMakeVisible (refSlider);
+
+    modeBox.addItemList (juce::StringArray { "Single note", "All strings" }, 1);
+    modeBox.setTooltip ("Single note: the note you play and how far off it is. All strings: strum the chord and every string of the tuning is read at once.");
+    modeAttach = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (proc.apvts, "tunerMode", modeBox);
+    addAndMakeVisible (modeBox);
+
+    for (int i = 0; i < PolyTuner::kNumPresets; ++i)
+        presetBox.addItem (PolyTuner::presets()[i].name, i + 1);
+    presetBox.setTooltip ("The tuning to tune to. Pick Custom (or change any string's note) to build your own.");
+    presetAttach = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (proc.apvts, "tunerPreset", presetBox);
+    presetBox.onChange = [this]
+    {
+        const int idx = presetBox.getSelectedItemIndex();
+        if (idx >= 0 && idx != PolyTuner::kCustomPreset)
+            applyPreset (idx);
+    };
+    addAndMakeVisible (presetBox);
+
+    for (int n = 1; n <= PolyTuner::kMaxStrings; ++n)
+        countBox.addItem (juce::String (n) + (n == 1 ? " string" : " strings"), n);
+    countBox.setTooltip ("How many strings. Strings are numbered from the lowest.");
+    countBox.onChange = [this]
+    {
+        const int n = countBox.getSelectedId();
+        if (n >= 1 && n != getInt ("tunerCount"))
+        {
+            setInt ("tunerCount", n);
+            markCustomIfChanged();
+        }
+    };
+    addAndMakeVisible (countBox);
+
+    shiftSlider.setSliderStyle (juce::Slider::IncDecButtons);
+    shiftSlider.setIncDecButtonsMode (juce::Slider::incDecButtonsNotDraggable);
+    shiftSlider.setTextBoxStyle (juce::Slider::TextBoxLeft, false, 110, 22);
+    shiftSlider.setTooltip ("Moves every string up or down together, in semitones. Tune a whole set a step down or up without changing the tuning. Double-click to reset.");
+    shiftAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (proc.apvts, "tunerShift", shiftSlider);
+    shiftSlider.textFromValueFunction = [] (double v) { const int s = (int) std::lround (v); return "All strings " + juce::String (s > 0 ? "+" : "") + juce::String (s) + " st"; };
+    shiftSlider.updateText();
+    addAndMakeVisible (shiftSlider);
+
+    for (int i = 0; i < PolyTuner::kMaxStrings; ++i)
+    {
+        nudgeDown[i].setButtonText ("-");
+        nudgeUp[i].setButtonText ("+");
+        nudgeDown[i].setTooltip ("Lower this string's note by a semitone.");
+        nudgeUp[i].setTooltip ("Raise this string's note by a semitone.");
+        nudgeDown[i].onClick = [this, i] { nudgeString (i, -1); };
+        nudgeUp[i].onClick   = [this, i] { nudgeString (i, +1); };
+        addChildComponent (nudgeDown[i]);
+        addChildComponent (nudgeUp[i]);
+    }
+}
+
+juce::String TunerView::noteName (int m, bool withOctave)
+{
+    static const char* names[12] { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+    return juce::String (names[((m % 12) + 12) % 12]) + (withOctave ? juce::String (m / 12 - 1) : juce::String());
+}
+
+int TunerView::getInt (const char* id) const { return (int) std::lround (proc.apvts.getRawParameterValue (id)->load()); }
+
+void TunerView::setInt (const juce::String& id, int v)
+{
+    if (auto* prm = proc.apvts.getParameter (id))
+    {
+        prm->beginChangeGesture();
+        prm->setValueNotifyingHost (prm->convertTo0to1 ((float) v));
+        prm->endChangeGesture();
+    }
+}
+
+void TunerView::applyPreset (int index)
+{
+    const auto& pr = PolyTuner::presets()[index];
+    setInt ("tunerCount", pr.count);
+    for (int i = 0; i < PolyTuner::kMaxStrings; ++i)
+        setInt ("tunerN" + juce::String (i + 1), pr.notes[i]);
+    polyRes = {};
+    std::fill (std::begin (polyShown), std::end (polyShown), false);
+}
+
+// If the strings no longer match the chosen tuning, the tuning becomes "Custom"
+void TunerView::markCustomIfChanged()
+{
+    const int cur = getInt ("tunerPreset");
+    if (cur == PolyTuner::kCustomPreset)
+        return;
+    const auto& pr = PolyTuner::presets()[juce::jlimit (0, PolyTuner::kNumPresets - 1, cur)];
+    bool same = getInt ("tunerCount") == pr.count;
+    for (int i = 0; same && i < pr.count; ++i)
+        same = getInt (("tunerN" + juce::String (i + 1)).toRawUTF8()) == pr.notes[i];
+    if (! same)
+        setInt ("tunerPreset", PolyTuner::kCustomPreset);
+}
+
+void TunerView::nudgeString (int i, int delta)
+{
+    const juce::String id = "tunerN" + juce::String (i + 1);
+    setInt (id, juce::jlimit (12, 96, getInt (id.toRawUTF8()) + delta));
+    markCustomIfChanged();
+    polyShown[i] = false;
 }
 
 void TunerView::resized()
 {
     Panel::resized();
     refSlider.setBounds (getWidth() - 250, 6, 232, 18);
+    const int y = 34;
+    modeBox.setBounds (26, y, 112, 26);
+    presetBox.setBounds (146, y, 300, 26);
+    countBox.setBounds (454, y, 104, 26);
+    shiftSlider.setBounds (566, y, 230, 26);
+    layoutCells();
+}
+
+juce::Rectangle<float> TunerView::cellRect (int i) const
+{
+    const int n = juce::jlimit (1, PolyTuner::kMaxStrings, getInt ("tunerCount"));
+    const float cw = std::min (104.0f, (float) (getWidth() - 52) / (float) n);
+    const float x0 = (float) getWidth() * 0.5f - cw * (float) n * 0.5f;
+    return { x0 + cw * (float) i + 4.0f, 76.0f, cw - 8.0f, (float) getHeight() - 76.0f - 52.0f };
+}
+
+void TunerView::layoutCells()
+{
+    const int n = juce::jlimit (1, PolyTuner::kMaxStrings, getInt ("tunerCount"));
+    const bool poly = getInt ("tunerMode") == 1;
+    presetBox.setVisible (poly);
+    countBox.setVisible (poly);
+    shiftSlider.setVisible (poly);
+    for (int i = 0; i < PolyTuner::kMaxStrings; ++i)
+    {
+        const bool on = poly && i < n;
+        nudgeDown[i].setVisible (on);
+        nudgeUp[i].setVisible (on);
+        if (on)
+        {
+            const auto r = cellRect (i);
+            const float bw = std::min (30.0f, (r.getWidth() - 8.0f) * 0.5f);
+            nudgeDown[i].setBounds ((int) (r.getCentreX() - bw - 2.0f), (int) r.getBottom() + 6, (int) bw, 20);
+            nudgeUp[i].setBounds ((int) (r.getCentreX() + 2.0f), (int) r.getBottom() + 6, (int) bw, 20);
+        }
+    }
+    shownCount = n;
+    shownMode = poly ? 1 : 0;
 }
 
 void TunerView::visibilityChanged()
@@ -3341,6 +3821,18 @@ void TunerView::visibilityChanged()
     {
         midi = -1;
         missed = 100;
+        const double sr = proc.getSampleRate();
+        if (sr > 0.0)
+        {
+            poly.prepare (sr);
+            polyRate = sr;
+            polyIn.assign ((size_t) poly.window(), 0.0f);
+        }
+        proc.tunerLong.reset();
+        polyRes = {};
+        std::fill (std::begin (polyShown), std::end (polyShown), false);
+        polyListening = true;
+        layoutCells();
         startTimerHz (20);
     }
     else
@@ -3406,8 +3898,78 @@ float TunerView::detectPitch (const std::vector<float>& x, double sr)
     return tauF > 0.0f ? (float) (sr / (double) tauF) : 0.0f;
 }
 
+void TunerView::pollParams()
+{
+    if (getInt ("tunerCount") != shownCount || getInt ("tunerMode") != shownMode)
+        layoutCells();
+    const int n = getInt ("tunerCount");
+    if (countBox.getSelectedId() != n)
+        countBox.setSelectedId (n, juce::dontSendNotification);
+}
+
+void TunerView::runPoly()
+{
+    const double sr = proc.getSampleRate();
+    if (sr <= 0.0)
+        return;
+    if (sr != polyRate || polyIn.empty())
+    {
+        poly.prepare (sr);
+        polyRate = sr;
+        polyIn.assign ((size_t) poly.window(), 0.0f);
+        proc.tunerLong.reset();
+    }
+    if (proc.tunerLong.filled.load (std::memory_order_acquire) < poly.window())
+    {
+        polyListening = true;
+        return;
+    }
+    polyListening = false;
+
+    const int count = juce::jlimit (1, PolyTuner::kMaxStrings, getInt ("tunerCount"));
+    const int shift = getInt ("tunerShift");
+    float targets[PolyTuner::kMaxStrings];
+    for (int i = 0; i < PolyTuner::kMaxStrings; ++i)
+        targets[i] = (float) (getInt (("tunerN" + juce::String (i + 1)).toRawUTF8()) + shift);
+
+    proc.tunerLong.copyLatest (polyIn.data(), poly.window());
+    const double t0 = juce::Time::getMillisecondCounterHiRes();
+    const float dt = 0.05f * (float) polyEvery;
+    poly.analyse (polyIn.data(), targets, count, proc.apvts.getRawParameterValue ("tunerRef")->load(), dt, polyRes);
+    const double ms = juce::Time::getMillisecondCounterHiRes() - t0;
+    polyEvery = juce::jlimit (3, 12, (int) std::ceil (ms * 4.0 / 50.0));          // use at most about a quarter of the time
+
+    for (int i = 0; i < PolyTuner::kMaxStrings; ++i)
+    {
+        polySince[i] += dt;
+        if (i < count && polyRes.found[i])
+        {
+            const bool fresh = polyShown[i] && polySince[i] < 0.5f && polyApprox[i] == polyRes.shared[i];
+            polyCents[i] = fresh ? polyCents[i] + 0.6f * (polyRes.cents[i] - polyCents[i]) : polyRes.cents[i];
+            polyHz[i] = polyRes.hz[i];
+            polyApprox[i] = polyRes.shared[i];
+            polyShown[i] = true;
+            polySince[i] = 0.0f;
+        }
+        else if (polySince[i] > 3.0f)
+            polyShown[i] = false;
+    }
+}
+
 void TunerView::timerCallback()
 {
+    pollParams();
+    if (getInt ("tunerMode") == 1)
+    {
+        if (++tick >= polyEvery)
+        {
+            tick = 0;
+            runPoly();
+        }
+        repaint();
+        return;
+    }
+
     const double sr = proc.getSampleRate();
     if (sr <= 0.0)
         return;
@@ -3451,9 +4013,15 @@ void TunerView::paint (juce::Graphics& g)
 {
     Panel::paint (g);
     auto area = getLocalBounds().reduced (26, 8).toFloat();
-    area.removeFromTop (24.0f);
+    area.removeFromTop (24.0f + 40.0f);                                   // the title row and the controls
+    if (getInt ("tunerMode") == 1)
+        paintPoly (g, area);
+    else
+        paintSingle (g, area);
+}
 
-    static const char* names[12] { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+void TunerView::paintSingle (juce::Graphics& g, juce::Rectangle<float> area)
+{
     auto bar = area.removeFromBottom (44.0f).reduced (10.0f, 6.0f);
 
     if (midi < 0)
@@ -3468,7 +4036,7 @@ void TunerView::paint (juce::Graphics& g)
         const juce::Colour c = inTune ? juce::Colour (0xff4bff8a) : (std::abs (cents) <= 15.0f ? juce::Colour (0xffe8d84a) : juce::Colour (0xffff7a45));
         g.setColour (c);
         g.setFont (juce::Font (juce::FontOptions (58.0f, juce::Font::bold)));
-        g.drawText (names[((midi % 12) + 12) % 12], area.withSizeKeepingCentre (110.0f, area.getHeight()).translated (-14.0f, 0.0f), juce::Justification::centredRight);
+        g.drawText (noteName (midi, false), area.withSizeKeepingCentre (110.0f, area.getHeight()).translated (-14.0f, 0.0f), juce::Justification::centredRight);
         g.setFont (juce::Font (juce::FontOptions (20.0f, juce::Font::bold)));
         g.drawText (juce::String (midi / 12 - 1), juce::Rectangle<float> (area.getCentreX() + 40.0f, area.getCentreY() + 4.0f, 30.0f, 26.0f), juce::Justification::centredLeft);
         g.setColour (ui::textDim);
@@ -3496,6 +4064,102 @@ void TunerView::paint (juce::Graphics& g)
         g.setColour (std::abs (cents) <= 5.0f ? juce::Colour (0xff4bff8a) : juce::Colour (0xffffc850));
         g.fillRoundedRectangle (nx - 3.0f, bar.getY() + 1.0f, 6.0f, bar.getHeight() - 2.0f, 2.5f);
     }
+}
+
+void TunerView::paintPoly (juce::Graphics& g, juce::Rectangle<float> area)
+{
+    juce::ignoreUnused (area);
+    const int count = juce::jlimit (1, PolyTuner::kMaxStrings, getInt ("tunerCount"));
+    const int shift = getInt ("tunerShift");
+    int heard = 0;
+    juce::String missing;
+
+    for (int i = 0; i < count; ++i)
+    {
+        const auto r = cellRect (i);
+        const int target = getInt (("tunerN" + juce::String (i + 1)).toRawUTF8()) + shift;
+        const bool shown = polyShown[i];
+        const float since = polySince[i];
+        const float alpha = ! shown ? 0.0f : (since < 0.6f ? 1.0f : 0.5f);
+        const float c = polyCents[i];
+        const bool inTune = std::abs (c) <= 5.0f;
+        const juce::Colour col = inTune ? juce::Colour (0xff4bff8a) : (std::abs (c) <= 15.0f ? juce::Colour (0xffe8d84a) : juce::Colour (0xffff7a45));
+
+        g.setColour (juce::Colour (0xff0a0b0d));
+        g.fillRoundedRectangle (r, 6.0f);
+        if (shown && inTune)
+        {
+            g.setColour (col.withAlpha (0.55f * alpha));
+            g.drawRoundedRectangle (r.reduced (0.5f), 6.0f, 1.5f);
+        }
+
+        // string number, and ~ when the reading is approximate
+        g.setColour (ui::textDim);
+        g.setFont (juce::Font (juce::FontOptions (11.0f)));
+        g.drawText ("String " + juce::String (i + 1), r.withTrimmedLeft (8.0f).withHeight (18.0f), juce::Justification::centredLeft);
+        if (shown && polyApprox[i])
+        {
+            g.setColour (juce::Colour (0xffffc850).withAlpha (alpha));
+            g.drawText ("approx", r.withTrimmedRight (8.0f).withHeight (18.0f), juce::Justification::centredRight);
+        }
+
+        // the target note
+        auto top = r.withTrimmedTop (20.0f).withHeight (50.0f);
+        g.setColour (shown ? col.withAlpha (alpha) : ui::textDim.withAlpha (0.7f));
+        g.setFont (juce::Font (juce::FontOptions (36.0f, juce::Font::bold)));
+        const juce::String nm = noteName (target, false);
+        g.drawText (nm, top.withTrimmedRight (14.0f), juce::Justification::centred);
+        g.setFont (juce::Font (juce::FontOptions (14.0f, juce::Font::bold)));
+        g.drawText (juce::String (target / 12 - 1), top.withTrimmedLeft (top.getWidth() * 0.5f + 12.0f + (nm.length() - 1) * 6.0f), juce::Justification::centredLeft);
+
+        // reading
+        auto txt = r.withTrimmedTop (72.0f).withHeight (36.0f);
+        if (shown)
+        {
+            ++heard;
+            g.setColour (col.withAlpha (alpha));
+            g.setFont (juce::Font (juce::FontOptions (17.0f, juce::Font::bold)));
+            g.drawText ((polyApprox[i] ? "~ " : "") + juce::String (c >= 0 ? "+" : "") + juce::String (juce::roundToInt (c)) + " c", txt.removeFromTop (20.0f), juce::Justification::centred);
+            g.setFont (juce::Font (juce::FontOptions (12.0f)));
+            g.drawText (inTune ? "in tune" : (c < 0 ? "tune up" : "tune down"), txt, juce::Justification::centred);
+        }
+        else
+        {
+            g.setColour (ui::textDim.withAlpha (0.8f));
+            g.setFont (juce::Font (juce::FontOptions (14.0f)));
+            g.drawText (polyListening ? "listening" : "not heard", txt.removeFromTop (20.0f), juce::Justification::centred);
+            missing += (missing.isEmpty() ? "" : ", ") + juce::String (i + 1);
+        }
+
+        // cents bar, -50 to +50
+        auto bar = r.reduced (8.0f, 0.0f).withTrimmedTop (r.getHeight() - 30.0f).withHeight (18.0f);
+        g.setColour (juce::Colour (0xff14161a));
+        g.fillRoundedRectangle (bar, 3.0f);
+        const float cx = bar.getCentreX(), half = bar.getWidth() * 0.5f;
+        g.setColour (juce::Colour (0xff4bff8a).withAlpha (0.2f));
+        g.fillRect (cx - half * 0.1f, bar.getY(), half * 0.2f, bar.getHeight());
+        g.setColour (ui::textDim.withAlpha (0.8f));
+        g.drawLine (cx, bar.getY() + 1.0f, cx, bar.getBottom() - 1.0f, 1.5f);
+        if (shown)
+        {
+            const float nx = cx + half * juce::jlimit (-1.0f, 1.0f, c / 50.0f);
+            g.setColour (col.withAlpha (alpha));
+            if (polyApprox[i])
+                g.drawRoundedRectangle (nx - 3.0f, bar.getY() + 1.0f, 6.0f, bar.getHeight() - 2.0f, 2.5f, 1.5f);
+            else
+                g.fillRoundedRectangle (nx - 3.0f, bar.getY() + 1.0f, 6.0f, bar.getHeight() - 2.0f, 2.5f);
+        }
+    }
+
+    // the line under the cells
+    g.setColour (ui::textDim);
+    g.setFont (juce::Font (juce::FontOptions (12.0f)));
+    juce::String msg;
+    if (polyListening)                  msg = "Starting up...";
+    else if (heard == 0)                msg = "Strum all the strings together (or pluck one string alone).";
+    else if (missing.isNotEmpty())      msg = "Not heard: string " + missing + ". Strings whose notes sit inside the lower strings' overtones (B and the high E in standard tuning) read best plucked alone; \"approx\" is a best estimate.";
+    else                                msg = "All strings heard. \"approx\" means that string's note sits inside a lower string's overtones; pluck it alone for an exact reading.";
+    g.drawFittedText (msg, juce::Rectangle<int> (30, getHeight() - 22, getWidth() - 60, 16), juce::Justification::centred, 1);
 }
 
 //==============================================================================
@@ -4318,7 +4982,7 @@ ChainStrip::ChainStrip (juce::AudioProcessorValueTreeState& state, std::function
     : apvts (state), openPage (std::move (open))
 {
     // In signal order. The page numbers are the tabs (see the list below).
-    // (pages: 0 INPUT, 1 GAIN, 2 MOD, 3 PITCH, 4 AMP, 5 CAB, 6 EQ, 7 DELAY, 8 SCAPES, 9 POST FX)
+    // (pages: 0 INPUT, 1 GAIN, 2 MOD, 3 PITCH, 4 AMP, 5 CAB, 6 EQ, 7 TIME, 8 POST FX)
     items = { { "Transp.", "tpOn", 0 },  { "Synth", "synOn", 3 },  { "Octave", "octOn", 3 },     { "Harm.", "hmOn", 3 },       { "Pitch", "wowOn", 3 },      { "Noise", "noiseOn", 8 },
               { "Fuzz", "fuzzOn", 1, 0, 0 },  { "Fuzz 2", "fuzz2On", 1, 0, 26 },     { "Comp", "compOn", 1, 0, 1 },      { "Wah", "wahOn", 2, 0, 2 },        { "Phaser", "phaserOn", 2, 0, 3 },
               { "Chorus", "chorusOn", 2, 0, 4 }, { "Delay 1", "preDelayOn", 7, 0, 5 }, { "Mod FX", "mfAOn", 2, 0, 6, "mfBOn" }, { "Lo-Fi", "lfOn", 8, 0, 20 }, { "Mod C", "mfCOn", 2, 0, 24 }, { "Mod D", "mfDOn", 2, 0, 25 },
@@ -4327,44 +4991,45 @@ ChainStrip::ChainStrip (juce::AudioProcessorValueTreeState& state, std::function
     branches = { { "Amp B", "ampBOn", {}, "Amp", 4 } };
     lastState.assign (items.size() + branches.size(), 0);
     rebuildShown();
-    setTooltip ("Signal flow, from your guitar (IN) to the output (OUT). Click a stage's light to switch it on or off; click its name to open its page. The stage whose page is open is outlined. The Amp stage shows the current amp model. To change the order of the effects, drag a stage left or right (the fuzz, compressor, wah, phaser, chorus, pre-amp delay, and after the cab the EQ, delay and reverb can be moved; the ORDER button has the rest).");
+    setTooltip ("Signal flow, from your guitar (IN) to the output (OUT). Click a stage's light to switch it on or off; click its name to open its page. The stage whose page is open is outlined. The Amp stage shows the current amp model. To change the order of the effects, drag a stage left or right (the fuzz, compressor, wah, phaser, chorus, pre-amp delay, and after the cab the EQ, delay and reverb can be moved; the BOARD button opens the pedalboard, where every pedal can be wired anywhere).");
     startTimerHz (10);
     setMouseCursor (juce::MouseCursor::PointingHandCursor);
 }
 
-// Every movable effect can sit before the amp, in the amp's FX loop or after the cab (see the ORDER window). The strip
-// draws each stage where it now sits: fixed stages first, the pre-amp effects, the fixed gain stages, the Amp, the loop's
-// effects, the Cab, then the post-cab effects.
+// The strip draws each stage where the signal meets it (b46: read from the patch): the fixed stages first, then what is wired in
+// front of the amp, the Amp, what is in its FX loop, the Cab, and what is wired after the cab.
 void ChainStrip::rebuildShown()
 {
     shown.assign (items.size(), 0);
     for (size_t i = 0; i < items.size(); ++i) shown[i] = (int) i;
     visibleCount = (int) items.size();
     if (processor == nullptr) return;
-    std::vector<int> prefix, mid, pre, loop, post;
-    int ampIdx = -1, cabIdx = -1, firstMovable = -1;
+    std::vector<int> seq;
+    int ampIdx = -1, cabIdx = -1;
+    std::vector<char> used (items.size(), 0);
     for (size_t i = 0; i < items.size(); ++i)
     {
         const auto& it = items[i];
-        if (it.block >= 0) { if (firstMovable < 0) firstMovable = (int) i; continue; }
+        if (it.block >= 0) continue;
         if (it.label == "Amp") ampIdx = (int) i;
         else if (it.label == "Cab") cabIdx = (int) i;
-        else if (firstMovable < 0) prefix.push_back ((int) i);
-        else mid.push_back ((int) i);
+        else { seq.push_back ((int) i);  used[i] = 1; }
     }
     if (ampIdx < 0 || cabIdx < 0) return;
-    for (int group : { 0, 2, 1 })
-        for (int block : processor->getFxOrder (group))
-            if (processor->fxCanMove (block) && processor->fxLocation (block) == group)
-                for (size_t i = 0; i < items.size(); ++i)
-                    if (items[i].block == block)
-                        (group == 0 ? pre : group == 2 ? loop : post).push_back ((int) i);
-    std::vector<int> seq;
-    for (auto* v : { &prefix, &pre, &mid }) seq.insert (seq.end(), v->begin(), v->end());
-    seq.push_back (ampIdx);
-    seq.insert (seq.end(), loop.begin(), loop.end());
-    seq.push_back (cabIdx);
-    seq.insert (seq.end(), post.begin(), post.end());
+    std::vector<int> order;
+    PatchGraph::stageOrder (processor->getPatch(), order);
+    stageNodes = order;
+    for (int node : order)
+    {
+        int idx = -1;
+        if (node == PatchGraph::kAmpA) idx = ampIdx;
+        else if (node == PatchGraph::kCab) idx = cabIdx;
+        else
+            for (size_t i = 0; i < items.size(); ++i)
+                if (items[i].block == node || (node == 7 && items[i].block == 6)) { idx = (int) i;  break; }
+        if (idx >= 0 && ! used[(size_t) idx]) { seq.push_back (idx);  used[(size_t) idx] = 1; }
+    }
+    for (size_t i = 0; i < items.size(); ++i) if (! used[i]) seq.push_back ((int) i);      // (anything the patch does not reach waits at the end)
     if (seq.size() == items.size())
         shown = seq;
     // b35: the old Phaser, Chorus and Lo-Fi pedals leave the strip while they are off (a Mod FX slot does their job); they wait at the end, undrawn
@@ -4542,42 +5207,17 @@ void ChainStrip::mouseDrag (const juce::MouseEvent& e)
         return;
     const int movedBlock = at (pressed).block;
     const auto& o = at (over);
-    int ampPos = -1;
-    for (int i = 0; i < visibleCount; ++i) if (at (i).label == "Amp") ampPos = i;
-    int toGroup = 0, visPos = 0;
-    auto lane = [&] (int group)
-    {
-        std::vector<int> v;
-        for (int b : processor->getFxOrder (group))
-            if (processor->fxCanMove (b) && processor->fxLocation (b) == group && b != movedBlock) v.push_back (b);
-        return v;
-    };
-    if (o.block >= 0)
-    {
-        toGroup = processor->fxLocation (o.block);
-        const auto v = lane (toGroup);
-        visPos = (int) v.size();
-        for (int k = 0; k < (int) v.size(); ++k) if (v[(size_t) k] == o.block) visPos = k;
-    }
-    else if (o.label == "Amp") { toGroup = 2; visPos = 0; }
-    else if (o.label == "Cab") { toGroup = 1; visPos = 0; }
-    else if (over < ampPos)    { toGroup = 0; visPos = (int) lane (0).size(); }
-    else return;
-    // Already there? (the dragged stage is at that place in that lane)
-    {
-        const auto cur = lane (toGroup);
-        std::vector<int> withMoved = cur;
-        if (processor->fxLocation (movedBlock) == toGroup)
-        {
-            withMoved.insert (withMoved.begin() + std::min (visPos, (int) withMoved.size()), movedBlock);
-            std::vector<int> now;
-            for (int b : processor->getFxOrder (toGroup))
-                if (processor->fxCanMove (b) && processor->fxLocation (b) == toGroup) now.push_back (b);
-            if (now == withMoved) return;
-        }
-    }
-    const int row = processor->fxLocation (movedBlock) == toGroup ? processor->getFxRow (toGroup, movedBlock) : 0;
-    processor->moveFxBlockTo (movedBlock, toGroup, visPos, row);
+    auto d = processor->getPatch();
+    const bool left = over < pressed;
+    bool ok = false;
+    if (o.block >= 0)         ok = left ? PatchGraph::insertBefore (d, movedBlock, o.block, 0) : PatchGraph::insertAfter (d, movedBlock, o.block, 0);
+    else if (o.label == "Amp") ok = PatchGraph::insertAfter (d, movedBlock, PatchGraph::kAmpA, 1);        // onto the Amp: into its FX loop
+    else if (o.label == "Cab") ok = PatchGraph::insertAfter (d, movedBlock, PatchGraph::kCab, 0);         // onto the Cab: first after it
+    if (! ok) return;
+    std::vector<int> now;
+    PatchGraph::stageOrder (d, now);
+    if (now == stageNodes) return;                                // already there
+    processor->setPatch (d);
     rebuildShown();
     for (int i = 0; i < visibleCount; ++i)                  // follow the stage to its new place
         if (at (i).block == movedBlock)
@@ -4702,18 +5342,19 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     addAndMakeVisible (content);
     content.setBounds (0, 0, ui::kWidth, ui::kHeight);
     // Five pages, one per section of the signal path. The tabs at the top switch between them.
-    for (auto* page : { &pageInput, &pageGain, &pageMod, &pageDelay, &pagePitch, &pageAmp, &pageCab, &pageSpeaker, &pageEq, &pageScapes, &pagePost })
+    for (auto* page : { &pageInput, &pageGain, &pageMod, &pageDelay, &pagePitch, &pageAmp, &pageCab, &pageSpeaker, &pageEq, &pagePost })
         content.addAndMakeVisible (*page);
-    // v73 pages: INPUT, GAIN, MOD, PITCH, AMP, CAB (blocks + speaker), EQ, DELAY, SCAPES, POST FX
-    for (auto* panel : { &inputPanel, &gatePanel, &diMatchPanel })
+    // b61 pages: INPUT, GAIN, MOD, PITCH, AMP, CAB (blocks + speaker), EQ, TIME (delays, reverbs, granular), POST FX
+    for (auto* panel : { &inputPanel, &gatePanel, &shaperPanel, &shaperBandsPanel, &diMatchPanel, &swellPanel })
         pageInput.addAndMakeVisible (*panel);
-    for (auto* panel : { &fuzzPanel, &compPanel, &overdrivePanel, &drive2Panel, &boostPanel, &boostEqPanel, &fuzz2Panel, &volPanPanel, &mbPanel })
+    for (auto* panel : { &fuzzPanel, &compPanel, &overdrivePanel, &drive2Panel, &boostPanel, &boostEqPanel, &fuzz2Panel, &volPanPanel, &mbPanel, &mbBandsPanel, &satPanel, &satBandsPanel })
         pageGain.addAndMakeVisible (*panel);
-    for (auto* panel : { &wahPanel, &phaserPanel, &chorusPanel, &mfPanel0, &mfPanel1, &mfPanel2, &mfPanel3, &filterPanel })
+    for (auto* panel : { &wahPanel, &phaserPanel, &chorusPanel, &mfPanel0, &mfPanel1, &mfPanel2, &mfPanel3, &filterPanel, &lofiPanel })
         pageMod.addAndMakeVisible (*panel);
-    for (auto* panel : { &preDelayPanel, &preDelayFxPanel, &postDelayPanel, &postDelayFxPanel })
+    // b61: pageDelay is the TIME page: both delays, both reverbs and the granular cloud
+    for (auto* panel : { &preDelayPanel, &preDelayFxPanel, &postDelayPanel, &postDelayFxPanel, &reverbPanel, &reverbShapePanel, &reverb2Panel, &reverb2ShapePanel, &grainPanel })
         pageDelay.addAndMakeVisible (*panel);
-    for (auto* panel : { &transposePanel, &wowPanel, &octPanel, &harmPanel, &synthPanel })
+    for (auto* panel : { &transposePanel, &wowPanel, &octPanel, &harmPanel, &synthPanel, &noisePanel })
         pagePitch.addAndMakeVisible (*panel);
     for (auto* panel : { &shapePanel, &dynPanel, &exportPanel })
         pageSpeaker.addAndMakeVisible (*panel);
@@ -4726,6 +5367,8 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     ampArtPanel.setBigNameplate (true);
     ampArtPanel.setInterceptsMouseClicks (false, false);
     pageAmp.addAndMakeVisible (ampBPanel);
+    pageAmp.addAndMakeVisible (metalBPanel);
+    pageAmp.addAndMakeVisible (ampMixPanel);
     for (auto& ns : namStrip)
         pageAmp.addAndMakeVisible (ns.panel);
     irPanels[0] = &irAPanel;  irPanels[1] = &irBPanel;  irPanels[2] = &irCPanel;  irPanels[3] = &irDPanel;
@@ -4734,10 +5377,9 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     pageCab.addAndMakeVisible (irView);
     pageCab.addAndMakeVisible (micView);
     pageEq.addAndMakeVisible (eqPanel);
+    pageEq.addAndMakeVisible (progEqPanel);
     pageEq.addAndMakeVisible (spectrumView);
-    for (auto* panel : { &grainPanel, &swellPanel, &lofiPanel, &noisePanel })
-        pageScapes.addAndMakeVisible (*panel);
-    for (auto* panel : { &reverbPanel, &reverbShapePanel, &reverb2Panel, &reverb2ShapePanel, &outputPanel, &doublerPanel, &widenerPanel })
+    for (auto* panel : { &outputPanel, &doublerPanel, &widenerPanel })
         pagePost.addAndMakeVisible (*panel);
 
     // ---- INPUT & GATE
@@ -4844,10 +5486,10 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         auto& vHold  = makeToggle (ID ("VerbHold").c_str(), "HOLD");
         fzc[w].vProg = &vProg;  fzc[w].vOrder = &vOrder;  fzc[w].vHold = &vHold;
         fp.addRow ({ &vProg, &vOrder, &vHold }, { 1.5f, 1.5f, 0.8f }, 26);
-        for (auto* c : { (juce::Component*) &diodes, (juce::Component*) &tonePass, (juce::Component*) &buffer })
-            fp.markAdvanced (c);
+        for (auto* c : { (juce::Component*) &diodes, (juce::Component*) &tonePass, (juce::Component*) &buffer, (juce::Component*) &bzSoft, (juce::Component*) &bzHard, (juce::Component*) &bzPol })
+            fp.markAdvanced (c);      // b63: the Buzzsaw's circuit-mod switches are for tinkerers
     }
-    fp.setKnobColumns (5);
+    fp.setKnobColumns (6);      // b63: six across, so Doom, Nuke, Crusher and Factory fit one row and the busy styles two rows of bigger knobs
     addKnob (fp, ID ("Gain").c_str(),  "Gain",  {}, 2);
     addKnob (fp, ID ("Tone").c_str(),  "Tone",  {}, 2);
     fzc[w].tone = knobs.back().get();
@@ -4863,17 +5505,18 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     fzc[w].mids = knobs.back().get();
     addKnob (fp, (w == 0 ? "buzzLow" : "fuzz2BuzzLow"),   "Low",   {}, 2);
     fzc[w].buzzLow = knobs.back().get();
-    addKnob (fp, (w == 0 ? "buzzMid" : "fuzz2BuzzMid"),    "Mid",   {}, 2);
+    addAdvKnob (fp, (w == 0 ? "buzzMid" : "fuzz2BuzzMid"),    "Mid",   {}, 2);
     fzc[w].buzzMid = knobs.back().get();
     addKnob (fp, (w == 0 ? "buzzHigh" : "fuzz2BuzzHigh"),  "High",  {}, 2);
     fzc[w].buzzHigh = knobs.back().get();
-    addKnob (fp, (w == 0 ? "buzzBlend" : "fuzz2BuzzBlend"), "Blend", {}, 2);
+    addAdvKnob (fp, (w == 0 ? "buzzBlend" : "fuzz2BuzzBlend"), "Blend", {}, 2);
     fzc[w].buzzBlend = knobs.back().get();
     addKnob (fp, ID ("Oct").c_str(),   "Octave", {}, 2);                // v95: Doom style
     fzc[w].oct = knobs.back().get();
     addKnob (fp, ID ("Boost").c_str(), "Boost",  {}, 2);
     fzc[w].boost = knobs.back().get();
     addAdvKnob (fp, ID ("Octave").c_str(), "Oct up", {}, 2);
+    fzc[w].octUp = knobs.back().get();                                   // b63: hidden on Doom (its own Octave knob does this)
     addAdvKnob (fp, ID ("Sub").c_str(), "Oct down", {}, 2);
     addKnob (fp, ID ("Verb").c_str(),      "Reverb", {}, 2);            // v97: Distortion + Reverb style
     fzc[w].vAmt = knobs.back().get();
@@ -4895,6 +5538,14 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     fzc[w].eq5 = knobs.back().get();
     addKnob (fp, ID ("Depth").c_str(), "Depth",  {}, 2);
     fzc[w].depth = knobs.back().get();
+    addKnob (fp, ID ("Squeal").c_str(),   "Squeal", {}, 2);             // b62: Feral style
+    fzc[w].squeal = knobs.back().get();
+    addKnob (fp, ID ("OscHz").c_str(),    "Pitch",  " Hz", 0);
+    fzc[w].oscHz = knobs.back().get();
+    addKnob (fp, ID ("Action").c_str(),   "Action", {}, 2);
+    fzc[w].action = knobs.back().get();
+    addKnob (fp, ID ("ActSpeed").c_str(), "Speed",  {}, 2);
+    fzc[w].actSpeed = knobs.back().get();
     addKnob (fp, ID ("Shape").c_str(), "Shape", {}, 2);                 // v66: Nuke
     fzc[w].shape = knobs.back().get();
     addKnob (fp, ID ("Crush").c_str(), "Crush", {}, 2);
@@ -4925,17 +5576,24 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     {
         auto& sat = makeGroupedCombo ("compSat");
         auto& det = makeCombo ("compDetHp");
-        compSatBox = &sat;  compDetBox = &det;
-        compPanel.addRow ({ &sat, &det }, { 1.3f, 0.9f });
+        auto& llRel = makeCombo ("compLlRel");
+        compSatBox = &sat;  compDetBox = &det;  compLlRelBox = &llRel;
+        compPanel.addRow ({ &sat, &det, &llRel }, { 1.3f, 0.9f, 0.9f });
         compPanel.markAdvanced (&sat);
         compPanel.markAdvanced (&det);
     }
     compPanel.setKnobColumns (8);
-    addKnob (compPanel, "compThresh",  "Thresh",  " dB", 1);
-    addKnob (compPanel, "compAttack",  "Attack",  " ms", 2);
-    addKnob (compPanel, "compRelease", "Release", " ms", 0);
-    addKnob (compPanel, "compOutput",  "Output",  " dB", 1);
-    addKnob (compPanel, "compMix",     "Mix");
+    addKnob (compPanel, "compThresh",  "Thresh",  " dB", 1);   compClassicKnob[0] = knobs.back().get();
+    addKnob (compPanel, "compAttack",  "Attack",  " ms", 2);   compClassicKnob[1] = knobs.back().get();
+    addKnob (compPanel, "compRelease", "Release", " ms", 0);   compClassicKnob[2] = knobs.back().get();
+    addKnob (compPanel, "compOutput",  "Output",  " dB", 1);   compOutKnob = knobs.back().get();
+    addKnob (compPanel, "compMix",     "Mix");                 compMixKnob = knobs.back().get();
+    addKnob (compPanel, "compSustain", "Sustain");             compOptoKnob[0] = knobs.back().get();      // b58: the Opto Sustain style's own knobs
+    addKnob (compPanel, "compGrit",    "Grit");                compOptoKnob[1] = knobs.back().get();
+    addKnob (compPanel, "compTreble",  "Treble", "", 2);       compOptoKnob[2] = knobs.back().get();
+    addKnob (compPanel, "compCrush",   "Crush");               compLlKnob[0] = knobs.back().get();        // b62: the Crush Limiter style's own knobs
+    addKnob (compPanel, "compCrunch",  "Crunch");              compLlKnob[1] = knobs.back().get();
+    addKnob (compPanel, "compDark",    "Darkness");            compLlKnob[2] = knobs.back().get();
     addKnob (compPanel, "compBloom",   "Bloom");     compThumpKnob[0] = knobs.back().get();      // b31: the Thump style's own knobs
     addKnob (compPanel, "compSmack",   "Smack");     compThumpKnob[1] = knobs.back().get();
     addKnob (compPanel, "compClarity", "Clarity");   compThumpKnob[2] = knobs.back().get();
@@ -4969,7 +5627,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         return c;
     };
 
-    // ---- SCAPES: granular cloud, tremolo, wobble, swell
+    // ---- Granular cloud (TIME page), tremolo, wobble, swell (INPUT page)
     grainPanel.addRow ({ &makeToggle ("granOn", "GRAINS ON"), &makeToggle ("granFreeze", "FREEZE"), &makeCombo ("granScale"), &makeCombo ("granShape") },
                        { 0.9f, 0.8f, 1.4f, 1.0f });
     {
@@ -5039,18 +5697,73 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     addKnob (volPanPanel, "vpLevel", "Level", " dB", 1);
     addKnob (volPanPanel, "vpPan",   "Pan");
 
+    // b55: four bands, laid out like the transient shaper and the saturator: the main box (on switch, Output, Mix, the three splits) and a
+    // bands box. Per band: Threshold, Ratio, Attack, Release, Gain (eight columns, so the knobs stay a readable size).
     mbPanel.addRow ({ &makeToggle ("mbOn", "MULTIBAND ON") }, {});
-    mbPanel.setKnobColumns (6);
-    addKnob (mbPanel, "mbThrL",    "Low Thresh", " dB", 1);
-    addKnob (mbPanel, "mbThrM",    "Mid Thresh", " dB", 1);
-    addKnob (mbPanel, "mbThrH",    "High Thresh", " dB", 1);
-    addKnob (mbPanel, "mbRatio",   "Ratio", ":1", 1);
+    mbPanel.setKnobColumns (3);
     addKnob (mbPanel, "mbOut",     "Output", " dB", 1);
     addKnob (mbPanel, "mbMix",     "Mix");
-    addKnob (mbPanel, "mbX1",      "Low/Mid", " Hz", 0);
-    addKnob (mbPanel, "mbX2",      "Mid/High", " Hz", 0);
-    addKnob (mbPanel, "mbAttack",  "Attack", " ms", 1);
-    addKnob (mbPanel, "mbRelease", "Release", " ms", 0);
+    addKnob (mbPanel, "mbX1",      "Split 1", " Hz", 0);
+    addKnob (mbPanel, "mbX2",      "Split 2", " Hz", 0);
+    addKnob (mbPanel, "mbX3",      "Split 3", " Hz", 0);
+    mbBandsPanel.setKnobColumns (8);
+    for (int k = 1; k <= 4; ++k) addKnob (mbBandsPanel, ("mbThr" + juce::String (k)).toRawUTF8(),   "Thr " + juce::String (k), " dB", 1);
+    for (int k = 1; k <= 4; ++k) addKnob (mbBandsPanel, ("mbRatio" + juce::String (k)).toRawUTF8(), "Ratio " + juce::String (k), ":1", 1);
+    for (int k = 1; k <= 4; ++k) addKnob (mbBandsPanel, ("mbAtk" + juce::String (k)).toRawUTF8(),   "Atk " + juce::String (k), " ms", 1);
+    for (int k = 1; k <= 4; ++k) addKnob (mbBandsPanel, ("mbRel" + juce::String (k)).toRawUTF8(),   "Rel " + juce::String (k), " ms", 0);
+    for (int k = 1; k <= 4; ++k) addKnob (mbBandsPanel, ("mbGain" + juce::String (k)).toRawUTF8(),  "Gain " + juce::String (k), " dB", 1);
+
+    // b55: multiband saturator (its own block on the board)
+    {
+        auto& autoT = makeToggle ("msAuto", "AUTO LEVEL");
+        satPanel.addRow ({ &makeToggle ("msOn", "SATURATOR ON"), &makeCombo ("msType"), &autoT }, { 1.0f, 1.0f, 0.9f });
+        satPanel.markAdvanced (&autoT);           // b63: Auto level, Low Cut and High Cut are behind ADV
+    }
+    satPanel.setKnobColumns (4);
+    addKnob (satPanel, "msBias", "Bias");
+    addKnob (satPanel, "msOut",  "Output", " dB", 1);
+    addKnob (satPanel, "msMix",  "Mix");
+    addKnob (satPanel, "msX1",   "Split 1", " Hz", 0);
+    addKnob (satPanel, "msX2",   "Split 2", " Hz", 0);
+    addKnob (satPanel, "msX3",   "Split 3", " Hz", 0);
+    addAdvKnob (satPanel, "msLoCut", "Low Cut", " Hz", 0);
+    addAdvKnob (satPanel, "msHiCut", "High Cut", " Hz", 0);
+    setupAdvanced (satPanel, "sat");
+    // b63: the bands panel is Drive and Level for each band; with ADV on (the saturator's ADV button) it gets tabs for the per-band
+    // Type, Mix, Tone and Dynamics
+    satBandsPanel.setKnobColumns (4);
+    satBandsPanel.setAdvancedAvailable (false);       // no ADV button of its own: it follows the saturator's
+    {
+        int ti = 0;
+        for (auto& tab : satTab)
+        {
+            const int index = ti++;
+            tab.setComponentID ("tab");
+            tab.setClickingTogglesState (true);
+            tab.setRadioGroupId (4712);
+            tab.onClick = [this, index] { satBandsPanel.setPage (index); };
+        }
+        satTab[0].setToggleState (true, juce::dontSendNotification);
+        satBandsPanel.addRow ({ &satTab[0], &satTab[1], &satTab[2], &satTab[3], &satTab[4] }, {}, 24);
+        for (auto& tab : satTab) satBandsPanel.markAdvanced (&tab);
+        static const char* const bandName[4] = { "Band 1 (lows)", "Band 2", "Band 3", "Band 4 (highs)" };
+        static const char* const typeId[4] = { "msType1", "msType2", "msType3", "msType4" };
+        for (int k = 0; k < 4; ++k)
+        {
+            satTypeLbl[k].setText (bandName[k], juce::dontSendNotification);
+            satTypeLbl[k].setFont (juce::Font (juce::FontOptions (14.0f)));
+            satTypeLbl[k].setColour (juce::Label::textColourId, ui::textDim);
+            satTypeLbl[k].setJustificationType (juce::Justification::centredRight);
+            satTypeLbl[k].setInterceptsMouseClicks (false, false);
+            satBandsPanel.addRow ({ &satTypeLbl[k], &makeCombo (typeId[k]) }, { 0.45f, 1.0f }, 28, 1);
+        }
+    }
+    for (int k = 1; k <= 4; ++k) addKnob (satBandsPanel, ("msDrive" + juce::String (k)).toRawUTF8(), "Drive " + juce::String (k), " dB", 1, 0);
+    for (int k = 1; k <= 4; ++k) addKnob (satBandsPanel, ("msLevel" + juce::String (k)).toRawUTF8(), "Level " + juce::String (k), " dB", 1, 0);
+    for (int k = 1; k <= 4; ++k) addKnob (satBandsPanel, ("msMix" + juce::String (k)).toRawUTF8(),   "Mix " + juce::String (k), {}, 2, 2);
+    for (int k = 1; k <= 4; ++k) addKnob (satBandsPanel, ("msTone" + juce::String (k)).toRawUTF8(),  "Tone " + juce::String (k), {}, 2, 3);
+    for (int k = 1; k <= 4; ++k) addKnob (satBandsPanel, ("msDyn" + juce::String (k)).toRawUTF8(),   "Dyn " + juce::String (k), {}, 2, 4);
+    satBandsPanel.setPage (0);
 
     // ---- DI MATCH (end of the input stage, after the Transpose)
     diMatchPanel.addRow ({ &makeToggle ("dmOn", "DI MATCH ON"), &makeCombo ("dmSource"), &makeCombo ("dmTarget") }, { 1.0f, 1.3f, 1.3f });
@@ -5080,13 +5793,40 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
 
     gatePanel.addRow ({ &makeToggle ("gxOn", "GATE ON"), &makeCombo ("gxMode") }, { 1.0f, 1.4f });
     gatePanel.addRow ({ &makeCombo ("gxKey") }, {});
-    gatePanel.setKnobColumns (4);
+    gatePanel.setKnobColumns (6);       // b63: Threshold, Range and Release are the main three; Attack, Hold and Detector HP are behind ADV
     addKnob (gatePanel, "gxThresh",  "Threshold", " dB", 1);
     addKnob (gatePanel, "gxRange",   "Range", " dB", 0);
-    addKnob (gatePanel, "gxAttack",  "Attack", " ms", 1);
-    addKnob (gatePanel, "gxHold",    "Hold", " ms", 0);
+    addAdvKnob (gatePanel, "gxAttack",  "Attack", " ms", 1);
+    addAdvKnob (gatePanel, "gxHold",    "Hold", " ms", 0);
     addKnob (gatePanel, "gxRelease", "Release", " ms", 0);
-    addKnob (gatePanel, "gxDetHp",   "Detector HP", " Hz", 0);
+    addAdvKnob (gatePanel, "gxDetHp",   "Detector HP", " Hz", 0);
+    setupAdvanced (gatePanel, "gate");
+
+    // b53: transient shaper (runs right after the gate, in the gate's place on the board)
+    shaperPanel.addRow ({ &makeToggle ("tsOn", "SHAPER ON"), &makeToggle ("tsMulti", "MULTIBAND") }, { 1.0f, 1.0f });
+    shaperPanel.setKnobColumns (5);
+    addKnob (shaperPanel, "tsAttack",  "Attack", "", 2);
+    addKnob (shaperPanel, "tsSustain", "Sustain", "", 2);
+    addAdvKnob (shaperPanel, "tsBody",    "Body", "", 2);       // b63: Body, Speed and Focus are behind ADV
+    addAdvKnob (shaperPanel, "tsSpeed",   "Speed");
+    addAdvKnob (shaperPanel, "tsFocus",   "Focus", " Hz", 0);
+    tsFocusKnob = knobs.back().get();
+    addKnob (shaperPanel, "tsOut",     "Output", " dB", 1);
+    addKnob (shaperPanel, "tsMix",     "Mix");
+    addKnob (shaperPanel, "tsX1",      "Split 1", " Hz", 0);
+    tsXoKnob[0] = knobs.back().get();
+    addKnob (shaperPanel, "tsX2",      "Split 2", " Hz", 0);
+    tsXoKnob[1] = knobs.back().get();
+    addKnob (shaperPanel, "tsX3",      "Split 3", " Hz", 0);
+    tsXoKnob[2] = knobs.back().get();
+    // b54: the four bands (Multiband on): Attack in the top row, Sustain under it
+    shaperBandsPanel.setKnobColumns (4);
+    for (int k = 1; k <= 4; ++k)
+        addKnob (shaperBandsPanel, ("tsAtk" + juce::String (k)).toRawUTF8(), ("Atk " + juce::String (k)), "", 2);
+    for (int k = 1; k <= 4; ++k)
+        addKnob (shaperBandsPanel, ("tsSus" + juce::String (k)).toRawUTF8(), ("Sus " + juce::String (k)), "", 2);
+    for (int k = 1; k <= 4; ++k)
+        addKnob (shaperBandsPanel, ("tsBod" + juce::String (k)).toRawUTF8(), ("Bod " + juce::String (k)), "", 2);
 
     wahPanel.addRow ({ &makeToggle ("wahOn", "WAH ON"), &makeCombo ("wahMode"), &makeSyncCombo ("wahNote") }, { 0.8f, 1.4f, 1.2f });
     wahPanel.addRow ({ &makeCombo ("wahVoice"), &makeCombo ("wahEnvDir"), &makeCombo ("wahEnvShape") }, { 1.4f, 0.7f, 0.9f });
@@ -5139,6 +5879,8 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     addKnob (preDelayPanel, "preDelayTime",     "Time", " ms", 0);
     preTimeKnob = knobs.back().get();
     addKnob (preDelayPanel, "preDelayFeedback", "Feedback");
+    addKnob (preDelayPanel, "preDelayDuck",     "Duck");                // b63: the two most used extras moved up from the second panel
+    addKnob (preDelayPanel, "preDelayModDepth", "Mod Depth");
     addAdvKnob (preDelayPanel, "preDelayLofi",     "Lo-Fi");
     addAdvKnob (preDelayPanel, "preDelayWarble",   "Warble");
     setupAdvanced (preDelayPanel, "preDelay");
@@ -5152,14 +5894,27 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     {
         auto& panel = d == 0 ? preDelayFxPanel : postDelayFxPanel;
         const std::string p = d == 0 ? "preDelay" : "postDelay";
-        panel.addRow ({ &makeToggle ((p + "Hold").c_str(), "HOLD"), &makeCombo ((p + "HoldMode").c_str()), &makeCombo ((p + "Taps").c_str()) }, { 0.8f, 1.1f, 1.4f });
-        panel.setKnobColumns (6);
-        addKnob (panel, (p + "Duck").c_str(),     "Duck");
+        // b63: one row of menus and two rows of nine full-size knobs (it was two rows of menus and three rows of six small ones)
+        panel.addRow ({ &makeToggle ((p + "Hold").c_str(), "HOLD"), &makeCombo ((p + "HoldMode").c_str()), &makeCombo ((p + "Taps").c_str()), &makeCombo ((p + "SatType").c_str()) }, { 0.8f, 1.1f, 1.0f, 1.2f });
+        panel.setKnobColumns (8);
+        // Duck and Mod Depth live on the main panel now. Row 1: how the echoes move and smear (duck release, wobble speed, diffusion, taps, repeat pitch);
+        // row 2: how they are coloured and timed (saturation, groove, EQ).
         addKnob (panel, (p + "DuckRel").c_str(),  "Duck Release", " ms", 0);
-        addKnob (panel, (p + "ModDepth").c_str(), "Mod Depth");
         addKnob (panel, (p + "ModRate").c_str(),  "Mod Rate", " Hz", 2);
         addKnob (panel, (p + "Diffuse").c_str(),  "Diffusion");
         addKnob (panel, (p + "TapLevel").c_str(), "Tap Level");
+        addKnob (panel, (p + "Pitch").c_str(),     "Repeat Pitch", " st", 0);
+        addKnob (panel, (p + "PitchFine").c_str(), "Pitch Fine", " ct", 0);
+        addKnob (panel, (p + "PitchMix").c_str(),  "Pitch Mix");
+        addKnob (panel, (p + "Sat").c_str(),      "Saturation");
+        addKnob (panel, (p + "Groove").c_str(),   "Groove");
+        addKnob (panel, (p + "Feel").c_str(),     "Feel", "", 2);
+        addKnob (panel, (p + "Accent").c_str(),   "Accent", "", 2);
+        addKnob (panel, (p + "EqLow").c_str(),    "Echo Low", " dB", 1);
+        addKnob (panel, (p + "EqMid").c_str(),    "Echo Mid", " dB", 1);
+        addKnob (panel, (p + "EqMidHz").c_str(),  "Mid Freq", " Hz", 0);
+        addKnob (panel, (p + "EqHigh").c_str(),   "Echo High", " dB", 1);
+        addKnob (panel, (p + "EqDecay").c_str(),  "EQ Decay");
     }
 
     // ---- OVERDRIVE: three styles. Page 0 = Transparent, page 1 = Tight, page 2 = Open (with a range switch).
@@ -5185,6 +5940,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     overdrivePanel.addRow ({ &makeCombo (ID ("Clip").c_str()) }, {}, 26, 1);
     overdrivePanel.addRow ({ &makeCombo (ID ("Voice").c_str()) }, {}, 26, 5);                    // Tube Driver: Classic or the Hex voicing
     overdrivePanel.addRow ({ &makeCombo (ID ("Clip").c_str()) }, {}, 26, 6);                      // v92: Op-Amp Distortion (stock = Germanium)
+    overdrivePanel.addRow ({ &makeCombo (ID ("Nob").c_str()) }, {}, 26, 9);                       // b64: Natural Overdrive voicing
     {
         auto& midMod = makeCombo (ID ("MidMod").c_str());
         overdrivePanel.addRow ({ &makeCombo (ID ("Clip").c_str()), &midMod }, { 1.0f, 1.0f }, 26, 4);
@@ -5214,8 +5970,18 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     addKnob (overdrivePanel, ID ("Tone").c_str(),   "Tone",    {}, 2, 7);
     addKnob (overdrivePanel, ID ("Gain").c_str(),   "Gain",    {}, 2, 8);      // v0.2 Blues Driver
     addKnob (overdrivePanel, ID ("Tone").c_str(),   "Tone",    {}, 2, 8);
+    addKnob (overdrivePanel, ID ("Gain").c_str(),   "Drive",    {}, 2, 9);      // b64 Natural Overdrive
+    addKnob (overdrivePanel, ID ("Tone").c_str(),   "Spectrum", {}, 2, 9);
+    addKnob (overdrivePanel, ID ("Gain").c_str(),   "Gain",     {}, 2, 10);     // b64 Preamp Distortion (the DOD 250 type has no tone control)
+    addKnob (overdrivePanel, ID ("Gain").c_str(),    "Dist",     {}, 2, 11);     // b67 Metal Zone (MT-2): Dist, Low, Mid, Mid Freq, High
+    addKnob (overdrivePanel, ID ("Bass").c_str(),    "Low",      {}, 2, 11);
+    addKnob (overdrivePanel, ID ("Mid").c_str(),     "Mid",      {}, 2, 11);
+    addKnob (overdrivePanel, ID ("MidFreq").c_str(), "Mid Freq", {}, 2, 11);
+    addKnob (overdrivePanel, ID ("Tone").c_str(),    "High",     {}, 2, 11);
     addKnob (overdrivePanel, ID ("Volume").c_str(), "Volume", " dB", 1);
-    addKnob (overdrivePanel, ID ("Mix").c_str(),    "Mix",    {}, 2);
+    addAdvKnob (overdrivePanel, ID ("Mix").c_str(),    "Mix",    {}, 2);   // b63: wet/dry is for tinkerers; the five main knobs get the room
+    addAdvKnob (overdrivePanel, ID ("Bass").c_str(),    "Lo",       {}, 2, 9);      // b64: ODR-S low band
+    addAdvKnob (overdrivePanel, ID ("Mid").c_str(),     "Mid",      {}, 2, 9);      // b64: ODR-S mid band
     addAdvKnob (overdrivePanel, ID ("Bass").c_str(),    "Bass",     {}, 2, 3);
     addAdvKnob (overdrivePanel, ID ("MidFreq").c_str(), "Mid Freq", {}, 2, 3);
     addAdvKnob (overdrivePanel, ID ("Edge").c_str(),    "Bright",   {}, 2, 3);
@@ -5232,7 +5998,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     // v59: streamlined. Always visible: model, voicing, auto level, then the switches that change the amp's feel most
     // (bright, tone stack, feel, power). Behind ADV: the tubes and rectifier, class, deep and the oversampling quality.
     auto& bright = makeToggle ("ampBright", "BRIGHT");                      // b34: Bright sits in the top row
-    ampPanel.addRow ({ &ampModelBox, voicingToggle, &bright, &makeToggle ("ampAutoLevel", "AUTO LEVEL") }, { 1.6f, 1.3f, 0.7f, 1.1f });
+    ampPanel.addRow ({ &makeToggle ("ampAOn", "ON"), &ampModelBox, voicingToggle, &bright, &makeToggle ("ampAutoLevel", "AUTO LEVEL") }, { 0.55f, 1.5f, 1.2f, 0.7f, 1.1f });
     {
         auto& stack  = makeGroupedCombo ("ampStack");
         auto& feel   = makeCombo ("ampFeel");
@@ -5258,6 +6024,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     addKnob (ampPanel, "treble",   "Treble",   " dB", 1);
     addKnob (ampPanel, "presence", "Presence");
     electricAmpKnobs.push_back (knobs.back().get());
+    presenceKnobA = knobs.back().get();
     addKnob (ampPanel, "ampTune",  "Focus",    "",    1);
     focusKnob = knobs.back().get();
     for (auto spec : { std::make_pair ("blendLevelA", "Warm"), std::make_pair ("blendLevelB", "Smooth"), std::make_pair ("blendLevelC", "Open") })
@@ -5265,6 +6032,8 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         addKnob (ampPanel, spec.first, spec.second, " dB", 1);
         blendKnobs.push_back (knobs.back().get());
     }
+    addKnob (ampPanel, "jadeDist", "Distortion");
+    jadeDistKnob = knobs.back().get();
     for (auto spec : { std::make_pair ("ampBias", "Bias"), std::make_pair ("ampPower", "Power Drive"),
                        std::make_pair ("ampReso", "Resonance"), std::make_pair ("ampSagAmt", "Sag") })
     {
@@ -5299,16 +6068,31 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     addKnob (ampBPanel, "ampBHighMid",  "High Mid", " dB", 1);
     addKnob (ampBPanel, "ampBTreble",   "Treble",   " dB", 1);
     addKnob (ampBPanel, "ampBPresence", "Presence");
+    presenceKnobB = knobs.back().get();
     addKnob (ampBPanel, "ampBTight",    "Tight");
-    addKnob (ampBPanel, "ampALevel",    "A Level",  " dB", 1);
-    addKnob (ampBPanel, "ampBLevel",    "B Level",  " dB", 1);
-    addKnob (ampBPanel, "ampAPan",      "A Pan",    "",    2);
-    addKnob (ampBPanel, "ampBPan",      "B Pan",    "",    2);
     addAdvKnob (ampBPanel, "ampBBias",    "Bias");
     addAdvKnob (ampBPanel, "ampBPower",   "Power Drive");
     addAdvKnob (ampBPanel, "ampBReso",    "Resonance");
     addAdvKnob (ampBPanel, "ampBSagAmt",  "Sag");
     setupAdvanced (ampBPanel, "ampB");
+
+    // ---- AMP B MODERN METAL (b66): the same controls Amp A has, for the high-gain models on Amp B. Tight and Sag stay on the Amp B panel;
+    //      Focus is shared with Amp A.
+    metalBPanel.addRow ({ &makeToggle ("ampBLead", "LEAD BOOST") }, {}, 26);
+    metalBPanel.setKnobColumns (7);
+    addAdvKnob (metalBPanel, "ampBDepth", "Depth");
+    addAdvKnob (metalBPanel, "ampBMidHz", "Mid Freq");
+    addAdvKnob (metalBPanel, "ampBMid",   "Mid Boost");
+    addAdvKnob (metalBPanel, "ampBFizz",  "Fizz Tamer");
+    addKnob (metalBPanel, "ampBChug",  "Chug Gate");
+    setupAdvanced (metalBPanel, "metalB");
+
+    // ---- AMP MIX (b66): how the two amps sit against each other (was on the Amp B panel)
+    ampMixPanel.setKnobColumns (4);
+    addKnob (ampMixPanel, "ampALevel", "A Level", " dB", 1);
+    addKnob (ampMixPanel, "ampBLevel", "B Level", " dB", 1);
+    addKnob (ampMixPanel, "ampAPan",   "A Pan",   "",    2);
+    addKnob (ampMixPanel, "ampBPan",   "B Pan",   "",    2);
 
     // ---- NAM model player (v50)
     {
@@ -5380,7 +6164,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     // ---- BOOST page (v51): boost with a tighten filter and saturation modes, plus a 4-band parametric EQ
     boostPanel.addRow ({ &makeToggle ("bsOn", "BOOST ON"), &makeCombo ("bsMode") }, { 1.0f, 1.4f });
     boostPanel.addRow ({ &makeCombo ("bsTightStyle") }, {});
-    boostPanel.setKnobColumns (4);
+    boostPanel.setKnobColumns (5);      // b63: all five on one row (Mix used to wrap onto a second, smaller row)
     addKnob (boostPanel, "bsGain",  "Gain",       " dB", 1);
     addKnob (boostPanel, "bsSat",   "Saturation");
     addKnob (boostPanel, "bsTight", "Tighten");
@@ -5413,12 +6197,38 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         for (int s = 0; s < 4; ++s)
         {
             Panel& pn = mfPanelOf (s);
-            pn.addRow ({ &makeToggle (ids[s][0], slotName[s]), &makeGroupedCombo (ids[s][1]), &makeCombo (ids[s][2]),
+            auto& posBox = makeCombo (ids[s][2]);
+            posBox.onChange = [this, s, &posBox]                                // b46: choosing a position moves the slot on the pedalboard (the menu follows the board)
+            {
+                static const int node[4] = { 6, 7, 24, 25 };
+                auto d = processorRef.getPatch();
+                if (PatchGraph::placeNear (d, node[s], juce::jlimit (0, 2, posBox.getSelectedItemIndex()))) processorRef.setPatch (d);
+            };
+            pn.addRow ({ &makeToggle (ids[s][0], slotName[s]), &makeGroupedCombo (ids[s][1]), &posBox,
                          &makeCombo (ids[s][3]), &makeSyncCombo (ids[s][4]) }, { 1.0f, 1.6f, 1.2f, 0.9f, 1.2f });
+            {
+                // b43: the type-specific menus of the old Chorus and Filter blocks (shown only for those types)
+                const std::string q = std::string ("mf") + "ABCD"[s];
+                mfChModeBox[s] = &makeCombo ((q + "ChMode").c_str());
+                mfFModeBox[s] = &makeCombo ((q + "FMode").c_str());
+                mfFMotionBox[s] = &makeCombo ((q + "FMotion").c_str());
+                mfFlipBox[s] = &makeToggle ((q + "Flip").c_str(), "SWEEP DOWN");
+                pn.addRow ({ mfChModeBox[s], mfFModeBox[s], mfFMotionBox[s], mfFlipBox[s] }, { 1.2f, 1.4f, 1.6f, 1.0f });
+                mfLoVoiceBox[s] = &makeCombo ((q + "LoVoice").c_str());                     // b62
+                pn.addRow ({ mfLoVoiceBox[s] }, { 1.0f });
+                mfPhVoiceBox[s] = &makeCombo ((q + "PhVoice").c_str());                     // b64
+                pn.addRow ({ mfPhVoiceBox[s] }, { 1.0f });
+                mfFsModeBox[s] = &makeCombo ((q + "FsMode").c_str());                       // b62
+                mfVocBox[s][0] = &makeCombo ((q + "VocCar").c_str());
+                mfVocBox[s][1] = &makeCombo ((q + "VocBands").c_str());
+                mfVocBox[s][2] = &makeCombo ((q + "VocNote").c_str());
+                pn.addRow ({ mfFsModeBox[s], mfVocBox[s][0], mfVocBox[s][1], mfVocBox[s][2] }, { 1.8f, 1.8f, 1.0f, 0.8f });
+            }
             pn.setKnobColumns (9);
             addKnob (pn, ids[s][5], "Rate", " Hz", 2);
             mfRateKnob[s] = knobs.back().get();
             addKnob (pn, ids[s][6],  "Depth");
+            mfDepthKnob[s] = knobs.back().get();
             addKnob (pn, ids[s][7],  "Feedback");
             mfFbKnob[s] = knobs.back().get();
             addKnob (pn, ids[s][8],  "Manual");
@@ -5438,6 +6248,10 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
                 addKnob (pn, (q + "Noise").c_str(),  "Noise");           mfXKnob[s][3] = knobs.back().get();
                 addKnob (pn, (q + "Drops").c_str(),  "Dropouts");        mfXKnob[s][4] = knobs.back().get();
                 addKnob (pn, (q + "Level").c_str(),  "Level", " dB", 1); mfXKnob[s][5] = knobs.back().get();
+                addKnob (pn, (q + "Vowel").c_str(),  "Vowel");           mfXKnob[s][6] = knobs.back().get();
+                addKnob (pn, (q + "Pick").c_str(),   "Pick Response");   mfXKnob[s][7] = knobs.back().get();
+                addKnob (pn, (q + "VocSib").c_str(),  "Sibilance");      mfXKnob[s][8] = knobs.back().get();      // b62
+                addKnob (pn, (q + "VocResp").c_str(), "Response");       mfXKnob[s][9] = knobs.back().get();
             }
         }
     }
@@ -5446,7 +6260,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     reverbIrButton.onClick = [this] { chooseReverbIr(); };
     reverbIrButton.setTooltip ("Load a WAV or AIFF impulse response (a room, hall, plate or any sound) for the IR Reverb type. Decay then caps how long it plays, so raise it for a longer tail.");
 
-    // ---- MODERN METAL (only for the Brown Eye, Slow Burn and Modern Maul amps)
+    // ---- MODERN METAL (the high-gain amps, see ampIsHighGain)
     metalPanel.addRow ({ &makeToggle ("mtLead", "LEAD BOOST") }, {}, 26);
     metalPanel.setKnobColumns (7);
     addKnob (metalPanel, "mtTight", "Tight");
@@ -5615,17 +6429,18 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         panel.addRow ({ &makeSpeakerCombo (("cabSpk" + slot).toRawUTF8()), &makeMicCombo (("cabMic" + slot).toRawUTF8()) }, {}, 26, 0);
         panel.addRow ({ &makeCabinetCombo (("cabCbn" + slot).toRawUTF8()) }, {}, 26, 0);
         panel.addRow ({ &fileButton }, {}, 26, 1);
-        panel.setKnobColumns (5);
+        panel.setKnobColumns (6);
+        // b63: the main five first (where the mic is, how far, bright or dark, level, pan); the speaker-feel and fine controls behind ADV
         addKnob (panel, ("cabPos" + slot).toRawUTF8(),  "Position", {}, 2, 0);
         addKnob (panel, ("cabDist" + slot).toRawUTF8(), "Distance", " in", 1, 0);
-        addKnob (panel, ("cabAng" + slot).toRawUTF8(),  "Angle", " deg", 0, 0);
-        addKnob (panel, ("cabTight" + slot).toRawUTF8(), "Tight", {}, 2, 0);   // v67
-        addKnob (panel, ("cabBite" + slot).toRawUTF8(),  "Bite",  {}, 2, 0);
-        addKnob (panel, ("cabBox" + slot).toRawUTF8(),   "Box",   {}, 2, 0);
+        addKnob (panel, ("cabTilt" + slot).toRawUTF8(),    "Tilt",     " dB", 1);   // v70: bright to dark
         addKnob (panel, ("cabLevel" + slot).toRawUTF8(),   "Level",    " dB", 1);
         addKnob (panel, ("cabPan" + slot).toRawUTF8(),     "Pan");
-        addKnob (panel, ("cabDelay" + slot).toRawUTF8(),   "Delay",    " ms", 2);   // v70: manual alignment, on the main page
-        addKnob (panel, ("cabTilt" + slot).toRawUTF8(),    "Tilt",     " dB", 1);   // v70: bright to dark
+        addAdvKnob (panel, ("cabAng" + slot).toRawUTF8(),  "Angle", " deg", 0, 0);
+        addAdvKnob (panel, ("cabTight" + slot).toRawUTF8(), "Tight", {}, 2, 0);   // v67
+        addAdvKnob (panel, ("cabBite" + slot).toRawUTF8(),  "Bite",  {}, 2, 0);
+        addAdvKnob (panel, ("cabBox" + slot).toRawUTF8(),   "Box",   {}, 2, 0);
+        addAdvKnob (panel, ("cabDelay" + slot).toRawUTF8(),   "Delay",    " ms", 2);   // v70: manual alignment
         addAdvKnob (panel, ("cabLowCut" + slot).toRawUTF8(),  "Low Cut",  " Hz", 0);
         addAdvKnob (panel, ("cabHighCut" + slot).toRawUTF8(), "High Cut", " Hz", 0);
         setupAdvanced (panel, ("cab" + slot).toRawUTF8());
@@ -5670,6 +6485,17 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         eqPanel.setup (eqFaders, eqKnobs);
     }
 
+    // ---- PROGRAM EQ (b59): a passive-style program equaliser
+    progEqPanel.addRow ({ &makeToggle ("pgOn", "PROGRAM EQ ON"), &makeCombo ("pgLowHz"), &makeCombo ("pgHighHz"), &makeCombo ("pgHighCutHz") }, { 1.5f, 1.0f, 1.0f, 1.0f });
+    progEqPanel.setKnobColumns (7);     // b63: all seven on one row
+    addKnob (progEqPanel, "pgLowBoost",  "Low Boost",   " dB", 1);
+    addKnob (progEqPanel, "pgLowCut",    "Low Atten",   " dB", 1);
+    addKnob (progEqPanel, "pgHighBoost", "High Boost",  " dB", 1);
+    addKnob (progEqPanel, "pgBandwidth", "Bandwidth");
+    addKnob (progEqPanel, "pgHighCut",   "High Atten",  " dB", 1);
+    addKnob (progEqPanel, "pgDrive",     "Warmth");
+    addKnob (progEqPanel, "pgLevel",     "Level",       " dB", 1);
+
     // ---- POST-AMP DELAY
     auto& postNote = makeCombo ("postDelayNote");
     postNote.onChange = [this] { syncDelayKnobs(); };
@@ -5679,6 +6505,8 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     addKnob (postDelayPanel, "postDelayTime",     "Time", " ms", 0);
     postTimeKnob = knobs.back().get();
     addKnob (postDelayPanel, "postDelayFeedback", "Feedback");
+    addKnob (postDelayPanel, "postDelayDuck",     "Duck");
+    addKnob (postDelayPanel, "postDelayModDepth", "Mod Depth");
     addAdvKnob (postDelayPanel, "postDelayLofi",     "Lo-Fi");
     addAdvKnob (postDelayPanel, "postDelayWarble",   "Warble");
     setupAdvanced (postDelayPanel, "postDelay");
@@ -5774,13 +6602,13 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         panel.setBounds (x, y, width, height);
         x += width + 10;
     };
-    for (auto* page : { &pageInput, &pageGain, &pageMod, &pageDelay, &pagePitch, &pageAmp, &pageCab, &pageSpeaker, &pageEq, &pageScapes, &pagePost })
+    for (auto* page : { &pageInput, &pageGain, &pageMod, &pageDelay, &pagePitch, &pageAmp, &pageCab, &pageSpeaker, &pageEq, &pagePost })
         page->setBounds (10, ui::kPageY, ui::kWidth - 20, ui::kPageHeight);
 
-    // The AMP page has three tabs: Amp A, the parallel Amp B (same layout and size), and the NAM model player.
-    for (int i = 0; i < 3; ++i)
+    // The AMP page has four tabs: Amp A, the parallel Amp B (same layout and size), the NAM model player, and the Amp A/B mix.
+    for (int i = 0; i < 4; ++i)
     {
-        auto& t = i == 0 ? ampTabA : i == 1 ? ampTabB : ampTabN;
+        auto& t = i == 0 ? ampTabA : i == 1 ? ampTabB : i == 2 ? ampTabN : ampTabM;
         t.setComponentID ("tab");
         t.setClickingTogglesState (true);
         t.setRadioGroupId (4713);
@@ -5790,8 +6618,9 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     }
     ampTabA.setTooltip ("Amp A: the main amp.");
     ampTabB.setTooltip ("Amp B: the parallel second amp. Same controls as Amp A. It only runs when AMP B ON is switched on (not available with the Acoustic amp).");
+    ampTabM.setTooltip ("Mix: the level and pan of Amp A and Amp B against each other. Only matters while AMP B ON is switched on.");
     ampTabN.setTooltip ("NAM: load a neural amp capture (.nam file) to use in place of Amp A's preamp and power stage.");
-    ampTab = juce::jlimit (0, 2, (int) processorRef.apvts.state.getProperty ("uiAmpTab", 0));
+    ampTab = juce::jlimit (0, 3, (int) processorRef.apvts.state.getProperty ("uiAmpTab", 0));
 
     // ---- Hardware looks: stompboxes for the pedals and effects, black tolex / cab cloth / wood for the amp
     //      and cabs, and brushed rack units for everything else.
@@ -5806,11 +6635,13 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         ampPanel.setStyle (PanelKind::Amp);
         metalPanel.setStyle (PanelKind::Amp);
         ampBPanel.setStyle (PanelKind::Amp);
+        metalBPanel.setStyle (PanelKind::Amp);
+        ampMixPanel.setStyle (PanelKind::Amp);
         namStrip[0].panel.setStyle (PanelKind::Amp);
         namStrip[1].panel.setStyle (PanelKind::Amp);
         pedal (namStrip[2].panel, 0xff3d5a2e);  pedal (namStrip[3].panel, 0xff5a3d6a);
         pedal (lofiPanel, 0xff6b5a2c);
-        pedal (filterPanel, 0xff5a3a8a);  pedal (volPanPanel, 0xff4a5560);  pedal (mbPanel, 0xff1f5a6a);  pedal (gatePanel, 0xff3b4b5e);
+        pedal (filterPanel, 0xff5a3a8a);  pedal (volPanPanel, 0xff4a5560);  pedal (mbPanel, 0xff1f5a6a);  pedal (mbBandsPanel, 0xff1f5a6a);  pedal (satPanel, 0xff6a3a2a);  pedal (satBandsPanel, 0xff6a3a2a);  pedal (gatePanel, 0xff3b4b5e);  pedal (shaperPanel, 0xff3b4b5e);  pedal (shaperBandsPanel, 0xff3b4b5e);
         pedal (harmPanel, 0xff5a3a8a);  pedal (preDelayFxPanel, 0xff4e3a8e);  pedal (postDelayFxPanel, 0xff4e3a8e);
         pedal (boostPanel, 0xff9a6b1a);
         pedal (mfPanel0, 0xff1f5a7a);  pedal (mfPanel1, 0xff3a5a2a);  pedal (mfPanel2, 0xff7a4a1f);  pedal (mfPanel3, 0xff5a2a5a);
@@ -5871,9 +6702,11 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     x = 0;
     place (eqPanel, x, 0, 1480, 260);
     x = 0;
-    place (spectrumView, x, 268, 1480, 240);
+    place (spectrumView, x, 268, 780, 240);
+    x = 788;
+    place (progEqPanel, x, 268, 692, 240);
 
-    // The pages made of pedals (INPUT, GAIN, MOD, PITCH, DELAY, SCAPES, POST FX) are laid out by layoutFlow (v73).
+    // The pages made of pedals (INPUT, GAIN, MOD, PITCH, TIME, POST FX) are laid out by layoutFlow (v73).
     {
         auto item = [] (Panel& main, int w, const char* onId, const char* name, Panel* extra = nullptr, int wExtra = 0, int lanes = 1, int lane = -1)
         {
@@ -5887,7 +6720,9 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
 
         v.push_back (item (inputPanel, 300, "", "", nullptr, 0, 2));
         v.push_back (item (gatePanel, 520, "gxOn", "GATE / EXPANDER"));
+        v.push_back (item (shaperPanel, 420, "tsOn", "TRANSIENT SHAPER", &shaperBandsPanel, 420));  v.back().extraId = "tsMulti";
         v.push_back (item (diMatchPanel, 560, "dmOn", "DI MATCH"));
+        v.push_back (item (swellPanel, 330, "swellOn", "SWELL"));
         page (pageInput, std::move (v));  v.clear();
 
         v.push_back (item (fuzzPanel, 380, "fuzzOn", "FUZZ"));
@@ -5898,7 +6733,8 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         v.push_back (item (boostPanel, 560, "bsOn", "BOOST"));
         v.push_back (item (boostEqPanel, 880, "bsEqOn", "BOOST EQ"));
         v.push_back (item (volPanPanel, 260, "vpOn", "VOLUME / PAN"));
-        v.push_back (item (mbPanel, 880, "mbOn", "MULTIBAND COMP"));
+        v.push_back (item (mbPanel, 380, "mbOn", "MULTIBAND COMP", &mbBandsPanel, 640));
+        v.push_back (item (satPanel, 340, "msOn", "MULTIBAND SATURATOR", &satBandsPanel, 420));
         page (pageGain, std::move (v));  v.clear();
 
         v.push_back (item (wahPanel, 520, "wahOn", "WAH"));
@@ -5908,7 +6744,8 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         v.push_back (item (mfPanel1, 720, "mfBOn", "MOD FX B"));
         v.push_back (item (mfPanel2, 720, "mfCOn", "MOD FX C"));
         v.push_back (item (mfPanel3, 720, "mfDOn", "MOD FX D"));
-        v.push_back (item (filterPanel, 620, "filtOn", "FILTER"));
+        v.push_back (item (filterPanel, 620, "filtOn", "FILTER"));   v.back().legacy = true;
+        v.push_back (item (lofiPanel, 620, "lfOn", "LO-FI WARBLE"));   v.back().legacy = true;
         page (pageMod, std::move (v));  v.clear();
 
         v.push_back (item (transposePanel, 560, "tpOn", "TRANSPOSE / FORMANT"));
@@ -5916,20 +6753,16 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         v.push_back (item (octPanel, 570, "octOn", "OCTAVER", nullptr, 0, 1, 1));
         v.push_back (item (harmPanel, 890, "hmOn", "HARMONIZER", nullptr, 0, 2));
         v.push_back (item (synthPanel, 900, "synOn", "GUITAR SYNTH"));
+        v.push_back (item (noisePanel, 418, "noiseOn", "CLASH PEDAL"));
         page (pagePitch, std::move (v));  v.clear();
 
-        v.push_back (item (preDelayPanel, 420, "preDelayOn", "DELAY 1", &preDelayFxPanel, 620));
-        v.push_back (item (postDelayPanel, 540, "postDelayOn", "DELAY 2", &postDelayFxPanel, 620));
+        v.push_back (item (preDelayPanel, 540, "preDelayOn", "DELAY 1", &preDelayFxPanel, 700));  v.back().extraWithAdv = true;
+        v.push_back (item (postDelayPanel, 540, "postDelayOn", "DELAY 2", &postDelayFxPanel, 700));  v.back().extraWithAdv = true;
+        v.push_back (item (reverbPanel, 640, "reverbOn", "REVERB", &reverbShapePanel, 620));  v.back().extraWithAdv = true;
+        v.push_back (item (reverb2Panel, 640, "rev2On", "REVERB 2", &reverb2ShapePanel, 620));  v.back().extraWithAdv = true;
+        v.push_back (item (grainPanel, 760, "granOn", "GRANULAR CLOUD"));
         page (pageDelay, std::move (v));  v.clear();
 
-        v.push_back (item (grainPanel, 760, "granOn", "GRANULAR CLOUD"));
-        v.push_back (item (swellPanel, 330, "swellOn", "SWELL"));
-        v.push_back (item (lofiPanel, 620, "lfOn", "LO-FI WARBLE"));   v.back().legacy = true;
-        v.push_back (item (noisePanel, 418, "noiseOn", "CLASH PEDAL"));
-        page (pageScapes, std::move (v));  v.clear();
-
-        v.push_back (item (reverbPanel, 640, "reverbOn", "REVERB", &reverbShapePanel, 620));
-        v.push_back (item (reverb2Panel, 640, "rev2On", "REVERB 2", &reverb2ShapePanel, 620));
         v.push_back (item (outputPanel, 270, "", ""));
         v.push_back (item (doublerPanel, 400, "dblOn", "DOUBLER"));
         v.push_back (item (widenerPanel, 560, "widOn", "WIDENER"));
@@ -5943,7 +6776,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     // placed would otherwise keep the empty layout from the moment it was first sized, and show nothing).
     for (auto* panel : { &inputPanel, &noisePanel, &fuzzPanel, &fuzz2Panel, &preDelayPanel, &compPanel, &wahPanel, &phaserPanel, &chorusPanel,
                          &overdrivePanel, &drive2Panel, &transposePanel, &grainPanel, &tremPanel, &wobblePanel, &swellPanel, &doublerPanel,
-                         &widenerPanel, &filterPanel, &volPanPanel, &mbPanel, &gatePanel, &ampPanel, &metalPanel, &ampBPanel, &namStrip[0].panel, &namStrip[1].panel, &namStrip[2].panel, &namStrip[3].panel, &lofiPanel, &boostPanel, &boostEqPanel, &mfPanel0, &mfPanel1, &mfPanel2, &mfPanel3, &reverbShapePanel, &reverb2Panel, &reverb2ShapePanel, &acousticPanel, &irAPanel, &irBPanel, &irCPanel, &irDPanel,
+                         &widenerPanel, &filterPanel, &volPanPanel, &mbPanel, &mbBandsPanel, &satPanel, &satBandsPanel, &gatePanel, &shaperPanel, &shaperBandsPanel, &ampPanel, &metalPanel, &ampBPanel, &metalBPanel, &ampMixPanel, &namStrip[0].panel, &namStrip[1].panel, &namStrip[2].panel, &namStrip[3].panel, &lofiPanel, &boostPanel, &boostEqPanel, &mfPanel0, &mfPanel1, &mfPanel2, &mfPanel3, &reverbShapePanel, &reverb2Panel, &reverb2ShapePanel, &acousticPanel, &irAPanel, &irBPanel, &irCPanel, &irDPanel,
                          &cabPanel, &postDelayPanel, &reverbPanel, &outputPanel, &wowPanel, &octPanel, &shapePanel, &dynPanel, &exportPanel,
                          &synthPanel, &harmPanel, &preDelayFxPanel, &postDelayFxPanel })
         panel->resized();
@@ -5975,7 +6808,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         // Tuner: a button in the header; the tuner opens over the page and mutes the output
         processorRef.tunerActive.store (false);
         tunerButton.setClickingTogglesState (true);
-        tunerButton.setTooltip ("Opens the tuner (the reference pitch is adjustable in it) and mutes the output while it is open. Play one string at a time.");
+        tunerButton.setTooltip ("Opens the tuner and mutes the output while it is open. Single note tunes one string at a time; All strings reads every string of a strummed chord at once, for the tuning you choose (6, 7 and 8 string guitars, basses, or your own). The reference pitch is adjustable in it.");
         tunerButton.onClick = [this]
         {
             const bool on = tunerButton.getToggleState();
@@ -5988,13 +6821,19 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         content.addAndMakeVisible (tunerButton);
 
         midiButton.setBounds (1032, 8, 42, 28);
+        perfLabel.setJustificationType (juce::Justification::centredLeft);
+        perfLabel.setFont (juce::FontOptions (11.0f));
+        perfLabel.setColour (juce::Label::textColourId, ui::text.withAlpha (0.75f));
+        perfLabel.setInterceptsMouseClicks (true, false);
+        perfLabel.setTooltip ("CPU: how much of the time available for each audio buffer this plugin is using (100% is the point where audio starts to glitch). The second number is the worst buffer since the last update. Latency: the delay this plugin adds, which your DAW compensates for. It changes with Mode, Amp Quality, the limiter look-ahead and the pitch effects.");
+        content.addAndMakeVisible (perfLabel);
         midiButton.setTooltip ("MIDI: Program Change loads presets, and controllers (CC, pitch bend) can move any parameter. Opens the MIDI window. You can also right-click any knob to learn a controller for it.");
         midiButton.onClick = [this] { openMidiWindow(); };
         content.addAndMakeVisible (midiButton);
         midiWatcher.onTick = [this] { midiTick(); };
         midiWatcher.begin();
         addMouseListener (this, true);
-        tunerView.setBounds ((ui::kWidth - 520) / 2, ui::kPageY + 20, 520, 180);
+        tunerView.setBounds ((ui::kWidth - 880) / 2, ui::kPageY + 20, 880, 340);
         content.addChildComponent (tunerView);
     }
 
@@ -6036,7 +6875,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     abMenu.setTooltip ("A/B options: copy the active sound to the other slot, level matching, and forgetting the measured levels. A/B slots are not saved with the session.");
     undoButton.setTooltip ("Undo the last change you made by hand (a knob, a switch, a preset, the effect order, an A/B switch). Changes that come from MIDI or your DAW's automation are not counted as steps. Shortcut: Cmd+Z.");
     redoButton.setTooltip ("Redo what you just undid. Shortcut: Cmd+Shift+Z.");
-    browseButton.setTooltip ("Opens the preset browser: Factory and User tabs, search, and tags.");
+    browseButton.setTooltip ("Opens the preset browser: your saved presets, with search and tags.");
     browseButton.onClick = [this] { openBrowserWindow(); };
 
     // ---- Tools next to the tuner
@@ -6044,9 +6883,9 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     orderButton.setBounds (1080, 8, 56, 28);
     metroButton.setTooltip ("Metronome: opens its settings. The button is lit while the metronome is running.");
     metroButton.onClick = [this] { openMetroWindow(); };
-    orderButton.setButtonText ("ORDER");
+    orderButton.setButtonText ("BOARD");
     orderButton.setColour (juce::TextButton::buttonColourId, ui::accent.withAlpha (0.55f));
-    orderButton.setTooltip ("The pedalboard: move any effect before the amp, into the amp's FX loop (between its preamp and power stage) or after the cab, and change the order within each.");
+    orderButton.setTooltip ("The pedalboard: every effect, both amps and the cab are boxes joined by cables. Drop an effect on a cable to put it in the path, run cables from jack to jack for parallel paths, splits and the amp's FX loop.");
     orderButton.onClick = [this] { openOrderWindow(); };
     loopButton.setBounds (1140, 46, 96, 28);
     loopButton.setTooltip ("Looper: records what you play and plays it back so you can play over it. Opens its window. In the standalone app the space bar is the big record / play / overdub button. The button shows the looper's state.");
@@ -6058,17 +6897,19 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     refreshPresets();
 
     // ---- Tabs along the top
-    for (int i = 0; i < 10; ++i)
+    for (int i = 0; i < 9; ++i)
     {
-        static const char* tabNames[10] = { "INPUT", "GAIN", "MOD", "PITCH", "AMP", "CAB", "EQ", "DELAY", "SCAPES", "POST FX" };
+        static const char* tabNames[9] = { "INPUT", "GAIN", "MOD", "PITCH", "AMP", "CAB", "EQ", "TIME", "POST FX" };
         auto& tab = pageTabs[i];
         tab.setButtonText (tabNames[i]);
         tab.setComponentID ("tab");
         tab.setClickingTogglesState (true);
         tab.setRadioGroupId (4712);
         tab.onClick = [this, i] { showPage (i); };
-        tab.setBounds (12 + i * 112, 46, 108, 28);
+        tab.setBounds (12 + i * 106, 46, 102, 28);
         content.addAndMakeVisible (tab);
+        tabWatch[i].onPopup = [this, i] { showTabMenu (i); };
+        tab.addMouseListener (&tabWatch[i], false);
     }
     tidyButton.setClickingTogglesState (true);
     tidyButton.setToggleState (tidyOn, juce::dontSendNotification);
@@ -6087,16 +6928,19 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     content.addAndMakeVisible (helpButton);
     riffButton.setBounds (12 + 11 * 128, 46, 66, 28);
     // b17: header in two groups. Top row: presets, A/B, undo, mode, tempo. Second row: the pages, then the tools.
-    presetBox.setBounds (262, 8, 400, 28);
-    presetNext.setBounds (666, 8, 26, 28);
-    browseButton.setBounds (700, 8, 56, 28);
-    presetSave.setBounds (760, 8, 46, 28);
-    abA.setBounds (830, 8, 24, 28);  abB.setBounds (858, 8, 24, 28);  abMenu.setBounds (886, 8, 44, 28);
-    undoButton.setBounds (944, 8, 40, 28);  redoButton.setBounds (988, 8, 40, 28);
+    // b60: the CPU / latency readout sat on top of the Mode box and TAP (it was still at its old b16 spot). The preset box is
+    // 140 px narrower so the Mode box (wide enough for "Low Latency") and the readout fit in the top row before TAP.
+    presetBox.setBounds (262, 8, 260, 28);
+    presetNext.setBounds (526, 8, 26, 28);
+    browseButton.setBounds (558, 8, 56, 28);
+    presetSave.setBounds (618, 8, 46, 28);
+    abA.setBounds (686, 8, 24, 28);  abB.setBounds (714, 8, 24, 28);  abMenu.setBounds (742, 8, 44, 28);
+    undoButton.setBounds (800, 8, 40, 28);  redoButton.setBounds (844, 8, 40, 28);
     if (auto it = idMap.find ("perfMode"); it != idMap.end() && it->second != nullptr)
-        it->second->setBounds (1040, 8, 94, 28);
-    for (int i = 0; i < 10; ++i)
-        pageTabs[i].setBounds (12 + i * 96, 46, 92, 28);
+        it->second->setBounds (894, 8, 110, 28);
+    perfLabel.setBounds (1010, 6, 126, 32);
+    for (int i = 0; i < 9; ++i)
+        pageTabs[i].setBounds (12 + i * 106, 46, 102, 28);
     tunerButton.setBounds (976, 46, 52, 28);   metroButton.setBounds (1032, 46, 52, 28);
     loopButton.setBounds (1088, 46, 62, 28);   riffButton.setBounds (1154, 46, 46, 28);
     midiButton.setBounds (1204, 46, 46, 28);
@@ -6106,23 +6950,22 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     riffButton.onClick = [this] { openRiffWindow(); };
     content.addAndMakeVisible (riffButton);
     {
-        static const char* tabTips[10] = {
-            "INPUT: the input level, the gate / expander and pickup de-noise.",
+        static const char* tabTips[9] = {
+            "INPUT: the input level, the gate / expander, pickup de-noise, the transient shaper, DI match and the swell.",
             "GAIN: fuzz, compressor, overdrive, the boost with its 4-band EQ, volume / pan and the multiband compressor.",
-            "MOD: wah, filter, phaser, chorus, and the two mod effects slots (flanger, vibrato, rotary, auto-pan and more).",
-            "PITCH: transpose with formant control, the pitch pedal, the octaver, the harmonizer and the guitar synth.",
+            "MOD: wah, filter, phaser, chorus, the four mod effects slots (flanger, vibrato, rotary, auto-pan and more) and the old lo-fi warble.",
+            "PITCH: transpose with formant control, the pitch pedal, the octaver, the harmonizer, the guitar synth and the clash pedal (a harsh pitch-shifting instrument, not a noise gate).",
             "AMP: the amp model, tone controls, voicing, tuning, the acoustic / piezo model, and the NAM tab with its four neural-model slots.",
             "CAB: up to four cab blocks (built-in models or IR files) with the mic position and alignment. The second sub-tab has per-block EQ, speaker dynamics and exporting the cab as an impulse response.",
             "EQ: the Post EQ and a spectrum display of what you are hearing.",
-            "DELAY: the delay before the amp and the delay after the cab, each with ducking, modulation, diffusion, hold and multi-tap.",
-            "SCAPES: granular cloud, tremolo, wobble, swell, lo-fi warble and the clash pedal (a harsh pitch-shifting instrument, not a noise gate), for ambient and experimental textures.",
-            "POST FX: reverb (with shimmer and shaping), the doubler, the widener and the output level with the limiter." };
-        for (int i = 0; i < 10; ++i)
-            pageTabs[i].setTooltip (tabTips[i]);
+            "TIME: the delay before the amp and the delay after the cab (ducking, modulation, diffusion, hold, multi-tap), both reverbs (with shimmer and shaping) and the granular cloud.",
+            "POST FX: the doubler, the widener and the output level with the limiter." };
+        for (int i = 0; i < 9; ++i)
+            pageTabs[i].setTooltip (juce::String (tabTips[i]) + "  Right-click the tab to keep this page's settings when you load a preset.");
 
         tapButton.setTooltip ("Tap tempo: tap at least twice; the tempo is the average of your last 5 taps (a pause over 2 seconds starts again). Also turns HOST TEMPO off.");
         tempoSlider.setTooltip ("Tempo in BPM (drag, or double-click to type). Used by note-value delays and the tremolo.");
-        presetBox.setTooltip ("Factory presets (grouped by style) and your saved presets (files in Documents/StarterAmp/Presets). Choose one to load it. A factory preset resets the sound to defaults first; your input, quality, tempo and limiter settings are kept.");
+        presetBox.setTooltip ("Your saved presets (files in Documents/StarterAmp/Presets). Choose one to load it. Your input, quality, tempo and limiter settings are kept.");
         presetPrev.setTooltip ("Load the previous preset.");
         presetNext.setTooltip ("Load the next preset.");
         presetSave.setTooltip ("Save the current settings as a preset. An existing name is replaced.");
@@ -6142,18 +6985,23 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     {
         // Sessions saved before v73 remember a page number from the old 11-tab layout.
         int savedPage = (int) processorRef.apvts.state.getProperty ("uiPage", 0);
+        const bool wasV73 = (int) processorRef.apvts.state.getProperty ("uiLayout", 0) == 73;
         if (! processorRef.apvts.state.hasProperty ("uiLayout"))
         {
-            static const int oldToNew[11] = { 1, 1, 2, 2, 3, 4, 5, 5, 6, 8, 9 };   // PRE FX, BOOST, MOD, MOD FX, PITCH, AMP, CAB, SPEAKER, EQ, SCAPES, POST FX
+            static const int oldToNew[11] = { 1, 1, 2, 2, 3, 4, 5, 5, 6, 7, 8 };   // PRE FX, BOOST, MOD, MOD FX, PITCH, AMP, CAB, SPEAKER, EQ, SCAPES, POST FX
             if (savedPage >= 0 && savedPage < 11)
             {
                 if (savedPage == 7) processorRef.apvts.state.setProperty ("uiCabTab", 1, nullptr);
                 savedPage = oldToNew[savedPage];
             }
         }
+        if (wasV73 && savedPage >= 7)                                  // b61: DELAY and SCAPES became TIME, POST FX moved up one
+            savedPage = savedPage == 9 ? 8 : 7;
         cabTab = juce::jlimit (0, 1, (int) processorRef.apvts.state.getProperty ("uiCabTab", 0));
         showPage (savedPage);
     }
+    buildParamPages();
+    refreshTabLocks();
 
     masterSwitches = { { &noisePanel, "noiseOn" }, { &fuzzPanel, "fuzzOn" }, { &fuzz2Panel, "fuzz2On" }, { &compPanel, "compOn" }, { &wahPanel, "wahOn" },
                        { &phaserPanel, "phaserOn" }, { &chorusPanel, "chorusOn" }, { &preDelayPanel, "preDelayOn" },
@@ -6162,7 +7010,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
                        { &wobblePanel, "wobOn" }, { &swellPanel, "swellOn" }, { &doublerPanel, "dblOn" }, { &widenerPanel, "widOn" },
                        { &wowPanel, "wowOn" }, { &octPanel, "octOn" }, { &harmPanel, "hmOn" }, { &synthPanel, "synOn" }, { &lofiPanel, "lfOn" }, { &boostPanel, "bsOn" },
                        { &mfPanel0, "mfAOn" }, { &mfPanel1, "mfBOn" }, { &mfPanel2, "mfCOn" }, { &mfPanel3, "mfDOn" }, { &reverbPanel, "reverbOn" }, { &reverbShapePanel, "reverbOn" }, { &reverb2Panel, "rev2On" }, { &reverb2ShapePanel, "rev2On" },
-                       { &ampBPanel, "ampBOn" }, { &filterPanel, "filtOn" }, { &volPanPanel, "vpOn" }, { &mbPanel, "mbOn" }, { &gatePanel, "gxOn" }, { &diMatchPanel, "dmOn" } };
+                       { &ampPanel, "ampAOn" }, { &ampBPanel, "ampBOn" }, { &metalBPanel, "ampBOn" }, { &ampMixPanel, "ampBOn" }, { &filterPanel, "filtOn" }, { &volPanPanel, "vpOn" }, { &mbPanel, "mbOn" }, { &mbBandsPanel, "mbOn" }, { &satPanel, "msOn" }, { &satBandsPanel, "msOn" }, { &gatePanel, "gxOn" }, { &shaperPanel, "tsOn" }, { &shaperBandsPanel, "tsOn" }, { &diMatchPanel, "dmOn" } };
     updateIRButtons();
     syncDelayKnobs();
     syncVisibility();
@@ -6399,6 +7247,18 @@ void StarterAmpEditor::mouseDown (const juce::MouseEvent& e)
 
 void StarterAmpEditor::midiTick()
 {
+    {
+        // b53: CPU and latency readout
+        const float load = processorRef.cpuLoad.load();
+        const float peak = processorRef.cpuPeak.exchange (0.0f);
+        const int   lat  = processorRef.getLatencySamples();
+        const double sr  = processorRef.getSampleRate();
+        const juce::String t = "CPU " + juce::String ((int) std::lround (load * 100.0f)) + "%  (worst " + juce::String ((int) std::lround (peak * 100.0f)) + "%)\n"
+                             + "Latency " + juce::String (sr > 0.0 ? 1000.0 * lat / sr : 0.0, 1) + " ms";
+        if (perfLabel.getText() != t) perfLabel.setText (t, juce::dontSendNotification);
+        perfLabel.setColour (juce::Label::textColourId, (peak >= 0.85f ? ui::accent : ui::text.withAlpha (0.75f)));
+    }
+
     const bool learning = processorRef.midiLearning() >= 0;
     const int activity = processorRef.midiActivity.load();
     const bool flash = activity != lastMidiActivity;
@@ -6459,8 +7319,7 @@ ToolWindow::~ToolWindow()
 }
 
 //==============================================================================
-// OrderPanel (b8): three lanes (before the amp, in the amp's FX loop, after the cab). Every movable effect can sit in
-// any lane; drag a pedal to a new spot, in the same lane or another one.
+// The pedalboard window (b46: PatchPanel, below). Helpers shared with the strip under the tabs.
 //==============================================================================
 namespace
 {
@@ -6470,8 +7329,8 @@ namespace
         static const std::vector<const char*> ids[StarterAmpProcessor::kFxBlocks] =
         {
             { "fuzzOn" }, { "compOn" }, { "wahOn" }, { "phaserOn" }, { "chorusOn" }, { "preDelayOn" }, { "mfAOn" }, { "mfBOn" },
-            { "eqOn" }, { "wobOn", "swellOn" }, { "dblOn" }, { "postDelayOn" }, { "reverbOn" }, { "widOn" }, { "tremOn" }, { "rev2On" },
-            { "filtOn" }, { "vpOn" }, { "mbOn" }, { "gxOn" }, { "lfOn" }, { "bsOn" }, { "odOn" }, { "od2On" }, { "mfCOn" }, { "mfDOn" }, { "fuzz2On" }
+            { "eqOn", "pgOn" }, { "wobOn", "swellOn" }, { "dblOn" }, { "postDelayOn" }, { "reverbOn" }, { "widOn" }, { "tremOn" }, { "rev2On" },
+            { "filtOn" }, { "vpOn" }, { "mbOn" }, { "gxOn", "tsOn" }, { "lfOn" }, { "bsOn" }, { "odOn" }, { "od2On" }, { "mfCOn" }, { "mfDOn" }, { "fuzz2On" }, { "msOn" }
         };
         for (auto* id : ids[block])
             if (auto* v = p.apvts.getRawParameterValue (id))
@@ -6486,7 +7345,7 @@ namespace
         {
             { "fuzzOn" }, { "compOn" }, { "wahOn" }, { "phaserOn" }, { "chorusOn" }, { "preDelayOn" }, { "mfAOn" }, { "mfBOn" },
             { "eqOn" }, { "wobOn", "swellOn" }, { "dblOn" }, { "postDelayOn" }, { "reverbOn" }, { "widOn" }, { "tremOn" }, { "rev2On" },
-            { "filtOn" }, { "vpOn" }, { "mbOn" }, { "gxOn" }, { "lfOn" }, { "bsOn" }, { "odOn" }, { "od2On" }, { "mfCOn" }, { "mfDOn" }, { "fuzz2On" }
+            { "filtOn" }, { "vpOn" }, { "mbOn" }, { "gxOn", "tsOn" }, { "lfOn" }, { "bsOn" }, { "odOn" }, { "od2On" }, { "mfCOn" }, { "mfDOn" }, { "fuzz2On" }, { "msOn" }
         };
         const bool on = fxBlockIsOn (p, block);
         bool first = true;
@@ -6502,645 +7361,1116 @@ namespace
     const juce::uint32 kBoardTint[StarterAmpProcessor::kFxBlocks] =
         { 0xffa04a14, 0xff22508c, 0xff8a2a3a, 0xff8a6410, 0xff176670, 0xff4e3a8e, 0xff1f5a7a, 0xff3a5a2a,
           0xff555b66, 0xff2f5d52, 0xff6a3030, 0xff5a4aa0, 0xff2c4f7a, 0xff2b5c68, 0xff7a4a26, 0xff3a5f8f,
-          0xff5a3a8a, 0xff4a5560, 0xff1f5a6a, 0xff3b4b5e, 0xff6a4a7a, 0xff8a5a1a, 0xff8a3a1a, 0xff7a2a2a, 0xff7a4a1f, 0xff5a2a5a, 0xff8a4a14 };
+          0xff5a3a8a, 0xff4a5560, 0xff1f5a6a, 0xff3b4b5e, 0xff6a4a7a, 0xff8a5a1a, 0xff8a3a1a, 0xff7a2a2a, 0xff7a4a1f, 0xff5a2a5a, 0xff8a4a14, 0xff6a3a2a };
     const char* const kBoardName[StarterAmpProcessor::kFxBlocks] =
         { "FUZZ\n1", "COMP", "WAH", "PHASER", "CHORUS", "DELAY\n1", "MOD A", "MOD B",
           "EQ", "WOB /\nSWELL", "DOUBLER", "DELAY\n2", "REVERB", "WIDENER", "TREM", "REV 2",
-          "FILTER", "VOL\nPAN", "MULTI\nBAND", "GATE", "LO-FI", "BOOST", "DRIVE\n1", "DRIVE\n2", "MOD C", "MOD D", "FUZZ\n2" };
-    constexpr float kCellW = 40.0f, kCellH = 104.0f, kRailGap = 8.0f, kLaneX = 96.0f, kLaneTop0 = 58.0f, kLaneGap = 40.0f;
-    constexpr float kSideX = kLaneX + 22 * kCellW + 56.0f, kSideW = 270.0f;     // b23: the side column starts clear of the board's frame (it used to start 20 px inside it)
-    constexpr int   kCols = 22;                                           // the most blocks that can sit in one lane (b23: 20 movable blocks)
-
-    float laneHeight (int) { return 2.0f * (kCellH + kRailGap) + 16.0f; }
-    float laneTopY (int group)
-    {
-        if (group == 0) return kLaneTop0;
-        if (group == 2) return kLaneTop0 + laneHeight (0) + kLaneGap;
-        return kLaneTop0 + laneHeight (0) + kLaneGap + laneHeight (2) + kLaneGap;
-    }
+          "FILTER", "VOL\nPAN", "MULTI\nBAND", "GATE /\nSHAPER", "LO-FI", "BOOST", "DRIVE\n1", "DRIVE\n2", "MOD C", "MOD D", "FUZZ\n2", "SATU-\nRATOR" };
 }
 
-OrderPanel::OrderPanel (StarterAmpProcessor& p) : processor (p)
+//==============================================================================
+// PatchPanel (b46): the pedalboard as a patch of cables. The signal path is a graph: every pedal, the two amps (Amp A in two halves, its
+// preamp and its power stage, with the FX loop jacks between them) and the cab are boxes with jacks. Cables join an output jack (right side of
+// a box) to an input jack (left side). The boxes are laid out automatically from the cables: left to right in signal order, branches below.
+// Pedals that are off are not drawn; they wait in the tray (and the cables run straight past them).
+//==============================================================================
+namespace PG = PatchGraph;
+namespace
 {
-    setSize (1330, 1070);
-    for (int g = 0; g < 3; ++g)
-    {
-        balance[g].setSliderStyle (juce::Slider::LinearHorizontal);
-        balance[g].setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
-        balance[g].setTooltip ("Rail balance: in the middle the main rail (top) and the parallel pedals (bottom) are both at full level. To the left the parallel pedals fade out, to the right the main rail fades out. It only matters when a pedal on the lower rail is switched on.");
-        addAndMakeVisible (balance[g]);
-        balanceAttach[g] = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (p.apvts, g == 0 ? "preRailBal" : g == 1 ? "postRailBal" : "loopRailBal", balance[g]);
-        balanceLabel[g].setText ("MAIN RAIL  <  >  PARALLEL PEDALS", juce::dontSendNotification);
-        balanceLabel[g].setFont (juce::Font (juce::FontOptions (10.5f, juce::Font::bold)));
-        balanceLabel[g].setColour (juce::Label::textColourId, ui::textDim);
-        balanceLabel[g].setJustificationType (juce::Justification::centred);
-        addAndMakeVisible (balanceLabel[g]);
+    constexpr float kColGap = 34.0f, kRowH = 112.0f, kPadX = 30.0f, kPadY = 16.0f, kLoopDy = 24.0f, kLinkDy = -16.0f;
+    constexpr float kChipW = 56.0f, kChipH = 44.0f;
 
-        // b10: split / merge for this lane
-        const juce::String gs (g);
-        if (auto* pc = dynamic_cast<juce::AudioParameterChoice*> (p.apvts.getParameter ("laneSplit" + gs))) splitBox[g].addItemList (pc->choices, 1);
-        splitBox[g].setTooltip ("How this lane's lower row is fed and merged. Separate branches: every lower pedal runs beside the main row on its own (set each one's level, pan and polarity by clicking it). Chain B beside chain A: the lower pedals run one after another as a second path. Crossover split: the upper row gets only the lows and the lower row only the highs (an empty row passes its band untouched). Left / right split (after the cab only): the upper row gets the left channel and the lower row the right channel.");
-        if (g != 1) splitBox[g].setItemEnabled (4, false);
-        splitAttach[g] = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (p.apvts, "laneSplit" + gs, splitBox[g]);
-        xoverSlider[g].setTooltip ("Where the crossover split divides the lows (upper row) from the highs (lower row). Used by Crossover split only.");
-        bLevelSlider[g].setTooltip ("How loud the lower row is when it is merged back, in dB. Used by the chain, crossover and left / right splits (separate branches have their own levels).");
-        bPanSlider[g].setTooltip ("Where the lower row sits in the stereo picture when merged (after the cab only, not in left / right split).");
-        bPolButton[g].setButtonText ("Flip lower-row polarity");
-        bPolButton[g].setTooltip ("Flips the sign of the lower row before it is merged. Use it when the two paths cancel each other.");
-        for (auto* s : { &xoverSlider[g], &bLevelSlider[g], &bPanSlider[g] })
+    juce::String vertexName (int v)
+    {
+        if (v >= 0 && v < StarterAmpProcessor::kFxBlocks) return kBoardName[v];
+        switch (v)
         {
-            s->setSliderStyle (juce::Slider::LinearHorizontal);
-            s->setTextBoxStyle (juce::Slider::TextBoxRight, false, 62, 18);
-            addAndMakeVisible (s);
+            case PG::kNamP1: return "NAM\nPEDAL 1";   case PG::kAmpA: return "AMP A\nPREAMP";   case PG::kAmpB: return "AMP B";
+            case PG::kCab:   return "CAB";            case PG::kXo1:  return "CROSS-\nOVER 1"; case PG::kXo2:  return "CROSS-\nOVER 2";
+            case PG::kXo3:   return "CROSS-\nOVER 3"; case PG::kLr:   return "L / R\nSPLIT";    case PG::kIn:   return "IN";
+            case PG::kOut:   return "OUT";            case PG::kNodes: return "AMP A\nPOWER";   default: return "";
         }
-        for (auto* l : { &xoverLabel[g], &bLevelLabel[g], &bPanLabel[g] })
-        {
-            l->setFont (juce::Font (juce::FontOptions (11.0f)));
-            l->setColour (juce::Label::textColourId, ui::textDim);
-            addAndMakeVisible (l);
-        }
-        xoverLabel[g].setText ("Crossover", juce::dontSendNotification);
-        bLevelLabel[g].setText ("B level", juce::dontSendNotification);
-        bPanLabel[g].setText ("B pan", juce::dontSendNotification);
-        xoverAttach[g]  = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (p.apvts, "laneXover" + gs, xoverSlider[g]);
-        bLevelAttach[g] = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (p.apvts, "laneBLevel" + gs, bLevelSlider[g]);
-        bPanAttach[g]   = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (p.apvts, "laneBPan" + gs, bPanSlider[g]);
-        bPolAttach[g]   = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (p.apvts, "laneBPol" + gs, bPolButton[g]);
-        xoverSlider[g].textFromValueFunction = [] (double v) { return v >= 1000.0 ? juce::String (v / 1000.0, 2) + " kHz" : juce::String ((int) std::round (v)) + " Hz"; };
-        bLevelSlider[g].textFromValueFunction = [] (double v) { return juce::String (v, 1) + " dB"; };
-        bPanSlider[g].textFromValueFunction = [] (double v) { return std::abs (v) < 0.005 ? juce::String ("C") : juce::String ((int) std::round (std::abs (v) * 100.0)) + (v < 0 ? " L" : " R"); };
-        for (auto* s : { &xoverSlider[g], &bLevelSlider[g], &bPanSlider[g] }) s->updateText();
-        addAndMakeVisible (splitBox[g]);
-        // b25: the parallel section
-        if (auto* pc = dynamic_cast<juce::AudioParameterChoice*> (p.apvts.getParameter ("laneRegStart" + gs))) regStartBox[g].addItemList (pc->choices, 1);
-        if (auto* pc = dynamic_cast<juce::AudioParameterChoice*> (p.apvts.getParameter ("laneRegEnd" + gs)))   regEndBox[g].addItemList (pc->choices, 1);
-        regStartBox[g].setTooltip ("Where the parallel section of this lane starts. Pedals before it run one after another. From here on, the upper row and the lower row run side by side, from the same signal.");
-        regEndBox[g].setTooltip ("Where the parallel section ends: the two rows are added back together after this pedal. Pedals after it run one after another on the merged signal (for example two fuzzes side by side, then one chorus). With both set to the lane's start and end, the whole lane is the parallel section.");
-        regStartAttach[g] = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (p.apvts, "laneRegStart" + gs, regStartBox[g]);
-        regEndAttach[g]   = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (p.apvts, "laneRegEnd" + gs, regEndBox[g]);
-        regLabel[g].setText ("Parallel section", juce::dontSendNotification);
-        regLabel[g].setFont (juce::Font (juce::FontOptions (11.0f)));
-        regLabel[g].setColour (juce::Label::textColourId, ui::textDim);
-        addAndMakeVisible (regLabel[g]);  addAndMakeVisible (regStartBox[g]);  addAndMakeVisible (regEndBox[g]);
-        addAndMakeVisible (bPolButton[g]);
     }
-    for (auto* l : { &stripName, &stripNote, &levelLabel, &panLabel })
+    juce::String plainName (int v) { return vertexName (v).replace ("\n", " ").replace ("- ", "-").replace (" PREAMP", "").replace (" POWER", " power"); }
+    juce::Colour vertexTint (int v)
+    {
+        if (v >= 0 && v < StarterAmpProcessor::kFxBlocks) return juce::Colour (kBoardTint[v]);
+        switch (v)
+        {
+            case PG::kNamP1: return juce::Colour (0xff2a6a4a);
+            case PG::kXo1: case PG::kXo2: case PG::kXo3: return juce::Colour (0xff2f7f86);
+            case PG::kLr: return juce::Colour (0xff7a3f86);
+            default: return juce::Colour (0xff3a4048);
+        }
+    }
+    juce::Point<float> vertexSize (int v)
+    {
+        if (v == PG::kIn || v == PG::kOut) return { 48.0f, 48.0f };
+        if (v == PG::kAmpA || v == PG::kAmpB || v == PG::kNodes || v == PG::kCab) return { 92.0f, 92.0f };
+        if (PG::isXover (v) || v == PG::kLr) return { 66.0f, 62.0f };
+        return { 62.0f, 88.0f };
+    }
+    int nodeOfVertex (int v) { return v == PG::kNodes ? (int) PG::kAmpA : v; }
+    // where a jack sits on its box, up or down from the middle
+    float jackDy (int v, int port, bool out)
+    {
+        if (v == PG::kCab && ! out) return port == 0 ? -20.0f : 20.0f;
+        if (out && (PG::isXover (v) || v == PG::kLr)) return port == 0 ? -15.0f : 15.0f;
+        if (v == PG::kAmpA && out) return kLoopDy;                      // the front half's output is the loop send
+        if (v == PG::kNodes && ! out) return kLoopDy;                   // the back half's input is the loop return
+        return 0.0f;
+    }
+    bool openable (int node) { return PG::isPedal (node) || node == PG::kNamP1 || node == PG::kAmpA || node == PG::kAmpB || node == PG::kCab; }
+    bool switchable (int node) { return PG::isPedal (node) || node == PG::kNamP1 || node == PG::kAmpB; }
+    bool movable (int node) { return PG::isPedal (node) || node == PG::kNamP1; }
+}
+
+PatchPanel::PatchPanel (StarterAmpProcessor& p) : processor (p)
+{
+    plan = std::make_unique<PG::Plan>();
+    startTimerHz (10);       // b51: always running, doing nothing while the window is hidden (before, it started in visibilityChanged, which never ran when the window was opened, so the board did not follow pedals switched on and off)
+    setSize (1330, 820);
+    setWantsKeyboardFocus (true);
+    hbar.setAutoHide (false);  vbar.setAutoHide (false);
+    hbar.addListener (this);   vbar.addListener (this);
+    addAndMakeVisible (hbar);  addAndMakeVisible (vbar);
+
+    for (auto* l : { &nameLabel, &noteLabel, &levelLabel, &panLabel, &chanLabel, &helpLabel })
     {
         l->setFont (juce::Font (juce::FontOptions (11.5f)));
         l->setColour (juce::Label::textColourId, ui::textDim);
+        l->setMinimumHorizontalScale (1.0f);
         addAndMakeVisible (l);
     }
-    stripName.setFont (juce::Font (juce::FontOptions (13.0f, juce::Font::bold)));
-    stripName.setColour (juce::Label::textColourId, ui::text);
+    nameLabel.setFont (juce::Font (juce::FontOptions (13.0f, juce::Font::bold)));
+    nameLabel.setColour (juce::Label::textColourId, ui::text);
+    helpLabel.setJustificationType (juce::Justification::topLeft);
+    helpLabel.setText ("Drag from the jack on the right of a box to the jack on the left of another to run a cable. Drop a pedal on a cable to put it in the path (or on the amp's loop jacks "
+                       "to put it in the FX loop). Click a cable to set its level, polarity, pan and channel; Delete removes it. Several cables into one jack are added together. "
+                       "Lamp = on/off, double-click a box for its controls.", juce::dontSendNotification);
     levelLabel.setText ("Level", juce::dontSendNotification);
     panLabel.setText ("Pan", juce::dontSendNotification);
-    for (auto* s : { &levelSlider, &panSlider })
+    chanLabel.setText ("Carries", juce::dontSendNotification);
+    noteLabel.setJustificationType (juce::Justification::topLeft);
+
+    for (auto* s : { &levelSlider, &panSlider, &xoverSlider })
     {
         s->setSliderStyle (juce::Slider::LinearHorizontal);
-        s->setTextBoxStyle (juce::Slider::TextBoxRight, false, 58, 18);
-        addAndMakeVisible (s);
+        s->setTextBoxStyle (juce::Slider::TextBoxRight, false, 64, 18);
+        addChildComponent (s);
     }
-    levelSlider.setTooltip ("How loud this parallel pedal is when it is added to the main rail, in dB. Only used while the pedal is on the lower rail.");
-    panSlider.setTooltip ("Where this parallel pedal sits in the stereo picture (after the cab only; before the amp and in the loop the signal is mono). Only used on the lower rail.");
+    levelSlider.setRange (-60.0, 12.0, 0.1);
+    levelSlider.setDoubleClickReturnValue (true, 0.0);
+    levelSlider.textFromValueFunction = [] (double v) { return v <= -59.95 ? juce::String ("mute") : (v > 0.05 ? "+" : "") + juce::String (v, 1) + " dB"; };
+    levelSlider.valueFromTextFunction = [] (const juce::String& t) { return t.containsIgnoreCase ("mute") ? -60.0 : t.getDoubleValue(); };
+    levelSlider.setTooltip ("How loud this cable is where it joins the jack, in dB. All the way down is mute.");
+    panSlider.setRange (-1.0, 1.0, 0.01);
+    panSlider.setDoubleClickReturnValue (true, 0.0);
     panSlider.textFromValueFunction = [] (double v) { return std::abs (v) < 0.005 ? juce::String ("C") : juce::String ((int) std::round (std::abs (v) * 100.0)) + (v < 0 ? " L" : " R"); };
-    polButton.setTooltip ("Flips the sign of this parallel pedal's signal before it is added. Use it when two paths cancel each other (a thin or hollow sound).");
-    routeButton.setTooltip ("SERIES: the pedal sits in the chain. PARALLEL: the pedal runs beside the chain, starting from the same input, and its sound is added to the main rail (same as dragging it to the lower row). A pedal with its own Mix control also passes its own dry sound, so set that Mix to 100% wet or lower the Level.");
-    routeButton.onClick = [this]
+    panSlider.setTooltip ("Where this cable sits in the stereo picture. Only after the cab; before it the signal is mono.");
+    xoverSlider.setRange (80.0, 4000.0, 1.0);
+    xoverSlider.setSkewFactorFromMidPoint (600.0);
+    xoverSlider.textFromValueFunction = [] (double v) { return v >= 1000.0 ? juce::String (v / 1000.0, 2) + " kHz" : juce::String ((int) std::round (v)) + " Hz"; };
+    xoverSlider.setTooltip ("Where the crossover divides the lows (top jack) from the highs (bottom jack).");
+    chanBox.addItem ("Both channels", 1);  chanBox.addItem ("Left only", 2);  chanBox.addItem ("Right only", 3);
+    chanBox.setTooltip ("Which side of the stereo signal this cable adds at its destination (after the cab). The L / R split uses this.");
+    addChildComponent (chanBox);
+    polButton.setTooltip ("Flips the sign of the signal on this cable. Use it when two paths cancel each other (a thin or hollow sound).");
+    addChildComponent (polButton);
+    addChildComponent (removeButton);  addChildComponent (openButton);  addChildComponent (dryButton);
+    addAndMakeVisible (resetButton);  addAndMakeVisible (showAllButton);
+    resetButton.setTooltip ("Put every cable back as it started: all pedals in one chain before the amp and after the cab, Amp B beside Amp A.");
+    showAllButton.setTooltip ("Off: only the pedals that are switched on are drawn; the ones that are off wait in the tray (click one to switch it on, or drag it onto a cable). On: every pedal is drawn.");
+
+    levelSlider.onValueChange = [this] { const float v = (float) levelSlider.getValue(); applyToSelectedCable ([v] (PG::Cable& c) { c.levelDb = v; }); };
+    panSlider.onValueChange   = [this] { const float v = (float) panSlider.getValue();   applyToSelectedCable ([v] (PG::Cable& c) { c.pan = v; }); };
+    chanBox.onChange          = [this] { const int v = chanBox.getSelectedId() - 1;      applyToSelectedCable ([v] (PG::Cable& c) { c.chan = (uint8_t) v; }); };
+    polButton.onClick         = [this] { const bool v = polButton.getToggleState();      applyToSelectedCable ([v] (PG::Cable& c) { c.pol = v ? 1 : 0; }); };
+    xoverSlider.onValueChange = [this]
     {
-        if (selected < 0) return;
-        const int g = processor.fxLocation (selected);
-        processor.setFxRow (g, selected, processor.getFxRow (g, selected) != 0 ? 0 : 1);
-        refreshStrip();
-        repaint();
+        if (! PG::isXover (selNode)) return;
+        auto d = processor.getPatch();
+        d.xoHz[selNode - PG::kXo1] = (float) xoverSlider.getValue();
+        processor.setPatch (d);
+        rebuild();
     };
-    for (auto* c : { (juce::Component*) &routeButton, (juce::Component*) &levelSlider, (juce::Component*) &panSlider, (juce::Component*) &polButton })
-        addAndMakeVisible (c);
-    refreshStrip();
-    resetButton.setTooltip ("Put every pedal back where it started, in the standard order, all on the main rail. Mod FX A and B keep the position you gave them.");
-    resetButton.onClick = [this] { processor.resetFxOrder(); repaint(); };
-    addAndMakeVisible (resetButton);
-    showAllButton.setTooltip ("Off: only the pedals that are switched on sit on the board, and the ones that are off wait in the tray below (click one to switch it on, or drag it onto a lane). On: every pedal stays on the board.");
-    showAllButton.onClick = [this] { showAll = showAllButton.getToggleState(); repaint(); };
-    addAndMakeVisible (showAllButton);
+    removeButton.onClick = [this]
+    {
+        auto d = processor.getPatch();
+        if (selKey.valid()) { const int i = PG::findCable (d, selKey.from, selKey.fp, selKey.to, selKey.tp); if (i >= 0) PG::removeCable (d, i);  selKey = Key(); }
+        else if (selNode >= 0 && (PG::isXover (selNode) || selNode == PG::kLr)) { PG::removeNodeBypass (d, selNode);  selNode = -1; }
+        else return;
+        processor.setPatch (d);
+        rebuild();
+    };
+    openButton.onClick = [this] { if (selNode >= 0 && onOpenNode) onOpenNode (selNode); };
+    dryButton.setTooltip ("Runs a second, direct cable around this pedal, so its sound is blended with the signal that skips it. Select the new cable to set how loud the dry side is. Press again to take it away. If the pedal is switched off both paths carry the dry signal, so it gets louder.");
+    dryButton.onClick = [this]
+    {
+        if (selNode < 0 || ! PG::isPedal (selNode)) return;
+        auto d = processor.getPatch();
+        if (PG::hasDryPath (d, selNode)) PG::removeDryPath (d, selNode);
+        else if (! PG::addDryPath (d, selNode)) return;
+        processor.setPatch (d);
+        rebuild();
+    };
+    resetButton.onClick = [this] { processor.resetPatch();  selKey = Key();  selNode = -1;  rebuild(); };
+    showAllButton.onClick = [this] { showAll = showAllButton.getToggleState();  rebuild(); };
+    rebuild();
 }
 
-std::vector<int> OrderPanel::visibleBlocks (int group) const
+bool PatchPanel::nodeOn (int node) const
 {
-    std::vector<int> v;
-    for (int b : processor.getFxOrder (group))
-        if (processor.fxCanMove (b) && processor.fxLocation (b) == group && (showAll || fxBlockIsOn (processor, b)))
-            v.push_back (b);
-    return v;
+    if (PG::isPedal (node)) return fxBlockIsOn (processor, node);
+    const char* id = node == PG::kNamP1 ? "nmP1On" : node == PG::kAmpB ? "ampBOn" : nullptr;
+    if (id == nullptr) return true;
+    if (auto* v = processor.apvts.getRawParameterValue (id)) return v->load() > 0.5f;
+    return true;
 }
 
-// b27: the tray of pedals that are switched off (in lane order, lane by lane)
-std::vector<int> OrderPanel::trayBlocks() const
+void PatchPanel::toggleNode (int node)
 {
-    std::vector<int> v;
-    if (showAll) return v;
-    for (int g = 0; g < StarterAmpProcessor::kFxGroups; ++g)
-        for (int b : processor.getFxOrder (g))
-            if (processor.fxCanMove (b) && processor.fxLocation (b) == g && ! fxBlockIsOn (processor, b)
-                && ! (b == 3 || b == 4 || b == 20))          // b29: the old Phaser, Chorus and Lo-Fi stay out of the tray (a Mod FX slot does their job); they show while on, or with "Show every pedal"
-                v.push_back (b);
-    return v;
+    if (PG::isPedal (node)) { setFxBlockOn (processor, node);  return; }
+    const char* id = node == PG::kNamP1 ? "nmP1On" : node == PG::kAmpB ? "ampBOn" : nullptr;
+    if (id == nullptr) return;
+    if (auto* prm = processor.apvts.getParameter (id))
+    {
+        prm->beginChangeGesture();
+        prm->setValueNotifyingHost (nodeOn (node) ? 0.0f : 1.0f);
+        prm->endChangeGesture();
+    }
 }
 
-juce::Rectangle<float> OrderPanel::trayArea() const
+bool PatchPanel::nodeHidden (int node) const
 {
-    return { 10.0f, laneTopY (1) + laneHeight (1) + 14.0f, kLaneX + (float) kCols * kCellW + 30.0f, 78.0f };
+    if (PG::isXover (node) || node == PG::kLr) return PG::cableCountOf (data, node) == 0;
+    if (! switchable (node) || showAll || nodeOn (node)) return false;
+    if (node == selNode) return false;
+    if (drag == Drag::node && dragNode == node && ! dragFromTray) return false;
+    return true;
 }
 
-juce::Rectangle<float> OrderPanel::trayChip (int i) const
+// Puts a node that has no cables yet where it usually goes: pedals that start before the amp go in front of the amp's drives, the
+// others before the output; Amp B goes beside Amp A.
+void PatchPanel::placeNode (Data& d, int node) const
 {
-    const auto a = trayArea();
-    return { a.getX() + 12.0f + (float) i * 44.0f, a.getY() + 16.0f, 42.0f, 56.0f };
+    if (node == PG::kAmpB)                                              // beside Amp A: fed by whatever feeds Amp A, into the cab's B jack
+    {
+        bool any = false;
+        const int n0 = d.n;
+        for (int i = 0; i < n0; ++i)
+            if (d.c[i].to == PG::kAmpA && d.c[i].tp == 0) { const auto c = d.c[i];  PG::connect (d, c.from, c.fp, PG::kAmpB, 0, c.levelDb, c.pan, c.pol != 0, c.chan);  any = true; }
+        if (! any) PG::connect (d, PG::kIn, 0, PG::kAmpB, 0);
+        PG::connect (d, PG::kAmpB, 0, PG::kCab, 1);
+        return;
+    }
+    if (PG::placeNear (d, node, PG::homeBeforeAmp (node) ? 0 : 1)) return;
 }
 
-int OrderPanel::trayChipAt (juce::Point<float> p) const
+bool PatchPanel::canWire (int fromNode, int fp, int toNode, int tp) const
 {
-    if (showAll) return -1;
-    const auto t = trayBlocks();
-    for (int i = 0; i < (int) t.size(); ++i)
-        if (trayChip (i).contains (p)) return i;
+    PG::Cable c;  c.from = (int8_t) fromNode;  c.fp = (int8_t) fp;  c.to = (int8_t) toNode;  c.tp = (int8_t) tp;
+    if (! PG::cableShapeOk (c)) return false;
+    if (PG::findCable (data, fromNode, fp, toNode, tp) >= 0) return false;
+    return ! PG::wouldLoopBack (data, fromNode, fp, toNode, tp);
+}
+
+void PatchPanel::rebuild()
+{
+    data = processor.getPatch();
+    lastText = processor.getPatchText();
+    PG::compile (data, *plan);
+    lastOn.assign ((size_t) PG::kNodes, 0);
+    for (int n = 0; n < PG::kNodes; ++n) lastOn[(size_t) n] = (switchable (n) && nodeOn (n)) ? 1 : 0;
+
+    bool hidden[PG::kNodes] = {};
+    for (int n = 0; n < PG::kNodes; ++n) hidden[n] = PG::isNode (n) && nodeHidden (n);
+
+    // the cables as they are drawn: a cable that runs into a pedal that is off carries on past it
+    vc.clear();
+    struct Acc { int src, sfp, first; float lvl, pan; bool pol; int chan; bool ok; };
+    std::function<void (int, Acc, int)> walk = [&] (int j, Acc a, int depth)
+    {
+        const auto& c = data.c[j];
+        a.lvl += c.levelDb;  a.pol = a.pol != (c.pol != 0);  if (a.pan == 0.0f) a.pan = c.pan;  if (a.chan == 0) a.chan = c.chan;
+        a.ok = a.ok && plan->cableOk[j];
+        if (hidden[c.to])
+        {
+            if (depth > 40 || ! (PG::isPedal (c.to) || c.to == PG::kNamP1)) return;
+            for (int k = 0; k < data.n; ++k) if (data.c[k].from == c.to) walk (k, a, depth + 1);
+            return;
+        }
+        for (const auto& e : vc) if (e.from == a.src && e.fp == a.sfp && e.to == c.to && e.tp == c.tp) return;
+        VCable v;
+        v.from = a.src;  v.fp = a.sfp;  v.to = c.to;  v.tp = c.tp;  v.lvl = a.lvl;  v.pan = a.pan;  v.pol = a.pol;  v.chan = a.chan;  v.first = a.first;  v.last = j;  v.ok = a.ok;
+        vc.push_back (v);
+    };
+    for (int i = 0; i < data.n; ++i)
+        if (! hidden[data.c[i].from] && PG::cableShapeOk (data.c[i]))
+            walk (i, Acc { data.c[i].from, data.c[i].fp, i, 0.0f, 0.0f, false, 0, true }, 0);
+
+    for (int v = 0; v < kV; ++v) shown[v] = v < PG::kNodes ? (PG::isNode (v) && ! hidden[v]) : true;
+    shown[PG::kIn] = shown[PG::kOut] = shown[PG::kAmpA] = shown[PG::kCab] = true;
+
+    // columns: the longest way from the input. The two halves of Amp A are two columns apart so the loop jacks have room between them.
+    struct Edge { int u, v, w; };
+    std::vector<Edge> edges;
+    for (const auto& e : vc)
+        if (e.ok) edges.push_back ({ PG::vertexOut (e.from, e.fp), PG::vertexIn (e.to, e.tp), 1 });
+    edges.push_back ({ (int) PG::kAmpA, (int) PG::kNodes, 2 });
+    for (int v = 0; v < kV; ++v) layerOf[v] = 0;
+    for (int pass = 0; pass < kV + 2; ++pass)
+    {
+        bool changed = false;
+        for (const auto& e : edges)
+            if (shown[e.u] && shown[e.v] && layerOf[e.v] < layerOf[e.u] + e.w && layerOf[e.u] < 80) { layerOf[e.v] = layerOf[e.u] + e.w;  changed = true; }
+        if (! changed) break;
+    }
+    int maxL = 0;
+    for (int v = 0; v < kV; ++v) if (shown[v] && v != PG::kOut) maxL = std::max (maxL, layerOf[v]);
+    layerOf[PG::kOut] = std::max (layerOf[PG::kOut], maxL + (layerOf[PG::kOut] > maxL ? 0 : 1));
+    maxL = std::max (maxL, layerOf[PG::kOut]);
+
+    // rows: a box sits level with what feeds it (the average if several), branches below, the second jack of a split one row down.
+    // A cable that runs past a column (from further left to further right) keeps the row it started on, so boxes in that column stay off it.
+    float maxRow = 0.0f;
+    for (int v = 0; v < kV; ++v) rowOf[v] = 0.0f;
+    for (int L = 0; L <= maxL; ++L)
+    {
+        std::vector<float> blocked;
+        for (const auto& e : edges)
+            if (shown[e.u] && shown[e.v] && layerOf[e.u] < L && layerOf[e.v] > L && (e.u == (int) PG::kAmpA || e.w == 1)) blocked.push_back (rowOf[e.u]);
+        std::vector<std::pair<float, int>> items;
+        for (int v = 0; v < kV; ++v)
+        {
+            if (! shown[v] || layerOf[v] != L) continue;
+            float sum = 0.0f;  int cnt = 0;
+            for (const auto& e : vc)
+            {
+                if (! e.ok || PG::vertexIn (e.to, e.tp) != v) continue;
+                const int u = PG::vertexOut (e.from, e.fp);
+                if (! shown[u] || layerOf[u] >= L) continue;
+                sum += rowOf[u] + (((PG::isXover (u) || u == PG::kLr) && e.fp == 1) || (u == PG::kAmpA && e.fp == 1) ? 1.0f : 0.0f);
+                ++cnt;
+            }
+            const float want = v == (int) PG::kNodes ? rowOf[PG::kAmpA] : cnt > 0 ? sum / (float) cnt : (v == (int) PG::kIn ? 0.0f : 1.0e6f);
+            items.push_back ({ want, v });
+        }
+        std::sort (items.begin(), items.end());
+        float prev = -1.0f;
+        for (auto& it : items)
+        {
+            float row = it.first >= 1.0e5f ? prev + 1.0f : std::max (it.first, prev + 1.0f);
+            for (bool again = true; again;)
+            {
+                again = false;
+                for (float b : blocked) if (std::abs (row - b) < 0.9f) { row = b + 1.0f;  again = true; }
+            }
+            rowOf[it.second] = row;  prev = row;  maxRow = std::max (maxRow, row);
+        }
+    }
+    // columns are as wide as the widest box in them (an empty column, such as the one inside the amp, still leaves room for a pedal)
+    float colX[96] = {}, colW[96] = {};
+    for (int L = 0; L <= maxL && L < 95; ++L)
+    {
+        float w = 0.0f;
+        for (int v = 0; v < kV; ++v) if (shown[v] && layerOf[v] == L) w = std::max (w, vertexSize (v).x);
+        colW[L] = (w > 0.0f ? w : 62.0f) + kColGap;
+    }
+    colX[0] = kPadX;
+    for (int L = 1; L <= maxL && L < 96; ++L) colX[L] = colX[L - 1] + colW[L - 1];
+    for (int v = 0; v < kV; ++v)
+    {
+        if (! shown[v]) { box[v] = {}; continue; }
+        const auto sz = vertexSize (v);
+        const int L = std::min (layerOf[v], 94);
+        box[v] = { colX[L] + (colW[L] - sz.x) * 0.5f, kPadY + rowOf[v] * kRowH + (kRowH - sz.y) * 0.5f, sz.x, sz.y };
+    }
+    contentW = kPadX + colX[std::min (maxL, 94)] + colW[std::min (maxL, 94)];
+    contentH = 2.0f * kPadY + (maxRow + 1.0f) * kRowH;
+
+    // jacks
+    jacks.clear();
+    for (int v = 0; v < kV; ++v)
+    {
+        if (! shown[v]) continue;
+        const int node = nodeOfVertex (v);
+        auto add = [&] (int port, bool out) { Jack j;  j.node = node;  j.port = port;  j.v = v;  j.out = out;  j.p = jackPos (node, port, out);  jacks.push_back (j); };
+        if (v == (int) PG::kNodes) { add (1, false);  add (0, true); }
+        else if (v == (int) PG::kAmpA) { add (0, false);  add (1, true); }
+        else
+        {
+            for (int p = 0; p < PG::inPorts (node); ++p) add (p, false);
+            for (int p = 0; p < PG::outPorts (node); ++p) add (p, true);
+        }
+    }
+
+    // the tray: pedals that start before the amp, then NAM pedal 1, the pedals after the cab, Amp B, and the splits that are not in use
+    tray.clear();
+    auto offer = [&] (int n)
+    {
+        if (! PG::isNode (n) || ! hidden[n]) return;
+        if ((n == 3 || n == 4 || n == 20) && ! nodeOn (n)) return;       // the old Phaser, Chorus and Lo-Fi stay out of the tray (a Mod FX slot does their job)
+        tray.push_back (n);
+    };
+    for (int n = 0; n < PG::kPedals; ++n) if (PG::isPedal (n) && PG::homeBeforeAmp (n)) offer (n);
+    offer (PG::kNamP1);
+    for (int n = 0; n < PG::kPedals; ++n) if (PG::isPedal (n) && ! PG::homeBeforeAmp (n)) offer (n);
+    offer (PG::kAmpB);
+    for (int n = PG::kXo1; n <= PG::kLr; ++n) offer (n);
+
+    if (selKey.valid() && PG::findCable (data, selKey.from, selKey.fp, selKey.to, selKey.tp) < 0) selKey = Key();
+    if (selNode >= 0 && ! PG::isNode (selNode)) selNode = -1;
+    refreshInspector();
+    updateScrollBars();
+    repaint();
+}
+
+juce::Point<float> PatchPanel::jackPos (int node, int port, bool out) const
+{
+    const int v = out ? PG::vertexOut (node, port) : PG::vertexIn (node, port);
+    if (v < 0 || v >= kV) return {};
+    const auto& r = box[v];
+    return { out ? r.getRight() : r.getX(), r.getCentreY() + jackDy (v, port, out) };
+}
+
+void PatchPanel::cablePath (juce::Point<float> a, juce::Point<float> b, juce::Path& path) const
+{
+    const float dx = juce::jlimit (40.0f, 150.0f, std::abs (b.x - a.x) * 0.5f);
+    path.startNewSubPath (a);
+    path.cubicTo (a.x + dx, a.y, b.x - dx, b.y, b.x, b.y);
+}
+
+int PatchPanel::cableAt (juce::Point<float> c, float maxDist, int skipNode) const
+{
+    int best = -1;  float bestD = maxDist;
+    for (int i = 0; i < (int) vc.size(); ++i)
+    {
+        const auto& e = vc[(size_t) i];
+        if (skipNode >= 0 && (e.from == skipNode || e.to == skipNode)) continue;
+        const auto a = jackPos (e.from, e.fp, true), b = jackPos (e.to, e.tp, false);
+        const float dx = juce::jlimit (40.0f, 150.0f, std::abs (b.x - a.x) * 0.5f);
+        const juce::Point<float> p1 (a.x + dx, a.y), p2 (b.x - dx, b.y);
+        juce::Point<float> prev = a;
+        for (int s = 1; s <= 24; ++s)
+        {
+            const float t = (float) s / 24.0f, u = 1.0f - t;
+            const juce::Point<float> q (u * u * u * a.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * b.x,
+                                        u * u * u * a.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * b.y);
+            // distance from c to the segment prev-q
+            const auto d = q - prev;
+            const float len2 = d.x * d.x + d.y * d.y;
+            const float k = len2 > 0.0f ? juce::jlimit (0.0f, 1.0f, ((c.x - prev.x) * d.x + (c.y - prev.y) * d.y) / len2) : 0.0f;
+            const float dist = c.getDistanceFrom (prev + juce::Point<float> (d.x * k, d.y * k));
+            if (dist < bestD) { bestD = dist;  best = i; }
+            prev = q;
+        }
+    }
+    return best;
+}
+
+bool PatchPanel::jackAt (juce::Point<float> c, float maxDist, bool wantOut, Jack& found) const
+{
+    float bestD = maxDist;  bool any = false;
+    for (const auto& j : jacks)
+    {
+        if (j.out != wantOut) continue;
+        const float d = c.getDistanceFrom (j.p);
+        if (d <= bestD) { bestD = d;  found = j;  any = true; }
+    }
+    return any;
+}
+
+int PatchPanel::boxAt (juce::Point<float> c) const
+{
+    for (int v = kV - 1; v >= 0; --v)
+        if (shown[v] && box[v].contains (c)) return v;
     return -1;
 }
 
-// Where a drop on the lane's shown pedals goes in the processor's full list (which also holds the pedals that are off).
-int OrderPanel::processorPosition (int group, const std::vector<int>& shown, int shownPos, int block) const
+bool PatchPanel::loopLinkAt (juce::Point<float> c) const
 {
-    std::vector<int> rest;
-    for (int b : processor.getFxOrder (group))
-        if (b != block && processor.fxCanMove (b) && processor.fxLocation (b) == group) rest.push_back (b);
-    int target = -1;
-    for (int j = shownPos; j < (int) shown.size(); ++j)
-        if (shown[(size_t) j] != block) { target = shown[(size_t) j]; break; }
-    if (target < 0) return (int) rest.size();
-    for (int k = 0; k < (int) rest.size(); ++k) if (rest[(size_t) k] == target) return k;
-    return (int) rest.size();
+    const auto& f = box[PG::kAmpA];  const auto& b = box[PG::kNodes];
+    const juce::Rectangle<float> r (f.getRight() - 4.0f, f.getCentreY() + kLoopDy - 16.0f, b.getX() - f.getRight() + 8.0f, 32.0f);
+    return r.contains (c);
 }
 
-juce::Rectangle<float> OrderPanel::cellRect (int group, int pos, int row) const
+juce::Rectangle<float> PatchPanel::trayChip (int i) const
 {
-    return { kLaneX + (float) pos * kCellW, laneTopY (group) + 8.0f + (float) row * (kCellH + kRailGap), kCellW, kCellH };
+    const int perRow = std::max (1, (int) ((trayArea.getWidth() - 24) / (kChipW + 4.0f)));
+    return { (float) trayArea.getX() + 12.0f + (float) (i % perRow) * (kChipW + 4.0f), (float) trayArea.getY() + 22.0f + (float) (i / perRow) * (kChipH + 4.0f), kChipW, kChipH };
 }
 
-bool OrderPanel::cellAt (juce::Point<float> p, int& group, int& pos, int& row) const
+int PatchPanel::trayChipAt (juce::Point<float> p) const
 {
-    for (int g = 0; g < StarterAmpProcessor::kFxGroups; ++g)
-        for (int k = 0; k < kCols; ++k)
-            for (int r = 0; r < 2; ++r)
-                if (cellRect (g, k, r).contains (p)) { group = g; pos = k; row = r; return true; }
-    return false;
+    for (int i = 0; i < (int) tray.size(); ++i) if (trayChip (i).contains (p)) return i;
+    return -1;
 }
 
-void OrderPanel::resized()
+void PatchPanel::select (const Key& k, int node)
 {
-    for (int g = 0; g < 3; ++g)
+    selKey = k;  selNode = node;
+    rebuild();
+}
+
+void PatchPanel::applyToSelectedCable (const std::function<void (PG::Cable&)>& f)
+{
+    if (! selKey.valid()) return;
+    auto d = processor.getPatch();
+    const int i = PG::findCable (d, selKey.from, selKey.fp, selKey.to, selKey.tp);
+    if (i < 0) return;
+    f (d.c[i]);
+    processor.setPatch (d);
+    data = processor.getPatch();
+    lastText = processor.getPatchText();
+    PG::compile (data, *plan);
+    rebuild();
+}
+
+void PatchPanel::refreshInspector()
+{
+    for (auto* c : { (juce::Component*) &levelSlider, (juce::Component*) &panSlider, (juce::Component*) &xoverSlider, (juce::Component*) &chanBox, (juce::Component*) &polButton,
+                     (juce::Component*) &removeButton, (juce::Component*) &openButton, (juce::Component*) &dryButton, (juce::Component*) &levelLabel, (juce::Component*) &panLabel, (juce::Component*) &chanLabel })
+        c->setVisible (false);
+    helpLabel.setVisible (false);
+    const int ci = selKey.valid() ? PG::findCable (data, selKey.from, selKey.fp, selKey.to, selKey.tp) : -1;
+    if (ci >= 0)
     {
-        const int x0 = (int) kSideX, w = (int) kSideW, t = (int) laneTopY (g) + 14;
-        balanceLabel[g].setBounds (x0, t + 52, w, 14);
-        balance[g].setBounds (x0, t + 66, w, 18);
-        splitBox[g].setBounds (x0, t + 92, w, 24);
-        xoverLabel[g].setBounds (x0, t + 122, 64, 18);   xoverSlider[g].setBounds (x0 + 64, t + 122, w - 64, 18);
-        bLevelLabel[g].setBounds (x0, t + 144, 64, 18);  bLevelSlider[g].setBounds (x0 + 64, t + 144, w - 64, 18);
-        bPanLabel[g].setBounds (x0, t + 166, 64, 18);    bPanSlider[g].setBounds (x0 + 64, t + 166, w - 64, 18);
-        bPolButton[g].setBounds (x0, t + 188, w, 20);
-        regLabel[g].setBounds (x0, t + 212, w, 16);
-        regStartBox[g].setBounds (x0, t + 230, w / 2 - 3, 22);   regEndBox[g].setBounds (x0 + w / 2 + 3, t + 230, w / 2 - 3, 22);
+        const auto& c = data.c[ci];
+        nameLabel.setText ("Cable: " + plainName (c.from) + (c.from == PG::kAmpA && c.fp == 0 ? " power" : "") + "  to  " + plainName (c.to) + (c.to == PG::kAmpA && c.tp == 1 ? " loop return" : ""), juce::dontSendNotification);
+        const bool stereo = plan->group[c.to] == 1 || (c.to == PG::kOut && plan->group[c.from] == 1);
+        noteLabel.setText (plan->cableOk[ci] ? (stereo ? "After the cab the signal is stereo, so this cable can be panned." : "Before the cab the signal is mono, so there is no pan on this cable.")
+                                             : "This cable is not used: it would feed a signal back into itself, or it crosses the edge of the amp's FX loop.", juce::dontSendNotification);
+        levelSlider.setValue (c.levelDb, juce::dontSendNotification);
+        panSlider.setValue (c.pan, juce::dontSendNotification);
+        levelSlider.updateText();  panSlider.updateText();
+        chanBox.setSelectedId (c.chan + 1, juce::dontSendNotification);
+        polButton.setToggleState (c.pol != 0, juce::dontSendNotification);
+        panSlider.setEnabled (stereo);  panLabel.setEnabled (stereo);
+        for (auto* v : { (juce::Component*) &levelSlider, (juce::Component*) &panSlider, (juce::Component*) &chanBox, (juce::Component*) &polButton, (juce::Component*) &levelLabel, (juce::Component*) &panLabel, (juce::Component*) &chanLabel })
+            v->setVisible (true);
+        removeButton.setButtonText ("Remove cable");  removeButton.setVisible (true);
+        return;
     }
-    resetButton.setBounds (16, getHeight() - 34, 140, 26);
-    showAllButton.setBounds ((int) kSideX, 14, 200, 22);
-    const int sy = getHeight() - 90;
-    stripName.setBounds (16, sy, 210, 20);
-    stripNote.setBounds (16, sy + 20, 330, 30);
-    routeButton.setBounds (350, sy + 2, 100, 28);
-    levelLabel.setBounds (470, sy + 4, 40, 20);
-    levelSlider.setBounds (510, sy + 4, 210, 20);
-    panLabel.setBounds (740, sy + 4, 30, 20);
-    panSlider.setBounds (772, sy + 4, 200, 20);
-    polButton.setBounds (990, sy + 4, 130, 20);
-}
-
-void OrderPanel::select (int block)
-{
-    selected = block;
-    levelAttach.reset();  panAttach.reset();  polAttach.reset();
-    if (block >= 0 && StarterAmpProcessor::fxHasBranchControls (block))
+    if (selNode >= 0)
     {
-        levelAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, StarterAmpProcessor::fxBranchId ("fxLvl", block), levelSlider);
-        panAttach   = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.apvts, StarterAmpProcessor::fxBranchId ("fxPan", block), panSlider);
-        polAttach   = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (processor.apvts, StarterAmpProcessor::fxBranchId ("fxPol", block), polButton);
+        nameLabel.setText (plainName (selNode), juce::dontSendNotification);
+        juce::String note;
+        const bool spare = (PG::isXover (selNode) || selNode == PG::kLr) && PG::cableCountOf (data, selNode) == 0;
+        if (spare)
+            note = "Drag it onto a cable to split that cable. " + juce::String (PG::isXover (selNode) ? "The lows leave by its top jack and the highs by its bottom one." : "The left side leaves by its top jack and the right side by its bottom one.");
+        else if (PG::isXover (selNode))
+        {
+            note = "Splits the signal: the lows leave by the top jack, the highs by the bottom one. Run each to its own path.";
+            xoverSlider.setValue (data.xoHz[selNode - PG::kXo1], juce::dontSendNotification);
+            xoverSlider.updateText();
+            xoverSlider.setVisible (true);
+            removeButton.setButtonText ("Take off board");  removeButton.setVisible (true);
+        }
+        else if (selNode == PG::kLr)
+        {
+            note = "Splits the stereo signal after the cab: the left side leaves by the top jack, the right side by the bottom one.";
+            removeButton.setButtonText ("Take off board");  removeButton.setVisible (true);
+        }
+        else if (selNode == PG::kAmpA) note = "Amp A. The top jack of its preamp goes on to the power stage; the lower jacks are the FX loop's send and return.";
+        else if (selNode == PG::kAmpB) note = "Amp B runs beside Amp A when it is on (use the lamp). Its output goes to the cab's B jack.";
+        else if (selNode == PG::kCab) note = "The cab. Jack A takes Amp A, jack B takes Amp B.";
+        else if (selNode == PG::kIn) note = "Your guitar. Run it to more than one box to feed several paths at once.";
+        else if (selNode == PG::kOut) note = "The plug-in's output.";
+        else note = "Drag it onto a cable to move it. Its lamp switches it on and off." + juce::String (PG::isPedal (selNode) ? "  Add dry path blends it with a direct cable around it." : "");
+        noteLabel.setText (note, juce::dontSendNotification);
+        if (openable (selNode)) openButton.setVisible (true);
+        if (PG::isPedal (selNode))
+        {
+            const bool has = PG::hasDryPath (data, selNode);
+            Data probe = data;
+            if (has || PG::addDryPath (probe, selNode))        // (only offered when the pedal has something coming in and going out)
+            {
+                dryButton.setButtonText (has ? "Remove dry path" : "Add dry path");
+                dryButton.setVisible (true);
+            }
+        }
+        return;
     }
-    levelSlider.textFromValueFunction = [] (double v) { return juce::String (v, 1) + " dB"; };
-    panSlider.textFromValueFunction = [] (double v) { return std::abs (v) < 0.005 ? juce::String ("C") : juce::String ((int) std::round (std::abs (v) * 100.0)) + (v < 0 ? " L" : " R"); };
-    levelSlider.updateText();  panSlider.updateText();
-    refreshStrip();
-    repaint();
+    nameLabel.setText ("", juce::dontSendNotification);
+    noteLabel.setText ("", juce::dontSendNotification);
+    helpLabel.setVisible (true);
 }
 
-void OrderPanel::refreshStrip()
+void PatchPanel::updateScrollBars()
 {
-    for (int g = 0; g < 3; ++g)
+    const float vw = (float) canvasArea.getWidth(), vh = (float) canvasArea.getHeight();
+    sx = juce::jlimit (0.0f, std::max (0.0f, contentW - vw), sx);
+    sy = juce::jlimit (0.0f, std::max (0.0f, contentH - vh), sy);
+    hbar.setRangeLimits (0.0, std::max ((double) contentW, (double) vw));
+    hbar.setCurrentRange ((double) sx, (double) vw);
+    vbar.setRangeLimits (0.0, std::max ((double) contentH, (double) vh));
+    vbar.setCurrentRange ((double) sy, (double) vh);
+    hbar.setVisible (contentW > vw + 0.5f);
+    vbar.setVisible (contentH > vh + 0.5f);
+}
+
+void PatchPanel::resized()
+{
+    const int W = getWidth(), H = getHeight();
+    canvasArea = { 12, 56, W - 24 - 14, H - 56 - 246 };
+    hbar.setBounds (canvasArea.getX(), canvasArea.getBottom(), canvasArea.getWidth(), 14);
+    vbar.setBounds (canvasArea.getRight(), canvasArea.getY(), 14, canvasArea.getHeight());
+    trayArea = { 12, canvasArea.getBottom() + 22, W - 24, 2 * (int) (kChipH + 4.0f) + 30 };
+    inspectorArea = { 12, trayArea.getBottom() + 6, W - 24, H - trayArea.getBottom() - 12 };
+    showAllButton.setBounds (W - 400, 16, 170, 22);
+    resetButton.setBounds (W - 140, 14, 128, 26);
+    const int x0 = inspectorArea.getX() + 4, y0 = inspectorArea.getY() + 2;
+    nameLabel.setBounds (x0, y0, 400, 20);
+    noteLabel.setBounds (x0, y0 + 22, 400, 44);
+    helpLabel.setBounds (x0, y0, inspectorArea.getWidth() - 8, 60);
+    levelLabel.setBounds (440, y0 + 2, 44, 20);   levelSlider.setBounds (486, y0 + 2, 250, 20);
+    panLabel.setBounds (760, y0 + 2, 30, 20);     panSlider.setBounds (792, y0 + 2, 220, 20);
+    chanLabel.setBounds (440, y0 + 34, 50, 22);   chanBox.setBounds (492, y0 + 34, 150, 22);
+    polButton.setBounds (660, y0 + 34, 130, 22);
+    xoverSlider.setBounds (440, y0 + 2, 320, 20);
+    removeButton.setBounds (W - 170, y0 + 34, 150, 26);
+    openButton.setBounds (W - 330, y0 + 34, 150, 26);
+    dryButton.setBounds (W - 490, y0 + 34, 150, 26);
+    updateScrollBars();
+}
+
+void PatchPanel::timerCallback()
+{
+    if (! isShowing()) return;
+    bool changed = processor.getPatchText() != lastText;
+    if (! changed)
+        for (int n = 0; n < PG::kNodes; ++n)
+            if ((switchable (n) && nodeOn (n)) != (lastOn[(size_t) n] != 0)) { changed = true;  break; }
+    if (changed && drag == Drag::none) rebuild();
+}
+
+namespace
+{
+    // a pedal as it sits on the board
+    void drawPedalFace (juce::Graphics& g, juce::Rectangle<float> r, int v, bool on, float alpha, bool selected)
     {
-        const int mode = splitBox[g].getSelectedItemIndex();
-        xoverSlider[g].setEnabled (mode == 2);  xoverLabel[g].setEnabled (mode == 2);
-        bLevelSlider[g].setEnabled (mode >= 1);  bLevelLabel[g].setEnabled (mode >= 1);
-        bPolButton[g].setEnabled (mode >= 1);
-        bPanSlider[g].setEnabled (g == 1 && (mode == 1 || mode == 2));  bPanLabel[g].setEnabled (g == 1 && (mode == 1 || mode == 2));
+        const juce::Colour tint = vertexTint (v);
+        const auto coat = tint.withMultipliedSaturation (1.4f).withBrightness (juce::jlimit (0.5f, 0.8f, tint.getBrightness() * 1.8f));
+        const auto cr = r.reduced (2.0f);
+        juce::Graphics::ScopedSaveState ss (g);
+        g.setOpacity (alpha);
+        g.setColour (juce::Colours::black.withAlpha (0.45f));
+        g.fillRoundedRectangle (cr.translated (2.0f, 3.0f), 6.0f);
+        g.setGradientFill (juce::ColourGradient (coat.brighter (0.12f), cr.getX(), cr.getY(), coat.darker (0.45f), cr.getX(), cr.getBottom(), false));
+        g.fillRoundedRectangle (cr, 6.0f);
+        g.setColour (juce::Colours::white.withAlpha (0.20f));  g.drawRoundedRectangle (cr.reduced (0.5f), 6.0f, 1.0f);
+        const juce::Point<float> lamp (cr.getCentreX(), cr.getY() + 11.0f);
+        g.setColour (on ? juce::Colour (0xffff6a4a).withAlpha (0.35f) : juce::Colours::transparentBlack);
+        g.fillEllipse (lamp.x - 8.0f, lamp.y - 8.0f, 16.0f, 16.0f);
+        g.setColour (on ? juce::Colour (0xffff6a4a) : juce::Colour (0xff3a1612));
+        g.fillEllipse (lamp.x - 3.2f, lamp.y - 3.2f, 6.4f, 6.4f);
+        for (int i = 0; i < 3; ++i)
+        {
+            const float kx = cr.getX() + cr.getWidth() * (0.22f + 0.28f * (float) i), ky = cr.getY() + 27.0f;
+            g.setColour (juce::Colour (0xff101214));  g.fillEllipse (kx - 4.5f, ky - 4.5f, 9.0f, 9.0f);
+            g.setColour (juce::Colours::white.withAlpha (0.7f));
+            const float ang = 0.9f * (float) i - 0.7f;
+            g.drawLine (kx, ky, kx + 3.8f * std::sin (ang), ky - 3.8f * std::cos (ang), 1.0f);
+        }
+        if (selected) { g.setColour (ui::accent);  g.drawRoundedRectangle (cr.expanded (2.5f), 8.0f, 2.0f); }
+        g.setColour (juce::Colour (0xff0c0c10).withAlpha (0.9f));
+        g.setFont (juce::Font (juce::FontOptions (8.5f, juce::Font::bold)));
+        g.drawFittedText (vertexName (v), cr.withTrimmedTop (38.0f).withHeight (24.0f).toNearestInt(), juce::Justification::centred, 2, 0.7f);
+        const float fx = cr.getCentreX(), fy = cr.getBottom() - 12.0f;
+        g.setGradientFill (juce::ColourGradient (juce::Colour (0xffe6e8ec), fx - 3.0f, fy - 4.0f, juce::Colour (0xff50555d), fx + 6.0f, fy + 6.0f, true));
+        g.fillEllipse (fx - 7.0f, fy - 7.0f, 14.0f, 14.0f);
+        g.setColour (juce::Colours::black.withAlpha (0.5f));  g.drawEllipse (fx - 7.0f, fy - 7.0f, 14.0f, 14.0f, 0.8f);
     }
-    const bool has = selected >= 0 && StarterAmpProcessor::fxHasBranchControls (selected);
-    const int g = has ? processor.fxLocation (selected) : 0;
-    const bool par = has && processor.getFxRow (g, selected) != 0;
-    const bool sepBranches = splitBox[g].getSelectedItemIndex() == 0;
-    juce::String nm = has ? juce::String (kBoardName[selected]).replace ("\n", " ") : juce::String();
-    stripName.setText (has ? nm : juce::String ("Click a pedal to set how it joins the signal"), juce::dontSendNotification);
-    stripNote.setText (! has ? "Series pedals sit in the chain. Parallel pedals run beside it from the same input and are added back, with their own level, polarity and (after the cab) pan."
-                       : par ? (! sepBranches ? "Lower row: level, pan and polarity come from the lane's split controls on the right."
-                                : g == 1 ? "Parallel: added to the main rail." : "Parallel: added to the main rail (mono here, so no pan).")
-                             : "Series: in the chain. Switch to Parallel to use level, pan and polarity.", juce::dontSendNotification);
-    routeButton.setEnabled (has);
-    routeButton.setButtonText (par ? "PARALLEL" : "SERIES");
-    levelSlider.setEnabled (par && sepBranches);  levelLabel.setEnabled (par && sepBranches);
-    panSlider.setEnabled (par && sepBranches && g == 1);  panLabel.setEnabled (par && sepBranches && g == 1);
-    polButton.setEnabled (par && sepBranches);
-}
 
-// b35: where a lane's parallel section starts (end 0) or ends (end 1), as an x position on the board. The whole lane unless a
-// Starts At / Ends After pedal is chosen (and sits on the board).
-float OrderPanel::sectionX (int gp, int end) const
-{
-    const auto vis = visibleBlocks (gp);
-    const int sv = regStartBox[gp].getSelectedId() - 1, ev = regEndBox[gp].getSelectedId() - 1;
-    int ks = -1, ke = -1;
-    for (int k = 0; k < (int) vis.size(); ++k) { if (sv > 0 && vis[(size_t) k] == sv - 1) ks = k; if (ev > 0 && vis[(size_t) k] == ev - 1) ke = k; }
-    if (end == 0) return ks >= 0 ? kLaneX + (float) ks * kCellW - 1.0f : kLaneX - 22.0f;
-    return ke >= 0 ? kLaneX + (float) (ke + 1) * kCellW + 1.0f : kLaneX + (float) kCols * kCellW + 14.0f;
-}
-
-bool OrderPanel::plugAt (juce::Point<float> p, int& group, int& end) const
-{
-    for (int g = 0; g < StarterAmpProcessor::kFxGroups; ++g)
+    // a small label tile (the tray, and the splits in the hand)
+    void drawChip (juce::Graphics& g, juce::Rectangle<float> r, int v, float alpha, bool selected)
     {
-        const float t = laneTopY (g);
-        const float y0 = t + 8.0f + kCellH * 0.56f - 12.0f, y1 = t + 8.0f + kCellH + kRailGap + kCellH * 0.56f + 12.0f;
-        for (int e = 0; e < 2; ++e)
-            if (std::abs (p.x - sectionX (g, e)) <= 8.0f && p.y >= y0 && p.y <= y1) { group = g; end = e; return true; }
+        const juce::Colour tint = vertexTint (v);
+        const auto coat = tint.withMultipliedSaturation (1.0f).withBrightness (juce::jlimit (0.3f, 0.55f, tint.getBrightness() * 1.3f));
+        juce::Graphics::ScopedSaveState ss (g);
+        g.setOpacity (alpha);
+        g.setGradientFill (juce::ColourGradient (coat.brighter (0.1f), r.getX(), r.getY(), coat.darker (0.4f), r.getX(), r.getBottom(), false));
+        g.fillRoundedRectangle (r, 5.0f);
+        g.setColour (juce::Colours::white.withAlpha (0.18f));  g.drawRoundedRectangle (r.reduced (0.5f), 5.0f, 1.0f);
+        g.setColour (juce::Colour (0xff3a1612));  g.fillEllipse (r.getCentreX() - 2.5f, r.getY() + 5.0f, 5.0f, 5.0f);
+        if (selected) { g.setColour (ui::accent);  g.drawRoundedRectangle (r.expanded (2.0f), 6.0f, 1.6f); }
+        g.setColour (juce::Colour (0xffe8eaee).withAlpha (0.95f));  g.setFont (juce::Font (juce::FontOptions (8.5f, juce::Font::bold)));
+        g.drawFittedText (vertexName (v), r.withTrimmedTop (13.0f).toNearestInt(), juce::Justification::centred, 3, 0.7f);
     }
-    return false;
 }
 
-void OrderPanel::dragPlug (juce::Point<float> p)
+juce::String PatchPanel::cableBadge (const VCable& e) const
 {
-    const int g = plugGroup;
-    const auto vis = visibleBlocks (g);
-    const int n = (int) vis.size();
-    if (n == 0) return;
-    const int sv = regStartBox[g].getSelectedId() - 1, ev = regEndBox[g].getSelectedId() - 1;
-    int ks = 0, ke = n - 1;
-    for (int k = 0; k < n; ++k) { if (sv > 0 && vis[(size_t) k] == sv - 1) ks = k; if (ev > 0 && vis[(size_t) k] == ev - 1) ke = k; }
-    const float t = (p.x - kLaneX) / kCellW;
-    if (plugEnd == 0)
+    juce::StringArray parts;
+    if (e.lvl <= PG::kMuteDb) parts.add ("mute");
+    else if (std::abs (e.lvl) >= 0.05f) parts.add ((e.lvl > 0 ? "+" : "") + juce::String (e.lvl, 1) + " dB");
+    if (e.pol) parts.add (juce::String (juce::CharPointer_UTF8 ("\xc3\x98")));
+    if (e.chan == 1) parts.add ("L only");
+    if (e.chan == 2) parts.add ("R only");
+    if (std::abs (e.pan) >= 0.03f) parts.add ("pan " + juce::String ((int) std::round (std::abs (e.pan) * 100.0f)) + (e.pan < 0 ? " L" : " R"));
+    return parts.joinIntoString ("  ");
+}
+
+void PatchPanel::drawCable (juce::Graphics& g, juce::Point<float> a, juce::Point<float> b, juce::Colour c, float width, bool selected, bool hovered, bool dashed) const
+{
+    juce::Path p;
+    cablePath (a, b, p);
+    if (dashed)
     {
-        const int k = std::min (ke, juce::jlimit (0, n - 1, (int) std::lround (t)));
-        const int value = k == 0 ? 0 : vis[(size_t) k] + 1;
-        if (regStartBox[g].getSelectedId() - 1 != value) regStartBox[g].setSelectedId (value + 1, juce::sendNotification);
+        juce::Path d;  const float dashes[] = { 6.0f, 5.0f };
+        juce::PathStrokeType (2.0f).createDashedStroke (d, p, dashes, 2);
+        g.setColour (c);  g.fillPath (d);
+        return;
+    }
+    g.setColour (juce::Colours::black.withAlpha (0.55f));
+    g.strokePath (p, juce::PathStrokeType (width + 2.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    if (selected || hovered)
+    {
+        g.setColour ((selected ? ui::accent : juce::Colours::white).withAlpha (selected ? 0.85f : 0.35f));
+        g.strokePath (p, juce::PathStrokeType (width + 4.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    }
+    g.setColour (c);
+    g.strokePath (p, juce::PathStrokeType (width, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    g.setColour (c.brighter (0.5f).withAlpha (0.55f));
+    g.strokePath (p, juce::PathStrokeType (1.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+}
+
+void PatchPanel::drawBox (juce::Graphics& g, int v) const
+{
+    const auto r = box[v];
+    const int node = nodeOfVertex (v);
+    const bool on = nodeOn (node);
+    const bool sel = selNode == node && ! selKey.valid();
+    const bool ghost = drag == Drag::node && dragMoved && dragNode == node && ! dragFromTray;
+    const float alpha = ghost ? 0.25f : (switchable (node) && ! on ? 0.55f : 1.0f);
+    if (PG::isPedal (v) || v == PG::kNamP1) { drawPedalFace (g, r, v, on, alpha, sel);  return; }
+
+    juce::Graphics::ScopedSaveState ss (g);
+    g.setOpacity (alpha);
+    if (v == PG::kIn || v == PG::kOut)
+    {
+        g.setColour (juce::Colour (0xff23292d));  g.fillRoundedRectangle (r, 9.0f);
+        g.setColour (juce::Colour (0xff59636a));  g.drawRoundedRectangle (r.reduced (0.5f), 9.0f, 1.2f);
+        g.setColour (ui::text);  g.setFont (juce::Font (juce::FontOptions (13.0f, juce::Font::bold)));
+        g.drawText (vertexName (v), r.toNearestInt(), juce::Justification::centred);
+        if (sel) { g.setColour (ui::accent);  g.drawRoundedRectangle (r.expanded (2.5f), 11.0f, 2.0f); }
+        return;
+    }
+    if (PG::isXover (v) || v == PG::kLr)
+    {
+        const auto tint = vertexTint (v);
+        g.setGradientFill (juce::ColourGradient (tint.brighter (0.1f), r.getX(), r.getY(), tint.darker (0.5f), r.getX(), r.getBottom(), false));
+        g.fillRoundedRectangle (r, 8.0f);
+        g.setColour (juce::Colours::white.withAlpha (0.25f));  g.drawRoundedRectangle (r.reduced (0.5f), 8.0f, 1.0f);
+        g.setColour (juce::Colour (0xfff2f4f6));  g.setFont (juce::Font (juce::FontOptions (9.5f, juce::Font::bold)));
+        g.drawFittedText (vertexName (v), r.reduced (14.0f, 6.0f).withTrimmedBottom (PG::isXover (v) ? 10.0f : 0.0f).toNearestInt(), juce::Justification::centred, 2, 0.8f);
+        if (PG::isXover (v))
+        {
+            const float hz = data.xoHz[v - PG::kXo1];
+            g.setFont (juce::Font (juce::FontOptions (9.0f)));
+            g.drawText (hz >= 1000.0f ? juce::String (hz / 1000.0f, 2) + " kHz" : juce::String ((int) std::round (hz)) + " Hz", r.toNearestInt().removeFromBottom (16), juce::Justification::centred);
+        }
+        g.setColour (juce::Colours::white.withAlpha (0.55f));  g.setFont (juce::Font (juce::FontOptions (8.0f)));
+        if (PG::isXover (v)) { g.drawText ("low", (int) r.getRight() - 24, (int) r.getCentreY() - 25, 22, 10, juce::Justification::right);  g.drawText ("high", (int) r.getRight() - 28, (int) r.getCentreY() + 16, 26, 10, juce::Justification::right); }
+        else                 { g.drawText ("L", (int) r.getRight() - 14, (int) r.getCentreY() - 25, 12, 10, juce::Justification::right);  g.drawText ("R", (int) r.getRight() - 14, (int) r.getCentreY() + 16, 12, 10, juce::Justification::right); }
+        if (sel) { g.setColour (ui::accent);  g.drawRoundedRectangle (r.expanded (2.5f), 10.0f, 2.0f); }
+        return;
+    }
+    // amps and cab
+    const bool isCab = v == PG::kCab;
+    const juce::Colour top = isCab ? juce::Colour (0xff4a3a2c) : juce::Colour (0xff343a42), bot = isCab ? juce::Colour (0xff2a2119) : juce::Colour (0xff1a1d21);
+    g.setColour (juce::Colours::black.withAlpha (0.45f));  g.fillRoundedRectangle (r.translated (2.0f, 3.0f), 8.0f);
+    g.setGradientFill (juce::ColourGradient (top, r.getX(), r.getY(), bot, r.getX(), r.getBottom(), false));
+    g.fillRoundedRectangle (r, 8.0f);
+    g.setColour (juce::Colour (0xffb59a5a).withAlpha (0.55f));  g.drawRoundedRectangle (r.reduced (0.5f), 8.0f, 1.0f);
+    if (isCab)
+    {
+        const auto sp = juce::Rectangle<float> (r.getCentreX() - 22.0f, r.getBottom() - 52.0f, 44.0f, 44.0f);
+        g.setColour (juce::Colour (0xff15110d));  g.fillEllipse (sp);
+        for (int i = 1; i <= 3; ++i) { g.setColour (juce::Colours::white.withAlpha (0.10f));  g.drawEllipse (sp.reduced (4.0f * (float) i), 0.8f); }
+        g.setColour (juce::Colour (0xff0c0907));  g.fillEllipse (sp.reduced (17.0f));
     }
     else
     {
-        const int k = std::max (ks, juce::jlimit (0, n - 1, (int) std::lround (t) - 1));
-        const int value = k == n - 1 ? 0 : vis[(size_t) k] + 1;
-        if (regEndBox[g].getSelectedId() - 1 != value) regEndBox[g].setSelectedId (value + 1, juce::sendNotification);
+        g.setColour (juce::Colour (0xff0d0f11).withAlpha (0.7f));
+        g.fillRoundedRectangle (r.withTrimmedTop (r.getHeight() * 0.55f).reduced (8.0f, 6.0f), 4.0f);
+        g.setColour (juce::Colours::white.withAlpha (0.06f));
+        for (float y = r.getY() + r.getHeight() * 0.58f; y < r.getBottom() - 8.0f; y += 4.0f) g.drawLine (r.getX() + 10.0f, y, r.getRight() - 10.0f, y, 0.8f);
+        if (v == PG::kAmpB || v == PG::kAmpA)
+            for (int i = 0; i < 4; ++i)
+            {
+                const float kx = r.getX() + r.getWidth() * (0.16f + 0.22f * (float) i), ky = r.getY() + 36.0f;
+                g.setColour (juce::Colour (0xff101214));  g.fillEllipse (kx - 4.5f, ky - 4.5f, 9.0f, 9.0f);
+                g.setColour (juce::Colours::white.withAlpha (0.6f));  const float ang = 0.7f * (float) i - 1.0f;
+                g.drawLine (kx, ky, kx + 3.8f * std::sin (ang), ky - 3.8f * std::cos (ang), 1.0f);
+            }
     }
-    repaint();
+    g.setColour (juce::Colour (0xfff0e6cc));  g.setFont (juce::Font (juce::FontOptions (10.0f, juce::Font::bold)));
+    g.drawFittedText (vertexName (v), r.reduced (6.0f, 0.0f).withHeight (28.0f).withY (r.getY() + 4.0f).withTrimmedLeft (v == PG::kAmpB ? 10 : 0).toNearestInt(), juce::Justification::centred, 2, 0.8f);
+    if (v == PG::kAmpB)
+    {
+        const juce::Point<float> lamp (r.getX() + 11.0f, r.getY() + 11.0f);
+        g.setColour (on ? juce::Colour (0xffff6a4a).withAlpha (0.35f) : juce::Colours::transparentBlack);  g.fillEllipse (lamp.x - 8.0f, lamp.y - 8.0f, 16.0f, 16.0f);
+        g.setColour (on ? juce::Colour (0xffff6a4a) : juce::Colour (0xff3a1612));  g.fillEllipse (lamp.x - 3.2f, lamp.y - 3.2f, 6.4f, 6.4f);
+    }
+    g.setColour (juce::Colours::white.withAlpha (0.55f));  g.setFont (juce::Font (juce::FontOptions (8.0f)));
+    if (v == PG::kAmpA)   g.drawText ("send", (int) r.getRight() - 30, (int) (r.getCentreY() + kLoopDy) - 14, 28, 10, juce::Justification::right);
+    if (v == PG::kNodes)  g.drawText ("return", (int) r.getX() + 3, (int) (r.getCentreY() + kLoopDy) - 14, 34, 10, juce::Justification::left);
+    if (isCab)            { g.drawText ("A", (int) r.getX() + 8, (int) (r.getCentreY() - 20.0f) - 5, 10, 10, juce::Justification::left);  g.drawText ("B", (int) r.getX() + 8, (int) (r.getCentreY() + 20.0f) - 5, 10, 10, juce::Justification::left); }
+    if (sel) { g.setColour (ui::accent);  g.drawRoundedRectangle (r.expanded (2.5f), 10.0f, 2.0f); }
 }
 
-void OrderPanel::mouseMove (const juce::MouseEvent& e)
+void PatchPanel::paint (juce::Graphics& g)
 {
-    int g, end;
-    setMouseCursor (plugAt (e.position, g, end) ? juce::MouseCursor::LeftRightResizeCursor : juce::MouseCursor::NormalCursor);
-}
-
-void OrderPanel::mouseDown (const juce::MouseEvent& e)
-{
-    dragGroup = dragBlock = -1;  dragMoved = false;  dragFromTray = false;  hoverTray = false;
-    plugGroup = -1;
-    {
-        int pg, pe;
-        if (plugAt (e.position, pg, pe)) { plugGroup = pg;  plugEnd = pe;  repaint();  return; }
-    }
-    {
-        const int ti = trayChipAt (e.position);
-        if (ti >= 0 && e.getNumberOfClicks() >= 2 && onOpenBlock) { onOpenBlock (trayBlocks()[(size_t) ti]); return; }
-        if (ti >= 0) { dragBlock = trayBlocks()[(size_t) ti];  dragGroup = -1;  dragFromTray = true;  dragAt = e.position; return; }
-    }
-    int g, pos, row;
-    if (! cellAt (e.position, g, pos, row)) return;
-    const auto vis = visibleBlocks (g);
-    if (pos >= (int) vis.size()) return;
-    const int block = vis[(size_t) pos];
-    if (processor.getFxRow (g, block) != row) return;                      // an empty slot
-    const auto r = cellRect (g, pos, row);
-    if (e.getNumberOfClicks() >= 2 && e.position.y >= r.getY() + 22.0f && onOpenBlock) { onOpenBlock (block);  return; }    // double-click: open its controls
-    if (e.position.y < r.getY() + 22.0f)                                    // the lamp end of the pedal: switch it on or off
-    {
-        setFxBlockOn (processor, block);
-        repaint();
-        return;
-    }
-    dragGroup = g;  dragBlock = block;  dragAt = e.position;
-}
-
-void OrderPanel::mouseDrag (const juce::MouseEvent& e)
-{
-    if (plugGroup >= 0) { dragPlug (e.position);  return; }
-    if (dragBlock < 0) return;
-    dragAt = e.position;
-    dragMoved = true;
-    int g, pos, row;
-    hoverTray = ! dragFromTray && ! showAll && trayArea().contains (e.position);
-    if (cellAt (e.position, g, pos, row))
-    {
-        hoverGroup = g;  hoverPos = std::min (pos, (int) visibleBlocks (g).size());  hoverRow = row;
-        if (g == dragGroup && pos >= (int) visibleBlocks (g).size()) hoverPos = std::max (0, (int) visibleBlocks (g).size() - 1);
-    }
-    else { hoverGroup = hoverPos = hoverRow = -1; }
-    repaint();
-}
-
-void OrderPanel::mouseUp (const juce::MouseEvent&)
-{
-    if (plugGroup >= 0) { plugGroup = -1;  repaint();  return; }
-    if (dragBlock >= 0 && ! dragMoved)
-    {
-        select (dragBlock);
-        if (dragFromTray && ! fxBlockIsOn (processor, dragBlock)) setFxBlockOn (processor, dragBlock);       // a click on a waiting pedal switches it on where it sits
-    }
-    if (dragBlock >= 0 && dragMoved && hoverPos >= 0 && hoverGroup >= 0)
-    {
-        const int at = processorPosition (hoverGroup, visibleBlocks (hoverGroup), hoverPos, dragBlock);
-        processor.moveFxBlockTo (dragBlock, hoverGroup, at, hoverRow);
-        if (dragFromTray && ! fxBlockIsOn (processor, dragBlock)) setFxBlockOn (processor, dragBlock);        // dropped on a lane: it goes in and switches on
-    }
-    else if (dragBlock >= 0 && dragMoved && hoverTray && fxBlockIsOn (processor, dragBlock))
-        setFxBlockOn (processor, dragBlock);                                                                    // dropped on the tray: switched off
-    dragGroup = dragBlock = -1;  hoverGroup = hoverPos = hoverRow = -1;  dragMoved = false;  dragFromTray = false;  hoverTray = false;
-    repaint();
-}
-
-void OrderPanel::paint (juce::Graphics& g)
-{
-    g.fillAll (ui::background);
     const float W = (float) getWidth();
-
-    // title
+    g.fillAll (ui::background);
     g.setColour (ui::text);
     g.setFont (juce::Font (juce::FontOptions (15.0f, juce::Font::bold)));
     g.drawText ("PEDALBOARD", 16, 10, 200, 20, juce::Justification::left);
     g.setColour (ui::textDim);
     g.setFont (juce::Font (juce::FontOptions (11.5f)));
-    g.drawText ("Drag a pedal to a new spot: before the amp, in the amp's FX loop or after the cab. Lamp = on/off. Click a pedal for Series / Parallel, level and pan below; double-click it for its controls. Drag the plugs at a lane's ends to set where its parallel rows split and merge.",
+    g.drawText ("Left to right: your guitar, the pedals before the amp, the amp, the cab, the pedals after the cab, the output. Each cable carries a signal from a jack on the right of a box to a jack on the left of another.",
                 16, 32, (int) W - 32, 16, juce::Justification::left);
 
-    const juce::Colour railCol[2] = { juce::Colour (0xffe3913f), juce::Colour (0xff4fc3c7) };
-    static const char* const laneTitle[3] = { "BEFORE THE AMP", "AFTER THE CAB", "IN THE AMP'S FX LOOP" };
-    static const char* const laneNote[3] =
-        { "then the amp (the drives built into it, unless you move them)",
-          "starts with the granular cloud (fixed); the Doubler and Widener always come last",
-          "between the amp's preamp and its power stage. With Amp B on, Triple Blend, the Acoustic or a neural capture, it sits on Amp A's output instead (just before the cab)." };
+    const auto ca = canvasArea.toFloat();
+    g.setColour (juce::Colour (0xff161b1e));  g.fillRoundedRectangle (ca, 8.0f);
+    g.setColour (juce::Colour (0xff2f393e));  g.drawRoundedRectangle (ca.reduced (0.5f), 8.0f, 1.0f);
 
-    auto cable = [&] (juce::Point<float> a, juce::Point<float> b, juce::Colour c)
     {
-        const float sag = std::min (16.0f, 6.0f + 0.12f * std::abs (b.x - a.x) + 0.12f * std::abs (b.y - a.y));
-        juce::Path p;
-        p.startNewSubPath (a);
-        p.cubicTo (a.x + (b.x - a.x) * 0.35f, a.y + sag + (b.y - a.y) * 0.10f, a.x + (b.x - a.x) * 0.65f, b.y + sag - (b.y - a.y) * 0.10f, b.x, b.y);
-        g.setColour (juce::Colours::black.withAlpha (0.55f));
-        g.strokePath (p, juce::PathStrokeType (5.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        g.setColour (c);
-        g.strokePath (p, juce::PathStrokeType (3.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        g.setColour (c.brighter (0.5f).withAlpha (0.55f));
-        g.strokePath (p, juce::PathStrokeType (1.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-        for (auto e : { a, b })
-        {
-            g.setColour (juce::Colour (0xff15181a));
-            g.fillRoundedRectangle (e.x - 3.5f, e.y - 4.5f, 7.0f, 9.0f, 1.5f);
-            g.setColour (juce::Colour (0xffb9bec4));
-            g.fillRect (e.x - 1.2f, e.y - 1.5f, 2.4f, 3.0f);
-        }
-    };
-    auto jack = [&] (juce::Point<float> c, const juce::String& label)
-    {
-        g.setColour (juce::Colour (0xff9aa0a8));  g.fillEllipse (c.x - 9.0f, c.y - 9.0f, 18.0f, 18.0f);
-        g.setColour (juce::Colour (0xff0e1012));  g.fillEllipse (c.x - 4.5f, c.y - 4.5f, 9.0f, 9.0f);
-        g.setColour (ui::text);  g.setFont (juce::Font (juce::FontOptions (9.5f, juce::Font::bold)));
-        g.drawText (label, (int) c.x - 30, (int) c.y + 11, 60, 12, juce::Justification::centred);
-    };
+        juce::Graphics::ScopedSaveState ss (g);
+        g.reduceClipRegion (canvasArea);
+        g.setOrigin (canvasArea.getPosition());
+        g.addTransform (juce::AffineTransform::translation (-sx, -sy));
+        const float H = std::max (contentH, (float) canvasArea.getHeight() + sy);
 
-    for (int gp = 0; gp < StarterAmpProcessor::kFxGroups; ++gp)
-    {
-        const bool loop = gp == 2;
-        const int rails = 2;
-        const float top = laneTopY (gp), h = laneHeight (gp);
-        const juce::Rectangle<float> board (10.0f, top - 8.0f, kLaneX + kCols * kCellW + 40.0f - 10.0f, h + 6.0f);
-        // the board: a plywood frame round a piece of grey felt, with strips of hook-and-loop tape the pedals sit on
-        juce::Path frame;  frame.addRoundedRectangle (board, 10.0f);
-        g.setGradientFill (juce::ColourGradient (juce::Colour (loop ? 0xff4f3d6b : 0xff6f4a2b), 0.0f, board.getY(), juce::Colour (loop ? 0xff2a2040 : 0xff3d2514), 0.0f, board.getBottom(), false));
-        g.fillPath (frame);
-        const auto felt = board.reduced (9.0f);
-        g.setColour (juce::Colour (0xff1c2225));
-        g.fillRoundedRectangle (felt, 6.0f);
-        juce::Random fr ((juce::int64) 5 + gp);
-        for (int i = 0; i < 900; ++i)
+        // the three stretches of the path
+        auto band = [&] (float x0, float x1, juce::Colour c, const char* label)
         {
-            g.setColour (juce::Colours::white.withAlpha (0.015f + 0.03f * fr.nextFloat()));
-            g.fillRect (felt.getX() + fr.nextFloat() * felt.getWidth(), felt.getY() + fr.nextFloat() * felt.getHeight(), 1.2f, 1.2f);
-        }
-        for (int r = 0; r < rails; ++r)
-        {
-            const float y = top + (float) r * (kCellH + kRailGap) + kCellH - 12.0f;
-            const juce::Rectangle<float> strip (kLaneX + 2.0f, y, (float) kCols * kCellW - 4.0f, 7.0f);
-            g.setColour (juce::Colour (0xff2a3236));
-            g.fillRoundedRectangle (strip, 2.0f);
-            g.setColour (juce::Colour (0xff3a454a));
-            for (float x = strip.getX() + 2.0f; x < strip.getRight() - 2.0f; x += 3.0f)
-                g.drawLine (x, strip.getY() + 1.0f, x, strip.getBottom() - 1.0f, 0.8f);
-        }
-        g.setColour (ui::text.withAlpha (0.85f));
-        g.setFont (juce::Font (juce::FontOptions (11.0f, juce::Font::bold)));
-        g.drawText (laneTitle[gp], 20, (int) board.getY() + 2, 260, 14, juce::Justification::left);
-        g.setColour (ui::textDim.withAlpha (0.8f));
-        g.setFont (juce::Font (juce::FontOptions (10.0f)));
-        g.drawFittedText (laneNote[gp], (int) kSideX, (int) top + 2, (int) kSideW, 60, juce::Justification::topLeft, 5);
+            if (x1 <= x0) return;
+            g.setColour (c.withAlpha (0.07f));  g.fillRect (x0, 0.0f, x1 - x0, H);
+            g.setColour (c.withAlpha (0.55f));  g.setFont (juce::Font (juce::FontOptions (9.5f, juce::Font::bold)));
+            g.drawText (label, (int) x0 + 8, 2, (int) (x1 - x0) - 12, 12, juce::Justification::left);
+        };
+        const float xf = box[PG::kAmpA].getX() - 10.0f, xb = box[PG::kNodes].getRight() + 10.0f, xc = box[PG::kCab].getX() - 10.0f, xcr = box[PG::kCab].getRight() + 10.0f;
+        band (0.0f, xf, juce::Colour (0xffe3913f), "BEFORE THE AMP");
+        band (xf, xb, juce::Colour (0xff9b7be0), "THE AMP");
+        band (xcr, std::max (contentW, xcr + 10.0f), juce::Colour (0xff4fc3c7), "AFTER THE CAB");
+        (void) xc;
 
-        // cables, then pedals on top
-        const auto vis = visibleBlocks (gp);
-        const float railY[2] = { top + 8.0f + kCellH * 0.56f, top + 8.0f + kCellH + kRailGap + kCellH * 0.56f };
-        const float xStart = kLaneX - 22.0f, xEnd = kLaneX + (float) kCols * kCellW + 14.0f;
-        for (int r = 0; r < rails; ++r)
+        // inside Amp A: the preamp goes on to the power stage (the loop jacks are the lower pair)
         {
-            juce::Point<float> last (xStart, railY[r]);
-            for (int k = 0; k < (int) vis.size() && (r == 0 || splitBox[gp].getSelectedItemIndex() != 0); ++k)
+            const auto& f = box[PG::kAmpA];  const auto& b = box[PG::kNodes];
+            drawCable (g, { f.getRight(), f.getCentreY() + kLinkDy }, { b.getX(), b.getCentreY() + kLinkDy }, juce::Colour (0xff9b7be0).withAlpha (0.7f), 2.0f, false, false, true);
+            if (hoverLoop || (! plan->hasLoop))
             {
-                if (processor.getFxRow (gp, vis[(size_t) k]) != r) continue;
-                const auto cr = cellRect (gp, k, r);
-                cable (last, { cr.getX() + 6.0f, railY[r] }, railCol[r]);
-                last = { cr.getRight() - 6.0f, railY[r] };
-            }
-            cable (last, { xEnd, railY[r] }, railCol[r]);
-        }
-        for (int end = 0; end < 2; ++end)               // the plugs: where the lane splits into its two rows and where they merge (drag to move)
-            {
-                const float x = sectionX (gp, end);
-                const bool grabbed = plugGroup == gp && plugEnd == end;
-                const juce::Rectangle<float> plug (x - 6.0f, railY[0] - 9.0f, 12.0f, railY[1] - railY[0] + 18.0f);
-                g.setColour (juce::Colour (0xff0e1012));
-                g.fillRoundedRectangle (plug, 4.0f);
-                g.setColour (grabbed ? ui::accent : juce::Colour (0xff4a5056));
-                g.drawRoundedRectangle (plug, 4.0f, grabbed ? 2.0f : 1.0f);
-                g.setColour (juce::Colour (0xff8a949c));
-                for (int i = -1; i <= 1; ++i) g.drawLine (x + 1.5f * (float) i, plug.getCentreY() - 6.0f, x + 1.5f * (float) i, plug.getCentreY() + 6.0f, 1.0f);
-            }
-        {
-            // b25: outline the parallel section when it is not the whole lane
-            const int sv = regStartBox[gp].getSelectedId() - 1, ev = regEndBox[gp].getSelectedId() - 1;
-            int ks = -1, ke = -1;
-            for (int k = 0; k < (int) vis.size(); ++k) { if (sv > 0 && vis[(size_t) k] == sv - 1) ks = k; if (ev > 0 && vis[(size_t) k] == ev - 1) ke = k; }
-            if ((ks >= 0 || ke >= 0) && vis.size() > 0)
-            {
-                if (ks < 0) ks = 0;
-                if (ke < 0) ke = (int) vis.size() - 1;
-                if (ks <= ke)
-                {
-                    const auto r0 = cellRect (gp, ks, 0), r1 = cellRect (gp, ke, 1);
-                    const auto sec = juce::Rectangle<float> (r0.getX() + 1.0f, r0.getY() - 2.0f, r1.getRight() - r0.getX() - 2.0f, r1.getBottom() - r0.getY() + 4.0f);
-                    g.setColour (juce::Colour (0xff5ad0d0).withAlpha (0.10f));
-                    g.fillRoundedRectangle (sec, 8.0f);
-                    g.setColour (juce::Colour (0xff5ad0d0).withAlpha (0.55f));
-                    g.drawRoundedRectangle (sec, 8.0f, 1.2f);
-                    g.setFont (juce::Font (juce::FontOptions (9.5f, juce::Font::bold)));
-                    g.drawText ("PARALLEL SECTION", (int) sec.getX() + 6, (int) sec.getBottom() - 14, 140, 12, juce::Justification::left);
-                }
+                const juce::Rectangle<float> lr (f.getRight() + 2.0f, f.getCentreY() + kLoopDy - 12.0f, b.getX() - f.getRight() - 4.0f, 24.0f);
+                if (hoverLoop) { g.setColour (ui::accent.withAlpha (0.25f));  g.fillRoundedRectangle (lr, 8.0f);  g.setColour (ui::accent);  g.drawRoundedRectangle (lr, 8.0f, 1.6f); }
+                g.setColour (juce::Colours::white.withAlpha (hoverLoop ? 0.9f : 0.35f));  g.setFont (juce::Font (juce::FontOptions (9.0f)));
+                g.drawText (hoverLoop ? "drop to put it in the FX loop" : "FX loop", lr.toNearestInt(), juce::Justification::centred);
             }
         }
-        jack ({ 40.0f, railY[0] }, gp == 0 ? "IN" : gp == 2 ? "PREAMP" : "CAB");
-        cable ({ 52.0f, railY[0] }, { xStart, railY[0] }, railCol[0]);
 
-        for (int k = 0; k < (int) vis.size(); ++k)
+        // cables
+        struct Badge { juce::String text; juce::Point<float> at; juce::Colour col; };
+        std::vector<Badge> badges;
+        for (int i = 0; i < (int) vc.size(); ++i)
         {
-            const int block = vis[(size_t) k];
-            const int row = processor.getFxRow (gp, block);
+            const auto& e = vc[(size_t) i];
+            const auto a = jackPos (e.from, e.fp, true), b = jackPos (e.to, e.tp, false);
+            juce::Colour col = juce::Colour (0xffe3913f);
+            if (plan->group[e.to] == 2 || (e.from == PG::kAmpA && e.fp == 1) || (e.to == PG::kAmpA && e.tp == 1)) col = juce::Colour (0xffa98af0);
+            else if (plan->group[e.to] == 1 || (e.to == PG::kOut && plan->group[e.from] == 1)) col = juce::Colour (0xff4fc3c7);
+            if (! e.ok) col = juce::Colour (0xffc0504a);
+            const auto& oc = data.c[e.first];
+            const bool selected = selKey.valid() && oc.from == selKey.from && oc.fp == selKey.fp && oc.to == selKey.to && oc.tp == selKey.tp;
+            const bool lifted = drag == Drag::rewire && held.from == data.c[e.last].from && held.fp == data.c[e.last].fp && held.to == data.c[e.last].to && held.tp == data.c[e.last].tp && dragMoved;
+            if (lifted) continue;
+            drawCable (g, a, b, col, 3.2f, selected, hoverCable == i, ! e.ok);
+            const auto badge = cableBadge (e);
+            if (badge.isNotEmpty())
             {
-                const auto er = cellRect (gp, k, 1 - row).reduced (6.0f, 8.0f);
-                g.setColour (juce::Colours::white.withAlpha (0.05f));
-                const float dashes[] = { 3.0f, 4.0f };
-                juce::Path rp;  rp.addRoundedRectangle (er, 6.0f);
-                juce::Path dp;  juce::PathStrokeType (1.0f).createDashedStroke (dp, rp, dashes, 2);
-                g.fillPath (dp);
+                const float dx = juce::jlimit (40.0f, 150.0f, std::abs (b.x - a.x) * 0.5f);
+                badges.push_back ({ badge, { (a.x + 3.0f * (a.x + dx) + 3.0f * (b.x - dx) + b.x) / 8.0f, (a.y + 3.0f * a.y + 3.0f * b.y + b.y) / 8.0f }, col });
             }
-            const bool lifted = dragBlock == block && dragMoved;
-            const auto cr = cellRect (gp, k, row).reduced (6.0f, 6.0f);
-            const bool on = fxBlockIsOn (processor, block);
-            const juce::Colour tint (kBoardTint[block]);
-            const auto coat = tint.withMultipliedSaturation (1.4f).withBrightness (juce::jlimit (0.5f, 0.8f, tint.getBrightness() * 1.8f));
-            const float a = lifted ? 0.25f : on ? 1.0f : 0.62f;
-            juce::Graphics::ScopedSaveState ss (g);
-            g.setOpacity (a);
-            g.setColour (juce::Colours::black.withAlpha (0.45f));
-            g.fillRoundedRectangle (cr.translated (2.0f, 3.0f), 6.0f);
-            g.setGradientFill (juce::ColourGradient (coat.brighter (0.12f), cr.getX(), cr.getY(), coat.darker (0.45f), cr.getX(), cr.getBottom(), false));
-            g.fillRoundedRectangle (cr, 6.0f);
-            g.setColour (juce::Colours::white.withAlpha (0.20f));  g.drawRoundedRectangle (cr.reduced (0.5f), 6.0f, 1.0f);
-            const juce::Point<float> lamp (cr.getCentreX(), cr.getY() + 11.0f);
-            g.setColour (on ? juce::Colour (0xffff6a4a).withAlpha (0.35f) : juce::Colours::transparentBlack);
-            g.fillEllipse (lamp.x - 8.0f, lamp.y - 8.0f, 16.0f, 16.0f);
-            g.setColour (on ? juce::Colour (0xffff6a4a) : juce::Colour (0xff3a1612));
-            g.fillEllipse (lamp.x - 3.2f, lamp.y - 3.2f, 6.4f, 6.4f);
-            for (int i = 0; i < 3; ++i)
-            {
-                const float kx = cr.getX() + cr.getWidth() * (0.22f + 0.28f * (float) i), ky = cr.getY() + 27.0f;
-                g.setColour (juce::Colour (0xff101214));  g.fillEllipse (kx - 4.5f, ky - 4.5f, 9.0f, 9.0f);
-                g.setColour (juce::Colours::white.withAlpha (0.7f));
-                const float ang = 0.9f * (float) i - 0.7f;
-                g.drawLine (kx, ky, kx + 3.8f * std::sin (ang), ky - 3.8f * std::cos (ang), 1.0f);
-            }
-            if (block == selected)
-            {
-                g.setColour (ui::accent);
-                g.drawRoundedRectangle (cr.expanded (2.5f), 8.0f, 2.0f);
-            }
-            if (row == 1 && StarterAmpProcessor::fxHasBranchControls (block))
-            {
-                g.setColour (juce::Colours::white.withAlpha (0.9f));
-                g.setFont (juce::Font (juce::FontOptions (8.5f, juce::Font::bold)));
-                if (processor.apvts.getRawParameterValue (StarterAmpProcessor::fxBranchId ("fxPol", block))->load() > 0.5f)
-                    g.drawText (juce::String (juce::CharPointer_UTF8 ("\xc3\x98")), (int) cr.getX() + 3, (int) cr.getY() + 2, 12, 10, juce::Justification::left);
-                const float pn = processor.apvts.getRawParameterValue (StarterAmpProcessor::fxBranchId ("fxPan", block))->load();
-                if (gp == 1 && std::abs (pn) > 0.04f)
-                    g.drawText (pn < 0 ? "L" : "R", (int) cr.getRight() - 14, (int) cr.getY() + 2, 11, 10, juce::Justification::right);
-            }
-            g.setColour (juce::Colour (0xff0c0c10).withAlpha (0.9f));
-            g.setFont (juce::Font (juce::FontOptions (8.5f, juce::Font::bold)));
-            g.drawFittedText (kBoardName[block], cr.withTrimmedTop (38.0f).withHeight (22.0f).toNearestInt(), juce::Justification::centred, 2, 0.7f);
-            const float fx = cr.getCentreX(), fy = cr.getBottom() - 12.0f;
-            g.setGradientFill (juce::ColourGradient (juce::Colour (0xffe6e8ec), fx - 3.0f, fy - 4.0f, juce::Colour (0xff50555d), fx + 6.0f, fy + 6.0f, true));
-            g.fillEllipse (fx - 7.0f, fy - 7.0f, 14.0f, 14.0f);
-            g.setColour (juce::Colours::black.withAlpha (0.5f));  g.drawEllipse (fx - 7.0f, fy - 7.0f, 14.0f, 14.0f, 0.8f);
+        }
+        // the cable in the hand
+        if ((drag == Drag::wire || drag == Drag::rewire) && dragMoved)
+        {
+            const auto from = jackPos (wireNode, wireFp, true);
+            drawCable (g, from, toContent (mouseAt), ui::accent, 3.0f, false, false, false);
+        }
+
+        for (int v = 0; v < kV; ++v) if (shown[v]) drawBox (g, v);
+        for (const auto& bd : badges)
+        {
+            g.setFont (juce::Font (juce::FontOptions (9.0f, juce::Font::bold)));
+            const float tw = g.getCurrentFont().getStringWidthFloat (bd.text) + 10.0f;
+            const juce::Rectangle<float> pill (bd.at.x - tw * 0.5f, bd.at.y - 8.0f, tw, 16.0f);
+            g.setColour (juce::Colour (0xff0e1012).withAlpha (0.92f));  g.fillRoundedRectangle (pill, 8.0f);
+            g.setColour (bd.col);  g.drawRoundedRectangle (pill, 8.0f, 1.0f);
+            g.setColour (ui::text);  g.drawText (bd.text, pill.toNearestInt(), juce::Justification::centred);
+        }
+
+        // the jacks
+        for (int ji = 0; ji < (int) jacks.size(); ++ji)
+        {
+            const auto& j = jacks[(size_t) ji];
+            bool used = false;
+            for (const auto& e : vc) if (j.out ? (e.from == j.node && e.fp == j.port) : (e.to == j.node && e.tp == j.port)) used = true;
+            if (j.node == PG::kAmpA && j.out && j.port == 0) used = used || false;
+            const bool target = (drag == Drag::wire || drag == Drag::rewire) && dragMoved && ! j.out && canWire (wireNode, wireFp, j.node, j.port);
+            const bool hot = target && hoverNode == ji;
+            const float rad = hot ? 8.5f : 6.0f;
+            if (target) { g.setColour (ui::accent.withAlpha (hot ? 0.9f : 0.5f));  g.drawEllipse (j.p.x - rad - 3.0f, j.p.y - rad - 3.0f, 2.0f * (rad + 3.0f), 2.0f * (rad + 3.0f), 1.6f); }
+            g.setColour (juce::Colour (0xff9aa0a8));  g.fillEllipse (j.p.x - rad, j.p.y - rad, 2.0f * rad, 2.0f * rad);
+            g.setColour (used ? juce::Colour (0xffe3913f) : juce::Colour (0xff0e1012));  g.fillEllipse (j.p.x - rad * 0.55f, j.p.y - rad * 0.55f, rad * 1.1f, rad * 1.1f);
         }
     }
 
-    // b27: the tray of pedals that are off
-    if (! showAll)
+    // the tray
     {
-        const auto ta = trayArea();
+        const auto ta = trayArea.toFloat();
         g.setColour (juce::Colour (0xff151a1d));  g.fillRoundedRectangle (ta, 8.0f);
         g.setColour (hoverTray ? ui::accent : juce::Colour (0xff2f393e));  g.drawRoundedRectangle (ta.reduced (0.5f), 8.0f, hoverTray ? 2.0f : 1.0f);
         g.setColour (ui::textDim.withAlpha (0.9f));  g.setFont (juce::Font (juce::FontOptions (10.0f, juce::Font::bold)));
-        const auto tb = trayBlocks();
-        g.drawText (tb.empty() ? "SWITCHED-OFF PEDALS WAIT HERE (everything is on)" : "SWITCHED-OFF PEDALS: click one to switch it on, drag it onto a lane to place it, or drag a lit pedal here to switch it off",
-                    (int) ta.getX() + 12, (int) ta.getY() + 2, (int) ta.getWidth() - 24, 14, juce::Justification::left);
-        for (int i = 0; i < (int) tb.size(); ++i)
-        {
-            const int block = tb[(size_t) i];
-            const auto cr = trayChip (i);
-            const juce::Colour tint (kBoardTint[block]);
-            const auto coat = tint.withMultipliedSaturation (1.0f).withBrightness (juce::jlimit (0.3f, 0.55f, tint.getBrightness() * 1.3f));
-            juce::Graphics::ScopedSaveState ss (g);
-            g.setOpacity (dragBlock == block && dragMoved ? 0.25f : 0.8f);
-            g.setGradientFill (juce::ColourGradient (coat.brighter (0.1f), cr.getX(), cr.getY(), coat.darker (0.4f), cr.getX(), cr.getBottom(), false));
-            g.fillRoundedRectangle (cr, 5.0f);
-            g.setColour (juce::Colours::white.withAlpha (0.18f));  g.drawRoundedRectangle (cr.reduced (0.5f), 5.0f, 1.0f);
-            g.setColour (juce::Colour (0xff3a1612));  g.fillEllipse (cr.getCentreX() - 2.5f, cr.getY() + 6.0f, 5.0f, 5.0f);
-            if (block == selected) { g.setColour (ui::accent);  g.drawRoundedRectangle (cr.expanded (2.0f), 6.0f, 1.6f); }
-            g.setColour (juce::Colour (0xff0c0c10).withAlpha (0.95f));  g.setFont (juce::Font (juce::FontOptions (8.0f, juce::Font::bold)));
-            g.drawFittedText (kBoardName[block], cr.withTrimmedTop (16.0f).toNearestInt(), juce::Justification::centred, 3, 0.7f);
-        }
+        g.drawText (tray.empty() ? "SWITCHED-OFF PEDALS WAIT HERE (everything is on)"
+                                 : "SWITCHED-OFF PEDALS AND SPARE SPLITS: click a pedal to switch it on, or drag it onto a cable. Drag a lit pedal here to switch it off. Drag a split onto a cable to split it.",
+                    trayArea.getX() + 12, trayArea.getY() + 3, trayArea.getWidth() - 24, 14, juce::Justification::left);
+        for (int i = 0; i < (int) tray.size(); ++i)
+            drawChip (g, trayChip (i), tray[(size_t) i], drag == Drag::node && dragMoved && dragFromTray && dragNode == tray[(size_t) i] ? 0.25f : 0.9f, selNode == tray[(size_t) i]);
     }
 
-    // drop target and the pedal in the hand
-    if (dragBlock >= 0 && dragMoved)
+    // a pedal in the hand
+    if (drag == Drag::node && dragMoved)
     {
-        if (hoverPos >= 0 && hoverGroup >= 0)
+        if (PG::isPedal (dragNode) || dragNode == PG::kNamP1)
         {
-            g.setColour (ui::accent.withAlpha (0.9f));
-            g.drawRoundedRectangle (cellRect (hoverGroup, hoverPos, hoverRow).reduced (4.0f), 8.0f, 2.0f);
+            const auto sz = vertexSize (dragNode);
+            drawPedalFace (g, { mouseAt.x - sz.x * 0.5f, mouseAt.y - sz.y * 0.5f, sz.x, sz.y }, dragNode, nodeOn (dragNode), 0.85f, false);
         }
-        const juce::Colour tint (kBoardTint[dragBlock]);
-        const juce::Rectangle<float> r (dragAt.x - 25.0f, dragAt.y - 40.0f, 50.0f, 80.0f);
-        g.setColour (juce::Colours::black.withAlpha (0.4f));  g.fillRoundedRectangle (r.translated (4.0f, 6.0f), 6.0f);
-        g.setColour (tint.withMultipliedSaturation (1.4f).withBrightness (0.65f));  g.fillRoundedRectangle (r, 6.0f);
-        g.setColour (juce::Colours::white.withAlpha (0.45f));  g.drawRoundedRectangle (r, 6.0f, 1.2f);
-        g.setColour (juce::Colour (0xff0c0c10));  g.setFont (juce::Font (juce::FontOptions (9.5f, juce::Font::bold)));
-        g.drawFittedText (kBoardName[dragBlock], r.toNearestInt(), juce::Justification::centred, 2);
+        else
+            drawChip (g, { mouseAt.x - kChipW * 0.5f, mouseAt.y - kChipH * 0.5f, kChipW, kChipH }, dragNode, 0.9f, false);
     }
+}
 
-    // legend
-    g.setColour (railCol[0]);  g.fillRoundedRectangle (W - 270.0f, (float) getHeight() - 34.0f, 18.0f, 4.0f, 2.0f);
-    g.setColour (ui::textDim);  g.setFont (juce::Font (juce::FontOptions (11.0f)));
-    g.drawText ("main rail", (int) W - 246, getHeight() - 42, 70, 18, juce::Justification::left);
-    g.setColour (railCol[1]);  g.fillRoundedRectangle (W - 170.0f, (float) getHeight() - 34.0f, 18.0f, 4.0f, 2.0f);
-    g.setColour (ui::textDim);
-    g.drawText ("parallel pedals", (int) W - 146, getHeight() - 42, 90, 18, juce::Justification::left);
+void PatchPanel::mouseMove (const juce::MouseEvent& e)
+{
+    int hc = -1;  bool jack = false;
+    if (canvasArea.contains (e.getPosition()))
+    {
+        const auto c = toContent (e.position);
+        Jack j;
+        jack = jackAt (c, 10.0f, true, j) || jackAt (c, 10.0f, false, j);
+        if (! jack) hc = cableAt (c, 7.0f);
+    }
+    if (hc != hoverCable) { hoverCable = hc;  repaint(); }
+    setMouseCursor (jack ? juce::MouseCursor::CrosshairCursor : hc >= 0 ? juce::MouseCursor::PointingHandCursor : juce::MouseCursor::NormalCursor);
+}
+
+void PatchPanel::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& w)
+{
+    if (! canvasArea.contains (e.getPosition())) return;
+    float dx = w.deltaX, dy = w.deltaY;
+    if (e.mods.isShiftDown() || (contentH <= (float) canvasArea.getHeight() && dx == 0.0f)) { if (dx == 0.0f) dx = dy;  dy = 0.0f; }
+    sx -= dx * 500.0f;  sy -= dy * 300.0f;
+    updateScrollBars();
+    repaint();
+}
+
+bool PatchPanel::keyPressed (const juce::KeyPress& k)
+{
+    if (k == juce::KeyPress::deleteKey || k == juce::KeyPress::backspaceKey)
+    {
+        if (removeButton.isVisible()) { removeButton.onClick();  return true; }
+        if (selNode >= 0 && switchable (selNode) && nodeOn (selNode)) { toggleNode (selNode);  selNode = -1;  rebuild();  return true; }
+    }
+    return false;
+}
+
+void PatchPanel::mouseDown (const juce::MouseEvent& e)
+{
+    grabKeyboardFocus();
+    downAt = mouseAt = e.position;
+    dragMoved = false;  drag = Drag::none;  dragFromTray = false;  dragNode = -1;  hoverNode = -1;  hoverTray = false;  hoverLoop = false;
+    {
+        const int ti = trayChipAt (e.position);
+        if (ti >= 0)
+        {
+            const int n = tray[(size_t) ti];
+            if (e.getNumberOfClicks() >= 2 && onOpenNode && openable (n)) { onOpenNode (n);  return; }
+            drag = Drag::node;  dragNode = n;  dragFromTray = true;
+            return;
+        }
+    }
+    if (! canvasArea.contains (e.getPosition())) return;
+    const auto c = toContent (e.position);
+    Jack j;
+    if (jackAt (c, 10.0f, true, j)) { drag = Drag::wire;  wireNode = j.node;  wireFp = j.port;  return; }
+    if (jackAt (c, 10.0f, false, j))
+    {
+        int best = -1;
+        for (int i = 0; i < (int) vc.size(); ++i) if (vc[(size_t) i].to == j.node && vc[(size_t) i].tp == j.port) best = i;
+        if (best >= 0)                                                       // pick the cable up by its end
+        {
+            held = data.c[vc[(size_t) best].last];
+            drag = Drag::rewire;  wireNode = vc[(size_t) best].from;  wireFp = vc[(size_t) best].fp;
+            const auto& oc = data.c[vc[(size_t) best].first];
+            selKey = { oc.from, oc.fp, oc.to, oc.tp };  selNode = -1;
+            return;
+        }
+        return;
+    }
+    const int v = boxAt (c);
+    if (v >= 0)
+    {
+        const int node = nodeOfVertex (v);
+        if (e.getNumberOfClicks() >= 2 && onOpenNode && openable (node)) { onOpenNode (node);  return; }
+        if (switchable (node) && c.y < box[v].getY() + 22.0f && (v != (int) PG::kAmpB || c.x < box[v].getX() + 24.0f)) { toggleNode (node);  rebuild();  return; }
+        select (Key(), node);
+        if (movable (node)) { drag = Drag::node;  dragNode = node; }
+        return;
+    }
+    const int ci = cableAt (c, 8.0f);
+    if (ci >= 0) { const auto& oc = data.c[vc[(size_t) ci].first];  select ({ oc.from, oc.fp, oc.to, oc.tp }, -1);  return; }
+    select (Key(), -1);
+}
+
+void PatchPanel::mouseDrag (const juce::MouseEvent& e)
+{
+    if (drag == Drag::none) return;
+    mouseAt = e.position;
+    if (! dragMoved && mouseAt.getDistanceFrom (downAt) < 5.0f) return;
+    dragMoved = true;
+    const auto c = toContent (mouseAt);
+    const bool inCanvas = canvasArea.contains (e.getPosition());
+    hoverCable = -1;  hoverNode = -1;  hoverLoop = false;  hoverTray = false;
+    if (drag == Drag::node)
+    {
+        hoverTray = ! dragFromTray && trayArea.contains (e.getPosition()) && switchable (dragNode);
+        if (inCanvas && ! hoverTray)
+        {
+            hoverCable = cableAt (c, 16.0f, dragNode);
+            if (hoverCable < 0 && (PG::isPedal (dragNode) || dragNode == PG::kNamP1) && loopLinkAt (c)) hoverLoop = true;
+        }
+    }
+    else if (inCanvas)
+    {
+        Jack j;
+        if (jackAt (c, 22.0f, false, j))
+            for (int i = 0; i < (int) jacks.size(); ++i)
+                if (! jacks[(size_t) i].out && jacks[(size_t) i].node == j.node && jacks[(size_t) i].port == j.port && jacks[(size_t) i].v == j.v) hoverNode = i;
+    }
+    repaint();
+}
+
+void PatchPanel::mouseUp (const juce::MouseEvent& e)
+{
+    const auto mode = drag;
+    drag = Drag::none;
+    const auto c = toContent (e.position);
+    if (mode == Drag::wire || mode == Drag::rewire)
+    {
+        if (! dragMoved)
+        {
+            if (mode == Drag::wire) { select (Key(), -1); }
+            dragMoved = false;  repaint();
+            return;
+        }
+        Jack j;  bool got = canvasArea.contains (e.getPosition()) && jackAt (c, 22.0f, false, j);
+        if (! got && canvasArea.contains (e.getPosition()))
+        {
+            const int v = boxAt (c);
+            if (v >= 0)
+            {
+                float bestD = 1.0e9f;
+                for (const auto& cand : jacks)
+                    if (! cand.out && cand.v == v && std::abs (cand.p.y - c.y) < bestD) { bestD = std::abs (cand.p.y - c.y);  j = cand;  got = true; }
+            }
+        }
+        auto d = processor.getPatch();
+        bool changed = false;
+        if (mode == Drag::rewire)
+        {
+            const int hi = PG::findCable (d, held.from, held.fp, held.to, held.tp);
+            if (hi >= 0) { PG::removeCable (d, hi);  changed = true; }
+            if (got && PG::connect (d, held.from, held.fp, j.node, j.port, held.levelDb, held.pan, held.pol != 0, held.chan))
+            {
+                const int ni = PG::findCable (d, held.from, held.fp, j.node, j.port);
+                if (ni >= 0) selKey = { held.from, held.fp, j.node, j.port };
+            }
+            else if (hi >= 0) selKey = Key();                                  // dropped on nothing: the cable is gone
+        }
+        else if (got && PG::connect (d, wireNode, wireFp, j.node, j.port))
+        {
+            changed = true;
+            selKey = { wireNode, wireFp, j.node, j.port };  selNode = -1;
+        }
+        dragMoved = false;
+        if (changed) processor.setPatch (d);
+        rebuild();
+        return;
+    }
+    if (mode == Drag::node)
+    {
+        const int n = dragNode;
+        const bool moved = dragMoved, fromTray = dragFromTray;
+        dragMoved = false;  dragNode = -1;  dragFromTray = false;
+        const bool toTray = hoverTray;
+        const int cableIdx = hoverCable;  const bool toLoop = hoverLoop;
+        hoverCable = -1;  hoverLoop = false;  hoverTray = false;
+        const bool split = PG::isXover (n) || n == PG::kLr;
+        if (! moved)
+        {
+            if (fromTray && ! split)                                            // a click on a waiting pedal switches it on where it sits (or puts it in its usual place first)
+            {
+                auto d = processor.getPatch();
+                if (PG::cableCountOf (d, n) == 0) { placeNode (d, n);  processor.setPatch (d); }
+                if (! nodeOn (n)) toggleNode (n);
+                selNode = n;
+            }
+            else selNode = n;
+            rebuild();
+            return;
+        }
+        if (toTray) { if (nodeOn (n)) toggleNode (n);  selNode = -1;  rebuild();  return; }
+        if (cableIdx >= 0 && cableIdx < (int) vc.size())
+        {
+            auto d = processor.getPatch();
+            const PG::Cable target = d.c[vc[(size_t) cableIdx].first];
+            if (target.from != n && target.to != n)
+            {
+                bool ok = false;
+                Data t = d;
+                if (split) { const int idx = PG::findCable (t, target.from, target.fp, target.to, target.tp);  ok = idx >= 0 && PG::insertSplit (t, idx, n); }
+                else
+                {
+                    PG::removeNodeBypass (t, n);
+                    const int idx = PG::findCable (t, target.from, target.fp, target.to, target.tp);
+                    ok = idx >= 0 && PG::insertOnCable (t, idx, n);
+                }
+                if (ok)
+                {
+                    processor.setPatch (t);
+                    if (fromTray && ! split && ! nodeOn (n)) toggleNode (n);
+                    selNode = split ? n : n;  selKey = Key();
+                }
+            }
+        }
+        else if (toLoop && ! split)
+        {
+            auto t = processor.getPatch();
+            if (PG::insertBefore (t, n, PG::kAmpA, 1))
+            {
+                processor.setPatch (t);
+                if (fromTray && ! nodeOn (n)) toggleNode (n);
+                selNode = n;  selKey = Key();
+            }
+        }
+        rebuild();
+        return;
+    }
+    repaint();
 }
 
 //==============================================================================
@@ -7395,6 +8725,11 @@ PresetBrowser::PresetBrowser (StarterAmpProcessor& p, Callbacks callbacks) : pro
         addAndMakeVisible (t);
     }
     factoryTab.setToggleState (true, juce::dontSendNotification);
+    if (StarterAmpProcessor::factoryPresetCount() == 0)        // b61: no built-in presets: only the USER tab is shown
+    {
+        userTab.setToggleState (true, juce::dontSendNotification);
+        factoryTab.setVisible (false);
+    }
     factoryTab.setTooltip ("The presets that come with the plugin, grouped by style.");
     userTab.setTooltip ("Presets you saved, stored as files in Documents/StarterAmp/Presets.");
     factoryTab.onClick = [this] { rebuildTagMenu(); rebuildView(); };
@@ -7629,7 +8964,7 @@ void PresetBrowser::resized()
 {
     auto r = getLocalBounds().reduced (16);
     auto tabs = r.removeFromTop (28);
-    factoryTab.setBounds (tabs.removeFromLeft (110));  tabs.removeFromLeft (6);
+    if (factoryTab.isVisible()) { factoryTab.setBounds (tabs.removeFromLeft (110));  tabs.removeFromLeft (6); }
     userTab.setBounds (tabs.removeFromLeft (110));
     r.removeFromTop (10);
     auto filters = r.removeFromTop (28);
@@ -7709,7 +9044,7 @@ void StarterAmpEditor::setupAdvanced (Panel& panel, const char* key)
 {
     const juce::Identifier prop ("adv_" + juce::String (key));
     panel.setAdvancedShown ((bool) processorRef.apvts.state.getProperty (prop, false));
-    panel.onAdvancedChanged = [this, prop] (bool on) { processorRef.apvts.state.setProperty (prop, on, nullptr); };
+    panel.onAdvancedChanged = [this, prop] (bool on) { processorRef.apvts.state.setProperty (prop, on, nullptr); layoutFlow (false); };   // b63: a second panel may come or go
     advancedPanels.emplace_back (&panel, juce::String (key));
 }
 
@@ -7803,14 +9138,24 @@ namespace
         { 16, 0, 2 }, { 16, 1, 1 }, { 16, 2, 0 },        // Harmonic Haze: Clean / Crunch / Lead
         { 18, 0, 2 }, { 18, 1, 1 }, { 18, 2, 0 },        // Wreck Stack: Clean / Crunch / Lead
         { 17, 1, 2 }, { 17, 2, 1 },                      // Diesel Fuel: Crunch / High gain
-        { 20, 0, 2 }, { 20, 2, 0 },                      // Cutaway: Clean / Lead
+        { 20, 0, 2 }, { 20, 2, 0 },                      // Stolen Fire: Clean / Lead
         { 13, 1, 2 }, { 13, 2, 0 },                      // Revved Up: Crunch / Tight
         { 25, 0, 2 }, { 25, 1, 0 }, { 25, 2, 1 },        // Marmalade: Clean / Crunch / Heavy
         { 33, 0, 0 }, { 33, 1, 1 },                      // Brit Eighteen: Clean / Crunch
         { 19, 1, 2 }, { 19, 2, 0 },                      // Power Brawl: Crunch / Scooped
         {  8, 1, 2 }, {  8, 2, 1 },                      // 5555 Block: Crunch / Modern
         { 29, 1, 1 }, { 29, 2, 0 },                      // Solid Metal: Hybrid Classic OD / Hybrid Hi-Gain
-        {  7, 0, 0 }, {  7, 1, 1 } };                    // Bumble Lead: Jazz / Rock
+        {  7, 0, 0 }, {  7, 1, 1 },                      // Bumble Lead: Jazz / Rock
+        { 34, 0, 3 }, { 34, 1, 2 },                      // Tweedle Dum: Silverface / Cranked
+        { 35, 0, 1 }, { 35, 2, 0 },                      // Marque One: Clean / Mark I
+        { 36, 0, 0 }, { 36, 1, 2 },                      // Cedar Grand: Big Spring / Cranked
+        { 37, 0, 0 }, { 37, 1, 1 }, { 37, 2, 2 },        // Cedar Ten: Clean / Pushed / Drive
+        { 38, 0, 0 }, { 38, 1, 2 },                      // Brit Forty-Five: Normal / Cranked
+        { 39, 0, 1 }, { 39, 1, 0 },                      // Tweedle Mini: Princeton / Champ
+        { 40, 0, 0 }, { 40, 1, 1 }, { 40, 2, 2 } };      // Jubilant: Clean / Rhythm / Lead
+    // Amp B's menu has no Acoustic or Triple Blend entry: the parameter index of an amp model value, and the model value of a parameter index
+    int ampBIndexOf (int value) { return value < 5 ? value : value <= 30 ? value - 1 : value == 31 ? -1 : value - 2; }
+    int ampBModelOf (int idx)   { return idx <= 4 ? std::max (0, idx) : idx <= 29 ? idx + 1 : std::min (idx, 38) + 2; }
     bool hasRoles (int model) { for (const auto& r : kAmpRoles) if (r.model == model) return true; return false; }
     // Item ids: a plain amp is index + 1. A role entry is 1000 + index * 4 + voicing.
     int roleId (int idx, int voicing) { return 1000 + idx * 4 + voicing; }
@@ -7818,7 +9163,7 @@ namespace
     void buildAmpFolders (juce::ComboBox& box, const juce::StringArray& choices, bool withAcoustic)
     {
         // Amp B's list has no Acoustic entry, so its parameter index is one lower than the amp value above Acoustic.
-        auto indexOf = [withAcoustic] (int value) { return (withAcoustic || value < 5) ? value : value - 1; };
+        auto indexOf = [withAcoustic] (int value) { return withAcoustic ? value : ampBIndexOf (value); };
         auto add = [&] (juce::PopupMenu& menu, const int* values, int n, int folder)
         {
             for (int k = 0; k < n; ++k)
@@ -7853,7 +9198,7 @@ namespace
     // The id to tick for a given parameter index: the plain id, or the role entry that matches the current voicing (else the first).
     int ampItemId (int idx, bool withAcoustic, int voicing)
     {
-        const int model = (withAcoustic || idx < 5) ? idx : idx + 1;
+        const int model = withAcoustic ? idx : ampBModelOf (idx);
         int first = -1;
         for (const auto& r : kAmpRoles)
             if (r.model == model)
@@ -7876,13 +9221,13 @@ juce::ComboBox& StarterAmpEditor::makeGroupedCombo (const char* paramId)
         groups = { { "Regular", { 0, 1, 2, 3, 4, 5, 6, 17, 7 } }, { "Big spaces", { 9, 13 } },
                    { "Effected", { 8, 10, 11, 14, 15, 16 } }, { "Impulse response", { 12 } } };
     else if (pid == "fuzzStyle" || pid == "fuzz2Style")
-        groups = { { "Fuzz", { 0, 4, 5, 7 } }, { "Distortion", { 1, 2, 3, 6, 9, 10, 11 } }, { "Special", { 8, 12 } } };
+        groups = { { "Fuzz", { 0, 4, 5, 7, 13 } }, { "Distortion", { 1, 2, 3, 6, 9, 10, 11 } }, { "Special", { 8, 12 } } };
     else if (pid == "fuzzMuffVer" || pid == "fuzz2MuffVer")
-        groups = { { "Voiced", { 0, 1, 2, 3 } }, { "Solved from a circuit", { 4, 5, 6, 7, 8 } } };
+        groups = { { "Voiced", { 0, 1, 2, 3 } }, { "Solved from a circuit", { 4, 5, 6, 7, 8, 9 } } };
     else if (pid == "compSat")
-        groups = { { "Basic", { 0, 1, 2, 3 } }, { "Stage emulations", { 4, 5, 6, 7, 8 } } };
+        groups = { { "Basic", { 0, 1, 2, 3 } }, { "Stage emulations", { 4, 5, 6, 7, 8 } }, { "Shared curves (as in the Multiband Saturator, Delay and Reverb)", { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24 } } };
     else if (pid == "mfAType" || pid == "mfBType" || pid == "mfCType" || pid == "mfDType")
-        groups = { { "Flangers", { 0, 1, 9 } }, { "Vibrato and pitch", { 2, 3, 7, 10 } }, { "Tremolo and pan", { 4, 5, 6, 8 } }, { "Chorus, phaser and lo-fi", { 12, 13, 14 } }, { "Filters", { 15, 16, 17, 18, 19 } }, { "Rhythmic", { 11, 20 } } };
+        groups = { { "Flangers", { 0, 1, 9 } }, { "Vibrato and pitch", { 2, 3, 7, 10 } }, { "Tremolo and pan", { 4, 5, 6, 8 } }, { "Chorus, phaser and lo-fi", { 12, 13, 14 } }, { "Filters", { 21, 15, 16, 17, 18, 19 } }, { "Rhythmic", { 11, 20 } }, { "Shifter and voice", { 22, 23 } } };
     else
         groups = { { "Default", { 0, 1 } }, { "Clean and crunch", { 2, 3, 6 } }, { "Lead and high gain", { 4, 5, 7, 8 } }, { "Boutique", { 9, 10 } } };   // amp stack
 
@@ -7988,7 +9333,9 @@ juce::ComboBox& StarterAmpEditor::makeSpeakerCombo (const char* paramId)
         static const int kClassic[] = { 31, 32, 33, 34, 35 };       // Classic ... (35 = Classic Warm Presence, v71)
         static const int kRaw[]     = { 36, 37, 38 };               // Raw Big Low, Raw Bright Cap (v71), Full-Range Open (v94)
         static const int kOther[]   = { 39, 40, 41, 42, 43 };       // American Thin Bite ... Vintage Hollow Mid (fitted to single-mic recordings of other speakers)
-        static const int kIdeal[]   = { 44, 45, 46, 47 };           // Ideal Reference, Warm, Presence, Wide Open (v0.1 cab pass)
+        static const int kIdeal[]   = { 44, 45, 46, 47 };
+        static const int kSmallD[]  = { 48, 49, 50, 51 };           // b67: Big Fifteen (it had no menu entry), Jensen-Style Ten, Paper Eight, Battery Three-Inch
+        static const int kOddD[]    = { 52, 53, 54, 55, 56, 57, 58 }; // b67: Telephone ... Tin Can (deliberately not guitar speakers)           // Ideal Reference, Warm, Presence, Wide Open (v0.1 cab pass)
         auto* root = c->box.getRootMenu();
         auto fill = [&] (juce::PopupMenu& menu, const char* folder, const int* values, int n)
         {
@@ -8006,6 +9353,8 @@ juce::ComboBox& StarterAmpEditor::makeSpeakerCombo (const char* paramId)
         fill (realistic, "Classic (older styles)", kClassic, (int) (sizeof (kClassic) / sizeof (int)));
         fill (realistic, "Raw (bold)",     kRaw,    (int) (sizeof (kRaw)    / sizeof (int)));
         fill (realistic, "Other speaker types", kOther, (int) (sizeof (kOther) / sizeof (int)));
+        fill (realistic, "Small and large drivers", kSmallD, (int) (sizeof (kSmallD) / sizeof (int)));
+        fill (realistic, "Off the wall", kOddD, (int) (sizeof (kOddD) / sizeof (int)));
         fill (mixReady,  "4x12",           kM4x12,  (int) (sizeof (kM4x12)  / sizeof (int)));
         fill (mixReady,  "Compact cabs",   kMSmall, (int) (sizeof (kMSmall) / sizeof (int)));
         root->addSubMenu ("Realistic", realistic);
@@ -8089,6 +9438,8 @@ juce::ComboBox& StarterAmpEditor::makeCabinetCombo (const char* paramId)
                     sub.addItem (values[k] + 1, choice->choices[values[k]]);
             root->addSubMenu (folder, sub);
         };
+        if (choice->choices.size() > 16)
+            root->addItem (16 + 1, choice->choices[16]);        // b62: No cabinet, at the top of the menu
         fill ("1x",        k1x,   (int) (sizeof (k1x)   / sizeof (int)));
         fill ("2x",        k2x,   (int) (sizeof (k2x)   / sizeof (int)));
         fill ("4x",        k4x,   (int) (sizeof (k4x)   / sizeof (int)));
@@ -8118,11 +9469,52 @@ juce::ComboBox& StarterAmpEditor::makeCabinetCombo (const char* paramId)
 // and the shimmer controls while Shimmer is on.
 void StarterAmpEditor::syncVisibility()
 {
+    // b63: the saturator's bands panel follows the saturator's ADV button (and goes back to its LEVELS tab when ADV is off)
+    satBandsPanel.setAdvancedShown (satPanel.isAdvancedShown());
+    if (! satPanel.isAdvancedShown() && ! satTab[0].getToggleState())
+    {
+        satTab[0].setToggleState (true, juce::dontSendNotification);
+        satBandsPanel.setPage (0);
+    }
     auto& vts = processorRef.apvts;
     auto value = [&vts] (const char* id) { return vts.getRawParameterValue (id)->load(); };
 
     const int  model    = (int) value ("ampModel");
     const bool acoustic = model == 5;
+
+    // b49: a dot after a page's name while any effect on that page is switched on, so a tester can see where the sound is coming from
+    // without opening every page. Amp and Cab are always on, so they never get one.
+    {
+        static const char* tabNames[9] = { "INPUT", "GAIN", "MOD", "PITCH", "AMP", "CAB", "EQ", "TIME", "POST FX" };
+        static const std::vector<const char*> pageOn[9] = {
+            { "deNoiseOn", "gxOn", "tsOn", "swellOn" },
+            { "fuzzOn", "fuzz2On", "compOn", "odOn", "od2On", "bsOn", "vpOn", "mbOn", "msOn" },
+            { "wahOn", "filtOn", "phaserOn", "chorusOn", "mfAOn", "mfBOn", "mfCOn", "mfDOn", "lfOn" },
+            { "tpOn", "octOn", "hmOn", "synOn", "wowOn", "noiseOn" },
+            {}, {},
+            { "eqOn" },
+            { "reverbOn", "rev2On", "granOn" },                                  // the delays are on by default with the mix at zero: added below
+            { "dblOn", "widOn", "limOn" } };
+        for (int i = 0; i < 9; ++i)
+        {
+            bool any = false;
+            for (const char* id : pageOn[i])
+                if (auto* v = vts.getRawParameterValue (id)) if (v->load() > 0.5f) { any = true; break; }
+            if (i == 7 && ! any)
+                any = (value ("preDelayOn") > 0.5f && value ("preDelayMix") > 0.001f) || (value ("postDelayOn") > 0.5f && value ("postDelayMix") > 0.001f);
+            const juce::String want = any ? juce::String (tabNames[i]) + "  " + juce::String (juce::CharPointer_UTF8 ("\xe2\x80\xa2")) : juce::String (tabNames[i]);
+            if (pageTabs[i].getButtonText() != want)
+                pageTabs[i].setButtonText (want);
+        }
+    }
+
+    // b38: Chime Thirty (1) and Dual Thirty (28) have a Cut control instead of Presence
+    {
+        const int bIdx = (int) value ("ampBModel"), bModel = ampBModelOf (bIdx);
+        auto setName = [] (KnobControl* k, const char* n) { if (k != nullptr) k->setName (n); };
+        setName (presenceKnobA, (model == 1 || model == 28) ? "Cut" : "Presence");
+        setName (presenceKnobB, (bModel == 1 || bModel == 28) ? "Cut" : "Presence");
+    }
 
     ampPanel.setHidden (voicingToggle, acoustic);
     ampPanel.setHidden (ampQualityBox, acoustic);          // the acoustic model has no amp stage to oversample
@@ -8133,14 +9525,17 @@ void StarterAmpEditor::syncVisibility()
     ampPanel.setAdvancedAvailable (! acoustic);
     for (auto* bk : blendKnobs)
         ampPanel.setHidden (bk, model != 31);
-    ampPanel.setHidden (focusKnob, acoustic || ! (model == 3 || model == 4 || model == 8 || model == 11 || model == 13 || model == 14 || (model >= 17 && model <= 20)));
+    ampPanel.setHidden (jadeDistKnob, model != 10);
+    ampPanel.setHidden (focusKnob, acoustic || ! ampIsHighGain (model));        // b51: every high-gain amp
 
     // Tabs: Amp A or Amp B (the parallel amp is for the electric amps only, so the acoustic model stays on A)
     const bool onB = ! acoustic && ampTab == 1;
     const bool onNam = ! acoustic && ampTab == 2;
+    const bool onMix = ! acoustic && ampTab == 3;
     ampTabB.setEnabled (! acoustic);
     ampTabN.setEnabled (! acoustic);
-    (onNam ? ampTabN : onB ? ampTabB : ampTabA).setToggleState (true, juce::dontSendNotification);
+    ampTabM.setEnabled (! acoustic);
+    (onMix ? ampTabM : onNam ? ampTabN : onB ? ampTabB : ampTabA).setToggleState (true, juce::dontSendNotification);
     {
         bool namRunning = false;
         for (const char* id : { "namOn", "namBOn", "nmP1On", "nmP2On" })
@@ -8161,9 +9556,17 @@ void StarterAmpEditor::syncVisibility()
         if (ampTabB.getButtonText() != bText)
             ampTabB.setButtonText (bText);
     }
-    if (! onB && ! onNam && ! ampPanel.isVisible())
+    if (! onB && ! onNam && ! onMix && ! ampPanel.isVisible())
         ampPanel.resized();
-    ampPanel.setVisible (! onB && ! onNam);
+    ampPanel.setVisible (! onB && ! onNam && ! onMix);
+    {
+        const juce::Rectangle<int> mixBounds (0, 32, 620, 200);
+        if (ampMixPanel.getBounds() != mixBounds)
+            ampMixPanel.setBounds (mixBounds);
+        if (onMix && ! ampMixPanel.isVisible())
+            ampMixPanel.resized();
+        ampMixPanel.setVisible (onMix);
+    }
     if (onB && ! ampBPanel.isVisible())
         ampBPanel.resized();
     ampBPanel.setVisible (onB);
@@ -8181,13 +9584,13 @@ void StarterAmpEditor::syncVisibility()
         static const char* const shortNames[34] = { "Clean", "Vintage", "Hot-Rod", "Lead", "Modern", "Acoustic", "Club Crunch", "Boutique", "5555 Block", "Low-Watt", "Glass", "Creamy", "Doom", "Precision", "Digital", "MV Rock", "Harmonic", "Aggressive", "Mod Stack", "4-Ch Modern", "Mid-Cut", "British", "Console", "Plexi", "Matamp", "Marmalade", "Eclipse", "Marque 5", "Dual 30", "Solid Metal", "Cedar 12", "Triple Blend", "Jazz Box", "Brit 18" };
                 auto* modelBParam = dynamic_cast<juce::AudioParameterChoice*> (vts.getParameter ("ampBModel"));
         const juce::String modelBName = modelBParam != nullptr ? modelBParam->getCurrentChoiceName() : juce::String();
-        ampArtPanel.setTheme (onB ? themeForModel ((int) value ("ampBModel")) : themeIndex);
+        ampArtPanel.setTheme (onB ? themeForModel (ampBModelOf ((int) value ("ampBModel"))) : themeIndex);
         ampArtPanel.setTitle ((onB ? modelBName : modelName).upToFirstOccurrenceOf (" (", false, false).toUpperCase());
-        ampHero.setLook (onB ? themeForModel ((int) value ("ampBModel")) : themeIndex,
+        ampHero.setLook (onB ? themeForModel (ampBModelOf ((int) value ("ampBModel"))) : themeIndex,
                          (onB ? modelBName : modelName).upToFirstOccurrenceOf (" (", false, false).toUpperCase());
         ampPanel.setTheme (themeIndex);
         metalPanel.setTheme (themeIndex);
-        ampBPanel.setTheme (themeForModel ((int) value ("ampBModel")));
+        ampBPanel.setTheme (themeForModel (ampBModelOf ((int) value ("ampBModel"))));
         for (auto* p : irPanels)
             if (p != nullptr)
                 p->setTheme (themeIndex);
@@ -8206,17 +9609,26 @@ void StarterAmpEditor::syncVisibility()
     }
     ampHero.setBounds (1010, 32, 470, 484);
     ampHero.setVisible (false);      // v0.2: the decorative amp illustration is gone; the controls use the full page width
-    const bool metalAmp = ((model >= 2 && model <= 4) || model == 8 || model == 11 || model == 13 || model == 14 || (model >= 17 && model <= 20)) && ! onB && ! onNam;
-    // b34: Modern Metal waits behind the amp panel's ADV button, unless one of its controls is in use
-    const bool metalInUse = value ("mtLead") > 0.5f || value ("mtTight") > 0.001f || value ("mtChug") > 0.001f || value ("mtDepth") > 0.001f
-                         || value ("mtMid") > 0.001f || value ("mtFizz") > 0.001f;
-    const bool metal = metalAmp && (ampPanel.isAdvancedShown() || metalInUse);
+    const bool metalAmp = ampIsHighGain (model) && ! onB && ! onNam && ! onMix;
+    // b50: Modern Metal waits behind the amp panel's ADV button, always (before b50 it also showed itself whenever one of its
+    // controls was in use). Its settings keep working while it is hidden.
+    const bool metal = metalAmp && ampPanel.isAdvancedShown();
     const juce::Rectangle<int> metalBounds (0, 300, 1480, 190);
     if (metalPanel.getBounds() != metalBounds)
         metalPanel.setBounds (metalBounds);
     if (metal && ! metalPanel.isVisible())
         metalPanel.resized();                    // make sure its controls are laid out when it appears
     metalPanel.setVisible (metal);
+    {   // b66: Amp B's own Modern Metal strip, behind the Amp B panel's ADV button like Amp A's
+        const int bIdx = (int) value ("ampBModel");
+        const bool metalB = onB && ampIsHighGain (ampBModelOf (bIdx)) && ampBPanel.isAdvancedShown();
+        if (metalBPanel.getBounds() != metalBounds)
+            metalBPanel.setBounds (metalBounds);
+        if (metalB && ! metalBPanel.isVisible())
+            metalBPanel.resized();
+        metalBPanel.setVisible (metalB);
+        metalBPanel.setTheme (themeForModel (ampBModelOf (bIdx)));
+    }
     {   // the grille cloth fills the space under the amp's controls when no other panel does
         const juce::Rectangle<int> artBounds (0, 300, 1480, 220);
         if (ampArtPanel.getBounds() != artBounds)
@@ -8231,6 +9643,11 @@ void StarterAmpEditor::syncVisibility()
     if (acousticPanel.getBounds() != acBounds)
         acousticPanel.setBounds (acBounds);
 
+    {   // b54: Multiband swaps the single detector's Focus for the three crossover frequencies
+        const bool tsMulti = value ("tsMulti") > 0.5f;
+        shaperPanel.setHidden (tsFocusKnob, tsMulti);
+        for (auto* k : tsXoKnob) shaperPanel.setHidden (k, ! tsMulti);
+    }
     const bool customWow = (int) value ("wowMode") == 6;
     wowPanel.setHidden (wowHeelKnob, ! customWow);       // Heel and Toe only matter in Custom mode
     wowPanel.setHidden (wowToeKnob, ! customWow);
@@ -8266,7 +9683,11 @@ void StarterAmpEditor::syncVisibility()
         fp.setHidden (c.tonePass, ! wall);
         fp.setHidden (c.buffer, ! trio);
         fp.setHidden (c.comp, fuzzStyle != 6);
-        fp.setHidden (c.starve, fuzzStyle != 4 && fuzzStyle != 5);
+        fp.setHidden (c.starve, fuzzStyle != 4 && fuzzStyle != 5 && fuzzStyle != 13);
+        fp.setHidden (c.squeal, fuzzStyle != 13);
+        fp.setHidden (c.oscHz, fuzzStyle != 13);
+        fp.setHidden (c.action, fuzzStyle != 13);
+        fp.setHidden (c.actSpeed, fuzzStyle != 13);
         fp.setHidden (c.input, ! trio);
         fp.setHidden (c.mids, ! wall);
         fp.setHidden (c.shape, fuzzStyle != 7);
@@ -8281,6 +9702,7 @@ void StarterAmpEditor::syncVisibility()
         fp.setHidden (c.buzzSoft, fuzzStyle != 3);
         fp.setHidden (c.buzzHard, fuzzStyle != 3);
         fp.setHidden (c.buzzPol, fuzzStyle != 3);
+        fp.setHidden (c.octUp, fuzzStyle == 10);      // b63: Doom has its own Octave knob
     }
     const int delayStereo = (int) value ("postDelayStereo");
     postDelayPanel.setHidden (delayOffsetKnob, delayStereo != 3);     // only the Dual mode has a separate right time
@@ -8299,24 +9721,50 @@ void StarterAmpEditor::syncVisibility()
         // b31: Bloom, Smack and Clarity belong to the Thump style; the Dyna style ignores the ratio, saturation and detector menus
         const int cs = (int) value ("compStyle");
         for (auto* k : compThumpKnob) compPanel.setHidden (k, cs != 7);
-        compPanel.setHidden (compRatioBox, cs == 6);
-        compPanel.setHidden (compAutoBox, cs == 6);                 // b35: Dyna has its own fixed behaviour
-        compPanel.setHidden (compSatBox, cs == 6);
-        compPanel.setHidden (compDetBox, cs == 6);
+        compPanel.setHidden (compRatioBox, cs == 6 || cs == 8 || cs == 10);
+        compPanel.setHidden (compAutoBox, cs == 6 || cs == 8 || cs == 10);      // b35: Dyna has its own fixed behaviour (b58: so does Opto Sustain; b62: and Crush Limiter)
+        compPanel.setHidden (compSatBox, cs == 6 || cs == 8 || cs == 10);
+        compPanel.setHidden (compDetBox, cs == 6 || cs == 8 || cs == 10);
+        compPanel.setHidden (compLlRelBox, cs != 10);
+        for (auto* k : compOptoKnob) compPanel.setHidden (k, cs != 8);
+        for (auto* k : compLlKnob) compPanel.setHidden (k, cs != 10);
+        for (auto* k : compClassicKnob) compPanel.setHidden (k, cs == 8 || cs == 10);
+        if (compMixKnob != nullptr) compMixKnob->setName (cs == 8 ? "Blend" : "Mix");
+        if (compOutKnob != nullptr) compOutKnob->setName (cs == 8 || cs == 10 ? "Volume" : "Output");
     }
     for (int s = 0; s < 4; ++s)
     {
         // b29: hide the knobs a type does not use, so each type shows only what it needs
         const int t = (int) value ((juce::String ("mf") + "ABCD"[s] + "Type").toRawUTF8());
         auto& pn = mfPanelOf (s);
-        pn.setHidden (mfShiftKnob[s], t != 9);
-        pn.setHidden (mfFbKnob[s],   ! (t == 0 || t == 1 || t == 3 || t == 7 || t == 9 || (t >= 13 && t <= 19)));
-        pn.setHidden (mfManKnob[s],  ! (t == 0 || t == 1 || t == 4 || t == 9 || t >= 12));
-        pn.setHidden (mfToneKnob[s], ! (t <= 4 || t == 9 || t == 12 || t == 14 || t == 20));
+        pn.setHidden (mfShiftKnob[s], t != 9 && t != 22);
+        if (mfShiftKnob[s] != nullptr) mfShiftKnob[s]->setName (t == 9 ? "Feedback Shift" : "Shift");   // not built yet while the Type box makes its first update
+        pn.setHidden (mfFbKnob[s],   ! (t == 0 || t == 1 || t == 3 || t == 7 || t == 9 || (t >= 13 && t <= 19) || t == 21 || t == 22 || t == 23));
+        pn.setHidden (mfManKnob[s],  ! (t == 0 || t == 1 || t == 4 || t == 9 || t >= 13));
+        pn.setHidden (mfToneKnob[s], ! (t <= 4 || t == 9 || t == 12 || t == 14 || t == 20 || t == 22 || t == 23));
+        if (mfToneKnob[s] != nullptr) mfToneKnob[s]->setName (t == 23 ? "Top Freq" : "Tone");   // not built yet while the Type box makes its first update
+        if (mfManKnob[s] != nullptr) mfManKnob[s]->setName (t == 22 ? "Delay" : t == 23 ? "Formant" : "Manual");   // not built yet while the Type box makes its first update
+        if (mfFbKnob[s] != nullptr) mfFbKnob[s]->setName (t == 23 ? "Sharpness" : "Feedback");   // not built yet while the Type box makes its first update
+        pn.setHidden (mfDepthKnob[s], t == 23);
         pn.setHidden (mfFidKnob[s],  t == 7 || t == 13 || t == 14 || t >= 15);
         for (int k = 0; k < 6; ++k)
-            pn.setHidden (mfXKnob[s][k], k < 3 ? t != 13 : t != 14);
-        pn.setHidden (mfRateKnob[s], t == 19);
+            pn.setHidden (mfXKnob[s][k], k < 3 ? t != 13 : k < 5 ? t != 14 : (t != 14 && t != 23));
+        pn.setHidden (mfXKnob[s][8], t != 23);
+        pn.setHidden (mfXKnob[s][9], t != 23);
+        pn.setHidden (mfFsModeBox[s], t != 22);
+        pn.setHidden (mfLoVoiceBox[s], t != 14);
+        pn.setHidden (mfPhVoiceBox[s], t != 13);
+        pn.setHidden (mfVocBox[s][0], t != 23);
+        pn.setHidden (mfVocBox[s][1], t != 23);
+        pn.setHidden (mfVocBox[s][2], t != 23 || (int) value ((juce::String ("mf") + "ABCD"[s] + "VocCar").toRawUTF8()) != 3);
+        const int fmode = (int) value ((juce::String ("mf") + "ABCD"[s] + "FMode").toRawUTF8());
+        pn.setHidden (mfXKnob[s][6], t != 21 || fmode != 4);                      // the vowel: Formant mode of the all-modes Filter
+        pn.setHidden (mfXKnob[s][7], t != 8);                                     // Pick Response: Tremolo
+        pn.setHidden (mfChModeBox[s], t != 12);
+        pn.setHidden (mfFModeBox[s], t != 21);
+        pn.setHidden (mfFMotionBox[s], t != 21);
+        pn.setHidden (mfFlipBox[s], t != 21);
+        pn.setHidden (mfRateKnob[s], t == 19 || t == 23);
     }
     reverbPanel.setHidden (shimmerPitchBox, ! shimmer);
     reverbPanel.setHidden (shimmerAmountKnob, ! shimmer);
@@ -8334,14 +9782,35 @@ void StarterAmpEditor::syncVisibility()
         reverb2Panel.setHidden (shimmerModeBox2, ! sh2);
     }
 
+    // b52: reverb controls that do nothing until their parent control is up are hidden (both reverbs)
+    for (int ru = 0; ru < 2; ++ru)
+    {
+        const juce::String pfx = ru == 0 ? "reverb" : "rev2";
+        Panel& main = ru == 0 ? reverbPanel : reverb2Panel;
+        Panel& shape = ru == 0 ? reverbShapePanel : reverb2ShapePanel;
+        auto comp = [this, &pfx] (const char* tail) -> juce::Component*
+        {
+            auto it = idMap.find (pfx + tail);
+            return it == idMap.end() ? nullptr : it->second;
+        };
+        auto v = [&] (const char* tail) { return value ((pfx + tail).toRawUTF8()); };
+        main.setHidden (comp ("SymphPitch"), v ("Symph") <= 0.001f);
+        main.setHidden (comp ("DuckRel"),    v ("Duck") <= 0.001f);
+        main.setHidden (comp ("PreNote"),    v ("PreDelay") <= 0.5f && v ("PreNote") < 0.5f);       // (not while a note value is chosen, so the way back to Free stays in reach)
+        shape.setHidden (comp ("TremRate"),   v ("Trem") <= 0.001f);
+        shape.setHidden (comp ("TremShape"),  v ("Trem") <= 0.001f);
+        shape.setHidden (comp ("WDriveType"), v ("WDrive") <= 0.001f);
+        shape.setHidden (comp ("DragMode"),   v ("Drag") <= 0.001f);
+    }
+
     syncVoicingLabel();
 }
 
 // Shows the Transparent or Tight controls to match the Style menu.
 void StarterAmpEditor::syncOverdrivePage()
 {
-    overdrivePanel.setPage (juce::jlimit (0, 8, (int) std::lround (processorRef.apvts.getRawParameterValue ("odStyle")->load())));
-    drive2Panel.setPage (juce::jlimit (0, 8, (int) std::lround (processorRef.apvts.getRawParameterValue ("od2Style")->load())));
+    overdrivePanel.setPage (juce::jlimit (0, 11, (int) std::lround (processorRef.apvts.getRawParameterValue ("odStyle")->load())));
+    drive2Panel.setPage (juce::jlimit (0, 11, (int) std::lround (processorRef.apvts.getRawParameterValue ("od2Style")->load())));
 }
 
 // Shows the model controls or the file button of each IR slot to match its Source menu.
@@ -8401,9 +9870,9 @@ void StarterAmpEditor::tapTempo()
 // The Voicing switch does something different on each amp, so its label says what.
 // The names of the Voicing switch's three positions for each amp model value (v60). The first two are the switch's old
 // off and on positions; the third is new.
-static std::array<const char*, 4> voicingNamesFor (int model)
+static std::vector<const char*> voicingNamesFor (int model)
 {
-    static const std::array<const char*, 4> names[34] = {
+    static const std::array<const char*, 4> names[41] = {
         { "Sparkly", "Edge push", "Boutique", "Studio" },        // 0 Clean
         { "Chime", "Treble boost", "Normal", "Jangle" },         // 1 Chime Thirty
         { "Tight", "Heavy", "Brown", "Mid push" },                 // 2 Hot-Rod
@@ -8413,18 +9882,18 @@ static std::array<const char*, 4> voicingNamesFor (int model)
         { "Crunch", "Pushed", "Jumped", "Bright" },              // 6 Club Crunch
         { "Jazz", "Rock", "Lead", "Blues" },                    // 7 Bumble Lead
         { "Raw", "Modern", "Crunch", "Buzz" },                 // 8 5555 Block
-        { "Soft", "Cranked", "Four-ten", "Gritty" },              // 9 Tweedle Dee
+        { "Soft", "Cranked", "Jumped", "Gritty" },                // 9 Tweedle Dee (b67: Jumped replaces Four-ten, which became Tweedle Dum)
         { "Glass", "Warm", "Funk", "Shimmer" },                   // 10 Jade Chorus
         { "Rhythm", "Lead", "Vintage", "Singing" },               // 11 Marque Dream
         { "Stoner", "Wall", "Bass stack", "Fuzz" },            // 12 Citrus Doom
         { "Tight", "Lead", "Crunch", "Polished" },                 // 13 Revved Up
-        { "Thall", "Industrial", "Cavern", "Lead" },           // 14 Digital Dread
+        { "Thall", "Industrial", "Cavern", "Bottom" },         // 14 Digital Dread
         { "Stock", "Modded", "Cranked", "Boosted" },            // 15 Master Cranker (v62)
         { "Lead", "Crunch", "Clean", "Boost" },                   // 16 Harmonic Haze (v95)
         { "Lead", "High gain", "Crunch", "Open" },                // 17 Diesel Fuel
         { "Lead", "Crunch", "Clean", "Smooth" },                  // 18 Wreck Stack
         { "Scooped", "Mid-boosted", "Crunch", "Bottom" },         // 19 Power Brawl
-        { "Lead", "Sludge", "Clean", "Brilliant" },               // 20 Cutaway
+        { "Lead", "Sludge", "Clean", "Brilliant" },               // 20 Stolen Fire
         { "Normal", "Brilliant", "Linked", "Open" },              // 21 Hi-Wat Headroom (v0.1)
         { "Console", "Pushed", "Funk", "Air" },                   // 22 Console DI (v0.1)
         { "Stock", "Jumped", "Modded", "Modded + Jumped" },       // 23 Plex Appeal (v0.2)
@@ -8434,11 +9903,22 @@ static std::array<const char*, 4> voicingNamesFor (int model)
         { "Clean", "Crunch", "Lead", "Extreme" },                 // 27 Marque Five (v0.2): the channels
         { "Channel 1", "Channel 2", "Pushed", "Cut" },            // 28 Dual Thirty (v0.2)
         { "Hybrid Hi-Gain", "Hybrid Classic OD", "JFET Lead", "JFET Crunch" },   // 29 Solid Metal (v0.2)
-        { "Blackface", "Spanky", "Cranked", "Big Spring" },               // 30 Cedar Twelve (v0.2)
+        { "Blackface", "Spanky", "Cranked", "Silverface" },               // 30 Cedar Spring (v0.2; Blackface = Deluxe-style, Big Spring = Vibroverb-style, and in b63 a fifth, Quad Ten, after it)
         { "Three-in-One", "Warm", "Open", "Singing" },                  // 31 Triple Blend (v0.2)
         { "Jazz", "Archtop", "Dark Room", "Pushed" },                   // 32 Jazz Box (b14)
-        { "Clean", "Crunch", "Cranked", "Brilliant" } };                // 33 Brit Eighteen (b14)
-    return names[juce::jlimit (0, 33, model)];
+        { "Clean", "Crunch", "Cranked", "Brilliant" },                  // 33 Brit Eighteen (b14)
+        { "Tweed Normal", "Tweed Bright", "Cranked", "Silverface" },    // 34 Tweedle Dum (b66): the Bassman
+        { "Mark I", "Clean", "Lead Boost", "Graphic EQ" },              // 35 Marque One (b66): the early single-channel Mark
+        { "Big Spring", "Brownface", "Cranked", "Bright" },             // 36 Cedar Grand (b66): the 6L6 reverb combo
+        { "Clean", "Pushed", "Drive", "Lead" },                         // 37 Cedar Ten (b66): the 4x10 combo with a gain channel
+        { "Normal", "Bright", "Cranked", "Pushed" },                    // 38 Brit Forty-Five (b66): the KT66 head
+        { "Champ", "Princeton", "Cranked", "Edge" },                    // 39 Tweedle Mini (b66): the 5 W single-ended tweed
+        { "Clean", "Rhythm", "Lead", "Lead Hi" } };                     // 40 Jubilant (b66): cascaded clipping stages
+    const auto& four = names[juce::jlimit (0, 40, model)];
+    std::vector<const char*> out (four.begin(), four.end());
+    for (int k = 0; k < AmpExtras::count (model); ++k)      // b63/b65: Cedar Spring's fifth voicing and the other extra voicings (AmpExtras.h)
+        out.push_back (AmpExtras::name (model, k));
+    return out;
 }
 
 void StarterAmpEditor::syncVoicingLabel()
@@ -8448,16 +9928,17 @@ void StarterAmpEditor::syncVoicingLabel()
     auto fill = [this] (juce::ComboBox& box, const char* paramId, int model)
     {
         const auto names = voicingNamesFor (model);
-        bool same = box.getNumItems() == 4;
-        for (int i = 0; same && i < 4; ++i)
+        const int count = (int) names.size();
+        bool same = box.getNumItems() == count;
+        for (int i = 0; same && i < count; ++i)
             same = box.getItemText (i) == "Voicing: " + juce::String (names[(size_t) i]);
         if (! same)
         {
             box.clear (juce::dontSendNotification);
-            for (int i = 0; i < 4; ++i)
+            for (int i = 0; i < count; ++i)
                 box.addItem ("Voicing: " + juce::String (names[(size_t) i]), i + 1);
         }
-        const int idx = juce::jlimit (0, 3, (int) std::lround (processorRef.apvts.getRawParameterValue (paramId)->load()));
+        const int idx = juce::jlimit (0, count - 1, (int) std::lround (processorRef.apvts.getRawParameterValue (paramId)->load()));
         if (box.getSelectedId() != idx + 1)
             box.setSelectedId (idx + 1, juce::dontSendNotification);
     };
@@ -8465,7 +9946,7 @@ void StarterAmpEditor::syncVoicingLabel()
     if (voicingBoxB != nullptr)
     {
         const int bm = (int) processorRef.apvts.getRawParameterValue ("ampBModel")->load();
-        fill (*voicingBoxB, "ampBVoicing", bm <= 4 ? juce::jmax (0, bm) : juce::jmin (bm, 19) + 1);   // Amp B's menu has no Acoustic entry
+        fill (*voicingBoxB, "ampBVoicing", ampBModelOf (bm));      // Amp B's menu has no Acoustic or Triple Blend entry (b66: this used to stop at the 20th amp, so the later amps showed the wrong voicing names)
     }
 }
 
@@ -8943,7 +10424,7 @@ void StarterAmpEditor::syncUsed()
     }
     boostEqPanel.setContentDimmed (idMap.count ("bsEqOn") ? idMap["bsEqOn"] : nullptr, pv ("bsEqOn") < 0.5f || pv ("bsOn") < 0.5f);
 
-    setUsed ("tremPick", processorRef.fxLocation (14) == 2, "drag Tremolo into the amp's FX loop first (Order window, or the chain strip).");
+    setUsed ("tremPick", PatchGraph::laneOf (processorRef.getPatch(), 14) == 2, "put the Tremolo in the amp's FX loop first (pedalboard window, or drag it on the chain strip).");
 
     // ---- Delays
     for (int d = 0; d < 2; ++d)
@@ -8973,10 +10454,11 @@ void StarterAmpEditor::syncUsed()
     {
         const std::string p = std::string ("mf") + "ABCD"[s];
         const int type = (int) pv ((p + "Type").c_str());
-        setUsed ((p + "Feedback").c_str(), type == 0 || type == 1 || type == 3 || type == 7 || type == 9 || (type >= 13 && type <= 19), "only the flangers, the Uni-V, the Phaser, the Lo-Fi warble (as dirt), the filters (as resonance) and the Wobble (as its drift) use Feedback.");
-        setUsed ((p + "Manual").c_str(),   type == 0 || type == 1 || type == 4 || type == 9 || type >= 12, "this type does not use Manual.");
-        setUsed ((p + "Shape").c_str(),    type != 4 && type != 7 && type != 12 && type != 19 && type != 20, "the rotary / chorus speaker, the wobble, the auto-wah and the slicer have their own motion, so the LFO shape is not used.");
-        setUsed ((p + "Tone").c_str(),     type <= 4 || type == 9 || type == 12 || type == 14 || type == 20, "this type has no tone filter.");
+        setUsed ((p + "Feedback").c_str(), type == 0 || type == 1 || type == 3 || type == 7 || type == 9 || (type >= 13 && type <= 19) || type == 21 || type == 22 || type == 23, "only the flangers, the Uni-V, the Phaser, the Lo-Fi warble (as dirt), the filters (as resonance), the Wobble (as its drift), the shifter (shifted repeats) and the Vocoder (as sharpness) use Feedback.");
+        setUsed ((p + "Manual").c_str(),   type == 0 || type == 1 || type == 4 || type == 9 || type >= 13, "this type does not use Manual.");
+        setUsed ((p + "Shape").c_str(),    type != 4 && type != 7 && type != 12 && type != 19 && type != 20 && type != 21 && type != 23, "the Vocoder, the rotary / chorus speaker, the wobble, the auto-wah, the slicer and the all-modes Filter (see its Motion menu) have their own motion, so the LFO shape is not used.");
+        setUsed ((p + "Tone").c_str(),     type <= 4 || type == 9 || type == 12 || type == 14 || type == 20 || type == 22 || type == 23, "this type has no tone filter.");
+        setUsed ((p + "Depth").c_str(), type != 23, "the Vocoder has no sweep.");
     }
 
     // ---- Harmonizer
@@ -9105,6 +10587,7 @@ void StarterAmpEditor::syncUsed()
                             "ampBPwrTube", "ampBStack", "ampBFeel", "ampBMode", "ampBDeep", "ampBAutoLevel", "ampBVoicing", "ampBTight" })
         setUsed (id, ! namB, namWhy);
     metalPanel.setContentDimmed (nullptr, namA);
+    metalBPanel.setContentDimmed (nullptr, namB);
 
     // ---- The header's RIFF button shows what the recorder is doing
     {
@@ -9121,7 +10604,7 @@ void StarterAmpEditor::syncUsed()
 
 void StarterAmpEditor::showAmpTab (int index)
 {
-    ampTab = juce::jlimit (0, 2, index);
+    ampTab = juce::jlimit (0, 3, index);
     processorRef.apvts.state.setProperty ("uiAmpTab", ampTab, nullptr);   // remembered with the session
     syncVisibility();
 }
@@ -9135,10 +10618,10 @@ void StarterAmpEditor::showCabTab (int index)
 
 void StarterAmpEditor::showPage (int index)
 {
-    index = juce::jlimit (0, 9, index);
-    juce::Component* pages[10] = { &pageInput, &pageGain, &pageMod, &pagePitch, &pageAmp, cabTab == 0 ? &pageCab : &pageSpeaker,
-                                   &pageEq, &pageDelay, &pageScapes, &pagePost };
-    for (auto* pg : { &pageInput, &pageGain, &pageMod, &pageDelay, &pagePitch, &pageAmp, &pageCab, &pageSpeaker, &pageEq, &pageScapes, &pagePost })
+    index = juce::jlimit (0, 8, index);
+    juce::Component* pages[9] = { &pageInput, &pageGain, &pageMod, &pagePitch, &pageAmp, cabTab == 0 ? &pageCab : &pageSpeaker,
+                                  &pageEq, &pageDelay, &pagePost };
+    for (auto* pg : { &pageInput, &pageGain, &pageMod, &pageDelay, &pagePitch, &pageAmp, &pageCab, &pageSpeaker, &pageEq, &pagePost })
         pg->setVisible (false);
     pages[index]->setVisible (true);
     for (int pg = 0; pg < 2; ++pg)
@@ -9146,7 +10629,7 @@ void StarterAmpEditor::showPage (int index)
 
     pageTabs[index].setToggleState (true, juce::dontSendNotification);
     processorRef.apvts.state.setProperty ("uiPage", index, nullptr);   // remembered with the session
-    processorRef.apvts.state.setProperty ("uiLayout", 73, nullptr);
+    processorRef.apvts.state.setProperty ("uiLayout", 74, nullptr);
     layoutFlow (false);
 }
 
@@ -9296,6 +10779,20 @@ bool StarterAmpEditor::keyPressed (const juce::KeyPress& key)
         processorRef.getLooper().command (Looper::Cycle);       // standalone: space is the looper's big button
         return true;
     }
+    {   // b49: pages from the keyboard. 1 to 9 pick a page; Ctrl/Cmd with Left or Right steps through them.
+        const int cur = (int) processorRef.apvts.state.getProperty ("uiPage", 0);
+        const int c = key.getTextCharacter();
+        if (! mods.isAnyModifierKeyDown() && c >= '1' && c <= '9')
+        {
+            showPage (c - '1');
+            return true;
+        }
+        if ((mods.isCommandDown() || mods.isCtrlDown()) && ! mods.isShiftDown() && (key.getKeyCode() == juce::KeyPress::leftKey || key.getKeyCode() == juce::KeyPress::rightKey))
+        {
+            showPage (juce::jlimit (0, 8, cur + (key.getKeyCode() == juce::KeyPress::rightKey ? 1 : -1)));
+            return true;
+        }
+    }
     if (mods.isCommandDown() || mods.isCtrlDown())
     {
         const auto ch = juce::CharacterFunctions::toUpperCase ((juce::juce_wchar) key.getKeyCode());
@@ -9350,30 +10847,41 @@ void StarterAmpEditor::addFlowPage (juce::Component& page, std::vector<FlowItem>
     static const std::map<juce::String, juce::String> descriptions = {
         { "TRANSPOSE / FORMANT", "Shift pitch and voice" }, { "FUZZ", "Fuzz pedal" }, { "COMPRESSOR", "Evens out loud and soft" },
         { "OVERDRIVE", "Overdrive pedal" }, { "BOOST", "Clean or colour boost" }, { "BOOST EQ", "4-band tone shaper" },
-        { "WAH", "Wah pedal" }, { "PHASER", "Swirling phase effect" }, { "CHORUS", "Thickening chorus" }, { "MOD FX A", "Flanger, vibrato, rotary..." },
-        { "MOD FX B", "Flanger, vibrato, rotary..." }, { "MOD FX C", "Chorus, phaser, flanger..." }, { "MOD FX D", "Phaser, chorus, lo-fi..." }, { "PITCH PEDAL", "Expression pitch shifter" }, { "OCTAVER", "Adds octaves" },
+        { "WAH", "Wah pedal" }, { "PHASER", "Swirling phase effect" }, { "CHORUS", "Thickening chorus" }, { "MOD FX A", "Modulation: chorus, phaser, filter, tremolo..." },
+        { "MOD FX B", "Modulation: chorus, phaser, filter, tremolo..." }, { "MOD FX C", "Modulation: chorus, phaser, filter, tremolo..." }, { "MOD FX D", "Modulation: chorus, phaser, filter, tremolo..." }, { "PITCH PEDAL", "Expression pitch shifter" }, { "OCTAVER", "Adds octaves" },
         { "HARMONIZER", "Adds harmony notes" }, { "DELAY 1", "Echo before the amp" }, { "DELAY 2", "Echo after the cab" },
         { "GRANULAR CLOUD", "Cloud of tiny grains" }, { "TREMOLO / AUTO-PAN", "Pulsing volume or pan" }, { "WOBBLE", "Loose tremolo-arm vibrato" },
         { "SWELL", "Slow volume fade-in" }, { "LO-FI WARBLE", "Worn tape wobble" }, { "CLASH PEDAL", "Harsh pitch shifter (not a gate)" },
         { "REVERB", "Room, hall, shimmer" }, { "FILTER", "Filters, vowels, resonator" }, { "GUITAR SYNTH", "Synth voices from your playing" }, { "VOLUME / PAN", "Level and pan anywhere" },
-        { "MULTIBAND COMP", "Three-band compressor" }, { "GATE / EXPANDER", "Cuts the quiet between notes" }, { "TRANSPOSE / FORMANT", "Shifts pitch, keeps the voice" },
+        { "MULTIBAND COMP", "Three-band compressor" }, { "GATE / EXPANDER", "Cuts the quiet between notes" }, { "TRANSIENT SHAPER", "Louder or softer picking attack and tail" }, { "TRANSPOSE / FORMANT", "Shifts pitch, keeps the voice" },
         { "DOUBLER", "Double-tracking" }, { "WIDENER", "Stereo widening" } };
+    fp->inner.setInterceptsMouseClicks (false, true);
+    fp->inner.setBounds (0, 0, ui::kWidth - 20, ui::kPageHeight);
+    page.addAndMakeVisible (fp->inner);
+    fp->bar.setAutoHide (false);
+    fp->bar.addListener (fp.get());
+    fp->bar.setColour (juce::ScrollBar::thumbColourId, ui::accent.withAlpha (0.55f));
+    page.addChildComponent (fp->bar);
     for (auto& it : items)
+    {
+        fp->inner.addAndMakeVisible (*it.main);              // the pedals move into the scrolling strip
+        if (it.extra != nullptr) fp->inner.addAndMakeVisible (*it.extra);
         if (it.onId.isNotEmpty())
         {
             const auto found = descriptions.find (it.name);
             const juce::String desc = found != descriptions.end() ? found->second : juce::String();
             const juce::Colour tint = it.main->getKind() == PanelKind::Pedal ? it.main->getTint() : juce::Colour (0xff3a4a5c);
             it.tile = std::make_unique<PedalTile> (processorRef.apvts, it.name, desc, tint, it.onId, tipFor (processorRef.apvts, it.onId));
-            page.addChildComponent (*it.tile);
+            fp->inner.addChildComponent (*it.tile);
         }
+    }
     fp->items = std::move (items);
     fp->hint.setText ("Everything on this page is switched off. Press SWITCH ON on a tile to use it. TIDY VIEW (top right) shows every effect in full.", juce::dontSendNotification);
     fp->hint.setFont (juce::Font (juce::FontOptions (14.0f)));
     fp->hint.setColour (juce::Label::textColourId, ui::textDim);
     fp->hint.setJustificationType (juce::Justification::topLeft);
     fp->hint.setInterceptsMouseClicks (false, false);
-    page.addChildComponent (fp->hint);
+    fp->inner.addChildComponent (fp->hint);
     flowPages.push_back (std::move (fp));
 }
 
@@ -9387,6 +10895,14 @@ void StarterAmpEditor::layoutFlow (bool force)
         for (auto& it : fp->items)
             if (it.onId.isNotEmpty())
                 sig << (pv (it.onId.toRawUTF8()) > 0.5f ? '1' : '0');
+    for (auto& fp : flowPages)
+        for (auto& it : fp->items)
+            if (it.extraId != nullptr)
+                sig << (pv (it.extraId) > 0.5f ? 'm' : 'n');
+    for (auto& fp : flowPages)
+        for (auto& it : fp->items)
+            if (it.extraWithAdv)
+                sig << (it.main->isAdvancedShown() ? 'a' : 'b');
     if (! force && sig == flowSignature)
         return;
     flowSignature = sig;
@@ -9395,7 +10911,9 @@ void StarterAmpEditor::layoutFlow (bool force)
     for (auto& fp : flowPages)
     {
       int Wp = W;                                   // b35: the width the pedals may use; narrower when the tiles for switched-off pedals need a column and there is no room
-      for (int pass = 0; pass < 2; ++pass)
+      bool scroll = false;                          // b60: even squeezed they do not fit: lay them out at full size, balanced over the two lanes, in a strip that scrolls sideways
+      int Wl = W, hB = h1;                          // the width limit for tiles, and the height of the lower lane (a little less when the scroll bar is shown)
+      for (int pass = 0; pass < 3; ++pass)
       {
         bool noRoom = false;
         int x[2] = { 0, 0 };
@@ -9419,27 +10937,29 @@ void StarterAmpEditor::layoutFlow (bool force)
             }
             if (it.tile != nullptr) it.tile->setVisible (false);
             it.main->setVisible (true);
-            if (it.extra != nullptr) it.extra->setVisible (true);
+            const bool exOn = it.extra != nullptr && (it.extraId == nullptr || pv (it.extraId) > 0.5f) && (! it.extraWithAdv || it.main->isAdvancedShown());     // b54: some second panels only show while a switch is on
+            if (it.extra != nullptr) it.extra->setVisible (exOn);
 
-            const int total = it.w + (it.extra != nullptr ? gap + it.wExtra : 0);
+            const int total = it.w + (exOn ? gap + it.wExtra : 0);
             if (it.lanes == 2)
             {
                 const int px = std::max (x[0], x[1]);
-                it.main->setBounds (px, 0, std::min (it.w, Wp - px), y1 + h1);
+                it.main->setBounds (px, 0, scroll ? it.w : std::min (it.w, Wp - px), y1 + hB);
                 x[0] = x[1] = px + it.w + gap;
                 continue;
             }
             int lane;
             if (it.lane == 1 && x[0] == 0)  lane = 0;
             else if (it.lane >= 0)          lane = it.lane;
+            else if (scroll)                lane = x[0] <= x[1] ? 0 : 1;
             else                            lane = (x[0] + total <= Wp || (pass == 1 && x[0] + (int) (0.7 * total) <= Wp)) ? 0 : 1;
-            const double scale = x[lane] + total <= Wp ? 1.0 : std::max (0.6, (double) (Wp - x[lane]) / (double) total);
+            const double scale = scroll || x[lane] + total <= Wp ? 1.0 : std::max (0.6, (double) (Wp - x[lane]) / (double) total);
             const int wMain = (int) std::floor (it.w * scale), wExtra = (int) std::floor (it.wExtra * scale);
-            const int y = lane == 0 ? 0 : y1, h = lane == 0 ? h0 : h1;
+            const int y = lane == 0 ? 0 : y1, h = lane == 0 ? h0 : hB;
             it.main->setBounds (x[lane], y, wMain, h);
-            if (it.extra != nullptr)
+            if (exOn)
                 it.extra->setBounds (x[lane] + wMain + gap, y, wExtra, h);
-            x[lane] += (it.extra != nullptr ? wMain + gap + wExtra : wMain) + gap;
+            x[lane] += (exOn ? wMain + gap + wExtra : wMain) + gap;
         }
 
         // The tiles
@@ -9453,13 +10973,13 @@ void StarterAmpEditor::layoutFlow (bool force)
             if (lane < 0)
             {
                 for (int l = 0; l < 2 && lane < 0; ++l)          // new columns go next to the pedals, in the top lane first
-                    if (x[l] + tileW <= W) lane = l;
+                    if (x[l] + tileW <= Wl) lane = l;
                 if (lane < 0) { lane = x[0] <= x[1] ? 0 : 1;  noRoom = true; }       // no room for a new column
-                colX[lane] = std::min (x[lane], W - tileW);
+                colX[lane] = std::min (x[lane], Wl - tileW);
                 x[lane] += tileW + gap;
                 colCount[lane] = 0;
             }
-            const int laneH = lane == 0 ? h0 : h1;
+            const int laneH = lane == 0 ? h0 : hB;
             const int th = (laneH - 2 * tileGap) / 3;
             it->tile->setBounds (colX[lane], (lane == 0 ? 0 : y1) + colCount[lane] * (th + tileGap), tileW, th);
             it->tile->setVisible (true);
@@ -9470,11 +10990,24 @@ void StarterAmpEditor::layoutFlow (bool force)
             Wp = W - std::max (1, (int) std::ceil ((double) off.size() / 6.0)) * (tileW + gap);
             continue;
         }
+        if (! scroll && std::max (x[0], x[1]) - gap > W + 1)      // b60: still too wide: scroll instead of running off the page
+        {
+            scroll = true;  Wp = 1000000;  Wl = 1000000;  hB = h1 - 14;
+            continue;
+        }
         fp->hint.setVisible (nothingOn && ! off.empty());
         if (nothingOn && ! off.empty())
             fp->hint.setBounds (std::max (x[0], x[1]) + 10, 40, 420, 60);
+        fp->contentW = scroll ? std::max (x[0], x[1]) - gap : W;
         break;
       }
+      // The strip is as wide as the pedals; the bar only shows when it is wider than the page
+      fp->inner.setSize (std::max (W, fp->contentW), ui::kPageHeight);
+      fp->bar.setBounds (0, ui::kPageHeight - 12, W, 12);
+      fp->bar.setVisible (fp->contentW > W);
+      fp->bar.setRangeLimits (0.0, (double) std::max (W, fp->contentW));
+      fp->bar.setCurrentRange (fp->contentW > W ? std::min (fp->bar.getCurrentRangeStart(), (double) (fp->contentW - W)) : 0.0, (double) W);
+      fp->inner.setTopLeftPosition (-(int) std::lround (fp->bar.getCurrentRangeStart()), 0);
     }
 }
 
@@ -9499,16 +11032,17 @@ HelpPanel::HelpPanel()
         "Gate up only if you hear hiss between notes.\n\n"
         "3. Find your way around\n"
         "The tabs along the top group the controls in the order your sound travels:\n"
-        "   INPUT: input level, noise gate, transpose.\n"
+        "   INPUT: input level, noise gate, transient shaper, swell.\n"
         "   GAIN: fuzz, compressor, overdrive, boost.\n"
         "   MOD: wah, phaser, chorus, flanger, vibrato, rotary.\n"
         "   PITCH: pitch pedal, octaver, harmonizer.\n"
         "   AMP: the amp itself, with its tone controls.\n"
         "   CAB: the speaker cabinet and microphone.\n"
         "   EQ: a final tone shaper and a display of what you hear.\n"
-        "   DELAY: echoes, before or after the amp.\n"
-        "   SCAPES: big ambient and experimental effects.\n"
-        "   POST FX: reverb, doubler, widener and the output volume.\n\n"
+        "   TIME: echoes before or after the amp, reverbs and the granular cloud.\n"
+        "   POST FX: doubler, widener and the output volume.\n"
+        "A dot after a tab's name means something on that page is switched on. In the standalone app you can also press 1 to 9 to jump to a page, "
+        "or Ctrl (Cmd on a Mac) with the left and right arrow keys to step through them.\n\n"
         "4. Switch an effect on or off\n"
         "Every effect has an ON switch at the top of its box. The row of stages under the tabs shows the whole path; "
         "click the small light on a stage to switch it on or off, and click the stage's name to open its page.\n\n"
@@ -9517,7 +11051,9 @@ HelpPanel::HelpPanel()
         "Press SWITCH ON on a tile to bring an effect back. Press TIDY VIEW again to see every effect in full.\n\n"
         "6. Change the order of the effects\n"
         "Drag a stage in the row under the tabs to the left or right. Fuzz, compressor, wah, phaser, chorus and the delay before the amp "
-        "can be moved around each other, and after the cab the EQ, delay and reverb can. The ORDER button has the full list.\n\n"
+        "can be moved around each other, and after the cab the EQ, delay and reverb can. The BOARD button opens the pedalboard, where every effect, "
+        "both amps and the cab are boxes joined by cables: drag from one jack to another to run a cable, drop a pedal on a cable to put it in the path, "
+        "and click a cable to set its level, polarity and pan. That is how you build parallel paths, splits and the amp's FX loop.\n\n"
         "7. ADV buttons\n"
         "Some boxes have an ADV button. The basic controls are always there; ADV adds the finer ones.\n\n"
         "8. Save your work\n"
@@ -9540,17 +11076,17 @@ void StarterAmpEditor::openHelpWindow()
     helpWindow->toFront (true);
 }
 
-// b34: double-click a pedal in the Order window: switch to the page that holds its panel and bring the plug-in window forward.
+// b34: double-click a pedal on the pedalboard: switch to the page that holds its panel and bring the plug-in window forward.
 void StarterAmpEditor::openBlockControls (int block)
 {
-    juce::Component* panels[27] = { &fuzzPanel, &compPanel, &wahPanel, &phaserPanel, &chorusPanel, &preDelayPanel, &mfPanel0, &mfPanel1,
+    juce::Component* panels[28] = { &fuzzPanel, &compPanel, &wahPanel, &phaserPanel, &chorusPanel, &preDelayPanel, &mfPanel0, &mfPanel1,
                                     &eqPanel, &wobblePanel, &doublerPanel, &postDelayPanel, &reverbPanel, &widenerPanel, &tremPanel, &reverb2Panel,
-                                    &filterPanel, &volPanPanel, &mbPanel, &gatePanel, &lofiPanel, &boostPanel, &overdrivePanel, &drive2Panel, &mfPanel2, &mfPanel3, &fuzz2Panel };
-    if (block < 0 || block >= 27) return;
-    juce::Component* pages[11] = { &pageInput, &pageGain, &pageMod, &pagePitch, &pageAmp, &pageCab, &pageEq, &pageDelay, &pageScapes, &pagePost, &pageSpeaker };
-    static const int pageIndex[11] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 5 };
+                                    &filterPanel, &volPanPanel, &mbPanel, &gatePanel, &lofiPanel, &boostPanel, &overdrivePanel, &drive2Panel, &mfPanel2, &mfPanel3, &fuzz2Panel, &satPanel };
+    if (block < 0 || block >= 28) return;
+    juce::Component* pages[10] = { &pageInput, &pageGain, &pageMod, &pagePitch, &pageAmp, &pageCab, &pageEq, &pageDelay, &pagePost, &pageSpeaker };
+    static const int pageIndex[10] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 5 };
     for (auto* c = panels[block]->getParentComponent(); c != nullptr; c = c->getParentComponent())
-        for (int i = 0; i < 11; ++i)
+        for (int i = 0; i < 10; ++i)
             if (c == pages[i])
             {
                 showPage (pageIndex[i]);
@@ -9563,9 +11099,14 @@ void StarterAmpEditor::openOrderWindow()
 {
     if (orderWindow == nullptr)
     {
-        auto order = std::make_unique<OrderPanel> (processorRef);
-        order->onOpenBlock = [this] (int block) { openBlockControls (block); };
-        orderWindow = std::make_unique<ToolWindow> ("Effect order", std::move (order), lookAndFeel);
+        auto order = std::make_unique<PatchPanel> (processorRef);
+        order->onOpenNode = [this] (int node)
+        {
+            if (node >= 0 && node < StarterAmpProcessor::kFxBlocks) { openBlockControls (node);  return; }
+            showPage (node == PatchGraph::kCab ? 5 : 4);                       // NAM pedal 1, the amps: the Amp page; the cab: the Cab page
+            if (auto* top = getTopLevelComponent()) top->toFront (true);
+        };
+        orderWindow = std::make_unique<ToolWindow> ("Pedalboard", std::move (order), lookAndFeel);
     }
     orderWindow->setVisible (true);
     orderWindow->toFront (true);
@@ -9625,6 +11166,54 @@ void StarterAmpEditor::openBrowserWindow()
     }
     browserWindow->setVisible (true);
     browserWindow->toFront (true);
+}
+
+void StarterAmpEditor::buildParamPages()
+{
+    juce::Component* pages[10] = { &pageInput, &pageGain, &pageMod, &pagePitch, &pageAmp, &pageCab, &pageEq, &pageDelay, &pagePost, &pageSpeaker };
+    static const signed char pageOf[10] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 5 };           // (the speaker sub-page belongs to the CAB tab)
+    std::vector<signed char> map ((size_t) processorRef.midiParamCount(), (signed char) -1);
+    for (auto& kv : idMap)
+    {
+        const int idx = processorRef.midiIndexOf (kv.first);
+        if (idx < 0 || (size_t) idx >= map.size() || kv.second == nullptr) continue;
+        for (auto* c = kv.second->getParentComponent(); c != nullptr; c = c->getParentComponent())
+        {
+            bool found = false;
+            for (int i = 0; i < 10 && ! found; ++i)
+                if (c == pages[i]) { map[(size_t) idx] = pageOf[i];  found = true; }
+            if (found) break;
+        }
+    }
+    processorRef.setParamPages (map);
+}
+
+void StarterAmpEditor::refreshTabLocks()
+{
+    for (int i = 0; i < 9; ++i)
+    {
+        const bool locked = processorRef.isPageLocked (i);
+        if ((bool) pageTabs[i].getProperties().getWithDefault ("locked", false) != locked)
+        {
+            pageTabs[i].getProperties().set ("locked", locked);
+            pageTabs[i].repaint();
+        }
+    }
+}
+
+void StarterAmpEditor::showTabMenu (int page)
+{
+    static const char* const names[9] = { "INPUT", "GAIN", "MOD", "PITCH", "AMP", "CAB", "EQ", "TIME", "POST FX" };
+    juce::PopupMenu menu;
+    menu.addItem (1, juce::String ("Keep ") + names[page] + " when loading a preset", true, processorRef.isPageLocked (page));
+    if (processorRef.pageLocks() != 0)
+        menu.addItem (2, "Unlock all pages");
+    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&pageTabs[page]), [this, page] (int result)
+    {
+        if (result == 1) processorRef.setPageLocked (page, ! processorRef.isPageLocked (page));
+        else if (result == 2) for (int i = 0; i < 9; ++i) processorRef.setPageLocked (i, false);
+        refreshTabLocks();
+    });
 }
 
 void StarterAmpEditor::abMenuClicked()
@@ -10298,7 +11887,9 @@ namespace blockpresets
     {
         static const std::map<juce::String, juce::String> special {
             { "ampBGain", "ampGain" }, { "ampBBass", "bass" }, { "ampBLowMid", "lowMid" }, { "ampBHighMid", "highMid" },
-            { "ampBTreble", "treble" }, { "ampBPresence", "presence" } };
+            { "ampBTreble", "treble" }, { "ampBPresence", "presence" },
+            { "ampBTight", "mtTight" }, { "ampBMidHz", "mtMidHz" }, { "ampBMid", "mtMid" }, { "ampBDepth", "mtDepth" },
+            { "ampBFizz", "mtFizz" }, { "ampBChug", "mtChug" }, { "ampBLead", "mtLead" } };
         auto it = special.find (id);
         if (it != special.end()) return it->second;
         if (id.startsWith ("ampB") && id.length() > 4 && juce::CharacterFunctions::isUpperCase (id[4]))
@@ -10309,15 +11900,17 @@ namespace blockpresets
     {
         static const std::map<juce::String, juce::String> special {
             { "ampGain", "ampBGain" }, { "bass", "ampBBass" }, { "lowMid", "ampBLowMid" }, { "highMid", "ampBHighMid" },
-            { "treble", "ampBTreble" }, { "presence", "ampBPresence" }, { "ampBright", "ampBBright" }, { "ampBias", "ampBBias" } };
+            { "treble", "ampBTreble" }, { "presence", "ampBPresence" }, { "ampBright", "ampBBright" }, { "ampBias", "ampBBias" },
+            { "mtTight", "ampBTight" }, { "mtMidHz", "ampBMidHz" }, { "mtMid", "ampBMid" }, { "mtDepth", "ampBDepth" },
+            { "mtFizz", "ampBFizz" }, { "mtChug", "ampBChug" }, { "mtLead", "ampBLead" } };
         auto it = special.find (idA);
         if (it != special.end()) return it->second;
         if (idA.startsWith ("amp") && idA.length() > 3 && ! (idA.length() > 4 && idA.startsWith ("ampB") && juce::CharacterFunctions::isUpperCase (idA[4])))   // "ampBright" is an A id, "ampBBright" is already B
             return "ampB" + idA.substring (3);
         return idA;
     }
-    inline float modelAtoB (float a) { return a <= 4.0f ? a : a - 1.0f; }
-    inline float modelBtoA (float b) { return b <= 4.0f ? b : b + 1.0f; }
+    inline float modelAtoB (float a) { return a <= 4.0f ? a : a <= 30.0f ? a - 1.0f : a < 32.0f ? 29.0f : a - 2.0f; }      // b66: Triple Blend (31) has no Amp B entry, so it maps to Cedar Spring
+    inline float modelBtoA (float b) { return b <= 4.0f ? b : b <= 29.0f ? b + 1.0f : b + 2.0f; }
 }
 
 void StarterAmpEditor::showBlockPresetMenu (juce::Component& anchor, const juce::String& family, int slot,
@@ -10510,6 +12103,8 @@ void StarterAmpEditor::setupBlockPresets()
                 if (processorRef.apvts.getParameter (idB) != nullptr && idB != "ampBQuality")
                     ids.push_back (idB);
             }
+            for (const char* id : { "ampBTight", "ampBMidHz", "ampBMid", "ampBDepth", "ampBFizz", "ampBChug", "ampBLead" })
+                ids.push_back (id);
             return ids;
         });
     });

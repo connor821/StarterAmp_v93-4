@@ -8,6 +8,7 @@
 //   3. Active circuit: a small preamp like the one in an active pickup, with gain and a little edge, for adding output to a passive guitar.
 // The generic pickup types are my own simple resonance models (a coil with a resonant peak), not measurements of any pickup.
 #include <algorithm>
+#include "Adaa.h"
 #include <array>
 #include <cmath>
 #include <complex>
@@ -294,13 +295,14 @@ namespace DiMatch
 
         void process (float* x, int n, bool corrOn, bool active, float gain01)
         {
+            if (! active) satAd.reset();
             if (active)
             {
                 const float g = std::pow (10.0f, 12.0f * std::max (0.0f, std::min (1.0f, gain01)) / 20.0f);
                 constexpr float c = 1.0f, bias = 0.08f, t0 = 0.07982f;      // t0 = tanh (bias): no DC from the asymmetry at rest
                 for (int i = 0; i < n; ++i)
                 {
-                    const float y = c * (std::tanh (g * x[i] / c + bias) - t0);
+                    const float y = c * ((float) Adaa::tanhStep (satAd, (double) g * x[i] / c + bias) - t0);
                     dcY = y - dcX + 0.995f * dcY;  dcX = y;                  // the preamp's coupling cap: a gentle low cut near 8 Hz
                     x[i] = dcY;
                 }
@@ -362,6 +364,7 @@ namespace DiMatch
         float fs = 48000.0f, resp[kFilters][kBands] {};
         std::array<float, kFilters> gainDb {};
         Bq bq[kFilters];
+        Adaa::Prev satAd;                  // b42: anti-aliasing history of the preamp clipper
         float levelTrim = 1.0f, levelTrimTarget = 1.0f, levelFix = 0.0f, dcX = 0.0f, dcY = 0.0f;   // levelFix: dB that keeps the filters' average level at 0
         Settings last;  uint32_t lastVersion = 0;  bool haveLast = false;
         int status = ok;
