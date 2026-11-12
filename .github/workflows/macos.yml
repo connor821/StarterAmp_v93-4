@@ -1,17 +1,21 @@
 name: macOS build and tests
-# Builds the plugin (Standalone, VST3, AU) on a Mac runner with clang, then runs the same stress and regression tests as the Windows workflow.
+# Builds the plugin (Standalone, VST3, AU, CLAP) on a Mac runner with clang, then runs the same stress and regression tests as the Windows workflow.
 # Run it by hand from the Actions tab (Run workflow). The build is not signed or notarised, so macOS will warn when you open it on another Mac.
 on:
   workflow_dispatch:
 jobs:
   mac:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - name: Remove any build folder that came with the files
+        run: rm -rf build
       - name: Configure (plugin and tests)
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DSTARTERAMP_BUILD_TESTS=ON
       - name: Build plugin
         run: cmake --build build --target StarterAmp_All --config Release --parallel
+      - name: Build CLAP
+        run: cmake --build build --target StarterAmp_CLAP --config Release --parallel
       - name: Build tests
         run: cmake --build build --target StarterAmpTests --config Release --parallel
       - name: Stress tests
@@ -29,6 +33,7 @@ jobs:
           cp -R "$art/Release/Standalone/"*.app dist/StarterAmp-macOS/ || true
           cp -R "$art/Release/VST3/"*.vst3 dist/StarterAmp-macOS/ || true
           cp -R "$art/Release/AU/"*.component dist/StarterAmp-macOS/ || true
+          cp -R "$art/Release/CLAP/"*.clap dist/StarterAmp-macOS/ || true
           ls -R dist | head -40
       - uses: actions/upload-artifact@v4
         with:
