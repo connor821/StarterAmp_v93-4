@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+#include "ColdClip.h"
 #include "FactoryPresets.h"
 #include "AutoLevelModes.h"      // b67
 #include "PluginEditor.h"
@@ -18,7 +19,7 @@ namespace
     // unintended 11 dB; the old 0.354 had been set against the output of the broken path).
     // Stack Drive (second entry): 0.12 brings it back to roughly the level of the other drives. The corrected circuit has 10 to 76 dB of gain
     // across the knob (the old model lost about 25 dB of it to a shared limiter and a clamp), so the 2.0 that suited the broken path is far too hot.
-    static const float odPedTrim[6] = { 0.45f, 0.12f, 1.12f, 1.0f, 0.63f, 0.35f };   // b64: the fourth is the Natural Overdrive (Nobels ODR-1 type); b67: the sixth is the Metal Zone (MT-2 type)
+    static const float odPedTrim[7] = { 0.45f, 0.12f, 1.12f, 1.0f, 0.63f, 0.35f, 1.2f };   // b64: the fourth is the Natural Overdrive (Nobels ODR-1 type); b67: the sixth is the Metal Zone (MT-2 type); b78: the seventh is the Timmy-style drive
     static const float odOcdTrim = 0.25f;       // b20: output trim of the Open circuit (OCD-type)
     static const float odKlonTrim = 1.6f;      // v94: re-matched after the capture-fitted voicing (about 4 dB quieter at the same settings before this)
     float odGainPathLevel (float knob, int style)
@@ -120,7 +121,7 @@ namespace
         return c;
     }
     // The internal overdrive code: 0 Transparent, 1 Tight, 2/3 Open (high/low range), 4..7 Screamer, 8..11 Distortion (+ clip choice)
-    // v77: the circuit modes exist for Tight (code 13) and Screamer (codes 14..18, one per clip choice incl. "None")
+    // v77: the circuit modes exist for Tight (code 13) and Mid Hump (codes 14..18, one per clip choice incl. "None")
     // v0.2: the Wall's version list lost Gritty and variant C; the menu position maps to the engine's version number
     static const int kMuffVerMap[10] = { 0, 1, 3, 4, 5, 6, 8, 9, 10, 11 };
     inline bool odCircuitActive (int rawStyle, bool circuitParam) { return rawStyle >= 6 || (circuitParam && (rawStyle == 0 || rawStyle == 1 || rawStyle == 2 || rawStyle == 3 || rawStyle == 4)); }   // v94: Transparent, Tight, Screamer, Distortion are hand-tuned unless CIRCUIT MODE is on   // v93: all but Open and Tube Driver
@@ -193,6 +194,10 @@ namespace
         float presenceBaseDb = 0.0f;  // b38: constant added to the presence shelf's gain (used by the Cut amps, see below)
         bool  cutAmp = false;         // b38: this amp's Presence knob is a Cut control (a treble roll-off, not a boost)
         float hpScale = 1.0f;         // b51: how much Tight and Focus have raised the high-passes so far; the Circuit-derived mode replaces some of them with component values and re-applies it (see applyComponentVoicing)
+        float coldClip = 0.0f;        // b68 (decision 4): amount (0..1) of the SLO-100 'cold clipper' between gain stages 2 and 3: a 12AX7 with a 39k unbypassed cathode (see coldClipper)
+        float coldCutoff = 1.0f;      // where its cutoff side starts to bend, in the engine's signal units
+        float hpShelfDb0 = 0.0f;      // b68 (R20): below 0, the first stage's high-pass is a low shelf of this depth at hp[0] instead (a bypassed JFET source: -11 dB below 154 Hz)
+        bool  presencePre = false;    // b68 (R20): the Presence control is a cut network ahead of the power stage (the Randall's 2k rheostat and 0.1 uF), not a boost after it
         float gainTiltDb = 0.0f;      // v0.1: extra top end at low Amp Gain, fading to none at full gain: holds the tone steady as gain changes (see getVoicingThree)
     };
 
@@ -371,11 +376,13 @@ namespace
 
             // 14: 5555 Block, Raw voicing (switch off): a tight, bright, aggressive three-stage high-gain amp. Tight
             //     lows, a cut in the boxy low mids, a hard upper-mid edge and a lot of presence. Raw and a bit fizzy.
+            //     b126: tone stack moved halfway toward a real Block Letter's All-knobs-noon capture (bass +0.5 to +4.9, low mid -2.5 to -4.2,
+            //     high mid +2.0 to +0.9, treble +1.0 to +3.0 dB): a fuller low end and a little more top, a less honky upper mid. Measured, not listened to.
             { 3, { 115.0f, 155.0f, 110.0f }, { 3.2f, 3.0f, 1.8f }, { 21.0f, 16.0f, 6.0f }, { 0.12f, 0.10f, 0.04f },
               1200.0f, 4.0f, 0.8f,   0.25f,
-              100.0f, 0.5f,
-              400.0f, 0.8f, -2.5f,   2000.0f, 0.9f, 2.0f,
-              3600.0f, 1.0f,
+              100.0f, 4.9f,
+              400.0f, 0.8f, -4.2f,   2000.0f, 0.9f, 0.9f,
+              3600.0f, 3.0f,
               4500.0f, 9.0f,
               6000.0f,  -4.6f },
 
@@ -558,10 +565,13 @@ namespace
               5000.0f, 4.5f,
               7100.0f,   3.2f },
             // Jade Chorus, "Funk": a tight, percussive, scooped solid-state voicing with a fast, stiff low end and a little pop.
-            { 2, { 55.0f, 80.0f, 70.0f },   { 0.9f, 0.9f, 1.0f },  { 2.2f, 1.8f, 1.0f },  { 0.0f, 0.0f, 0.0f },
+            // b90: the audit found Funk within 1.3 dB of Glass in tone, so it did not sound like its description. Retuned (an ESTIMATE, a design of
+            //      mine, measured not listened to): the low end cut much harder (high-passes 80/110/90 Hz against 30/50/50), the bass shelf and the low mid
+            //      pulled down (-2.5 / -5 dB), the upper mid pushed up (+3 dB), a little more gain at the top of the knob and a touch of even-harmonic pop.
+            { 2, { 80.0f, 110.0f, 90.0f }, { 0.9f, 0.9f, 1.0f },  { 2.6f, 2.2f, 1.0f },  { 0.03f, 0.02f, 0.0f },
               3000.0f, 3.0f, 0.7f,   0.0f,
-              100.0f, -1.0f,
-              400.0f, 0.8f, -2.5f,   2500.0f, 0.8f, 1.5f,
+              100.0f, -2.5f,
+              400.0f, 0.8f, -5.0f,   2500.0f, 0.8f, 3.0f,
               4500.0f, 4.0f,
               6000.0f, 9.0f,
               9500.0f,   11.9f },
@@ -964,7 +974,7 @@ namespace
               3800.0f, 16.0f,
               5000.0f, 7.0f,
               8500.0f,  -1.8f },
-            // 26 Lo Pushed: the low input skips the first gain stage: a single gain stage into the same stack (a Plexi-like grind below
+            // 26 Lo Pushed: the low input skips the first gain stage: a single gain stage into the same stack (an early-British-like grind below
             //     the middle of the knob, harder at the top): looser, more dynamic, lighter on compression
             { 2, { 32.0f, 56.0f, 40.0f }, { 1.4f, 2.0f, 1.0f }, { 5.0f, 9.5f, 2.0f }, { 0.06f, 0.05f, 0.0f },
               1600.0f, 2.0f, 0.8f,   0.60f,
@@ -1205,6 +1215,23 @@ namespace
         if (modelIn == 33) v.pwrAdd = voicing == 2 ? 0.30f : voicing == 1 ? 0.10f : 0.05f;   // b14 Brit Eighteen: the small power stage starts working early
         if (modelIn == 21 && voicing == 2) v.pwrAdd = 0.35f;
         if (modelIn == 30) v.pwrAdd = voicing == 2 ? 0.30f : voicing == 0 ? 0.08f : 0.05f;   // v0.2 Cedar Spring: the small power stage is already working
+        if (modelIn == 3 && (voicing == 0 || voicing == 1 || voicing == 3))      // b68 (decision 4): the overdrive channel's cold clipper sits between gain stages 2 and 3 (the Crunch and Clean voicings do not use it)
+        {
+            v.coldClip = 1.0f;  v.coldCutoff = 1.0f;      // fitted b68 against the SLO-100 Ch2 G5 capture: cutoff 1.0 in engine units (positive = toward cutoff); the score is level with no clipper (3.14 against 3.12), see CHANGELOG
+#ifdef STARTERAMP_TUNE
+            if (const char* e = std::getenv ("COLD")) { float a = 1.0f, l = 1.0f;  std::sscanf (e, "%f,%f", &a, &l);  v.coldClip = a;  v.coldCutoff = l; }      // test builds only: "amount,cutoff" (negative cutoff flips the polarity)
+#endif
+        }
+        if (modelIn == 29 && voicing >= 2)      // b68 (R19, R20): the all-JFET head (read from the Randall RG100ES sheet)
+        {
+            v.pwrAdd = 0.60f;                                   // R19: the +/-37 V rail clip arrives 6 to 8 dB into the stage at full master: the power stage is already working, and clips hard (a high drive on the tanh)
+            if (voicing == 2)                                   // R20: the first stage's 2.2k source is bypassed by 0.47 uF: a low shelf of -11 dB below 154 Hz (zero 154 Hz, pole 520 Hz), not a 170 Hz high-pass
+            {
+                v.hp[0] = 154.0f;  v.hpShelfDb0 = -11.0f;
+            }
+            v.presencePre = true;                               // R20: the Presence network (a cut) sits ahead of the power amp
+            v.trebleOffsetDb += 4.0f;                           // keeps the default tone near where it was: the cut now comes before the power stage and the tone shelves
+        }
         if (modelIn == 29) v.hardMask = voicing == 0 ? 3 : voicing == 1 ? 1 : voicing == 2 ? 4 : 0;   // v0.2 Solid Metal: LED / diode / zener clipping stages              // v0.1: the Linked voicing has the power stage already working
 
         // Extra gain over the top of the knob (from v39), more on the higher-gain amps. Nothing changes below
@@ -1291,22 +1318,24 @@ namespace
         float ext;             // added to the extra top-of-knob gain
         float lpHz;            // if above 0, the limit on the top end between stages (Hz)
         float bias;            // added to the bias of the first two stages
+        float lo = 1.0f, hi = 1.0f, curve = 0.0f;       // b73: multiplies every stage's gain at Amp Gain 0 (lo) and 1 (hi), so a voicing can have a wider (or narrower) gain range; curve > 0 sets the knob taper
+        float lmHz = 1.0f;     // b74: multiplies the low-mid peak's frequency (below 1 moves the body lift down toward 250 Hz)
     };
     // b65: extra voicings (positions 5 to 7) for the amps listed in AmpExtras.h. Each is one of the amp's own voicings (base 0 to 2) with a
     // set of changes on top, exactly like the fourth voicing; pwrAdd >= 0 sets the power-drive offset, blockMul > 0 the grid blocking.
-    struct ExtraRow { int model, voicing; FourthDelta d; float trim; float pwrAdd; float blockMul; };
+    struct ExtraRow { int model, voicing; FourthDelta d; float trim; float pwrAdd; float blockMul; float cabLpHz = 0.0f; float stageLpHz = 0.0f; };      // b88: cabLpHz / stageLpHz > 0 set the speaker-less roll-off and the inter-stage low-pass outright (lpHz in d only ever lowers it)
     inline const ExtraRow* findExtraRow (int model, int voicing)
     {
 #ifdef STARTERAMP_TUNE
-        if (const char* e = std::getenv ("AMPROW"))      // test builds only: "model,voicing,base,gain,hp,sag,bass,lowMid,highMid,treble,presence,voiceDb,voiceHz,ext,lpHz,bias,trim,pwrAdd,blockMul" is that voicing's row
+        if (const char* e = std::getenv ("AMPROW"))      // test builds only: "model,voicing,base,gain,hp,sag,bass,lowMid,highMid,treble,presence,voiceDb,voiceHz,ext,lpHz,bias,trim,pwrAdd,blockMul,lo,hi,curve,lmHz,cabLpHz,stageLpHz" is that voicing's row
         {
             static ExtraRow tr;
-            float t[19] = { -1, -1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0 };
+            float t[25] = { -1, -1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 1, 1, 0, 1, 0, 0 };
             const char* q = e;
-            for (int i = 0; i < 19 && *q != 0; ++i) { char* end = nullptr; t[i] = std::strtof (q, &end); q = (*end == ',') ? end + 1 : end; if (end == q && *end == 0) break; }
+            for (int i = 0; i < 25 && *q != 0; ++i) { char* end = nullptr; t[i] = std::strtof (q, &end); q = (*end == ',') ? end + 1 : end; if (end == q && *end == 0) break; }
             if ((int) t[0] == model && (int) t[1] == voicing)
             {
-                tr = { model, voicing, { (int) t[2], t[3], t[4], t[5], t[6], t[7], t[8], t[9], t[10], t[11], t[12], t[13], t[14], t[15] }, t[16], t[17], t[18] };
+                tr = { model, voicing, { (int) t[2], t[3], t[4], t[5], t[6], t[7], t[8], t[9], t[10], t[11], t[12], t[13], t[14], t[15], t[19], t[20], t[21], t[22] }, t[16], t[17], t[18], t[23], t[24] };
                 return &tr;
             }
         }
@@ -1324,6 +1353,13 @@ namespace
             { 24, 5, { 1, 1.0f, 3.0f, 0.9f, -2.5f, -1.0f, 1.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 5200.0f, 0.0f }, 4.5f, -1.0f, 0.0f },
             // 3 Slow Burn: Clean (the SLO-100's Clean channel: the Crunch voicing's stages with much less gain, a scooped and open top; fitted to the SLO-100 (modded) Channel 1 Clean captures at G5, G7 and G10: Gain 0.56, 0.78 and 0.89 match them, band error about 2.5 dB, score 2.6 to 4)
             { 3, 4, { 2, 0.30f, 1.0f, 0.8f, 3.5f, -3.0f, -2.0f, 6.5f, 3.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.16f }, 0.0f, 0.0f, 0.0f },
+            // 29 Solid Metal: Hybrid + JFET (b84). A designed blend, not read from a sheet: the Hi-Gain voicing's two LED stages and 12AX7 with the all-JFET head's zener stage added, so all three gain stages clip hard
+            // (the hard mask is set in getVoicing), the high-passes raised for the JFET head's bass-shy first stage, a little more upper mid and top, and the top limited at 4.8 kHz so the extra clipping does not turn to fizz.
+            { 29, 4, { 0, 0.80f, 1.2f, 1.0f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 4800.0f, 0.0f }, 0.0f, -1.0f, 0.0f },
+            // 8 5555 Block: Vitriol (b88). Built on Modern; gain range, curve, bias and tone fitted to the user's captures of a 120 W three-gain-stage head (its Gain 1 to 10 series, amp only):
+            // first two stages x0.35, minimum gains x1.75, maximum x0.75, knob taper 0.34, high-passes x0.35 (a full low end), bass +5.5 dB, treble +7.5 dB, speaker-less roll-off 18 kHz, inter-stage low-pass 12 kHz.
+            // Gain curve within about 2 dB, pink-noise tone within about 1 dB rms at Gain 0.3 / 0.5 / 1.0. Measured, NOT listened to; the H2 level is not matched (the capture's is lower).
+            { 8, 4, { 1, 0.3537f, 0.3536f, 1.0f, 5.46f, -0.90f, 2.14f, 7.45f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.285f, 1.748f, 0.749f, 0.338f, 1.0f }, 0.0f, -1.0f, 0.0f, 18000.0f, 12000.0f },
         };
         for (const auto& r : rows)
             if (r.model == model && r.voicing == voicing) return &r;
@@ -1341,7 +1377,9 @@ namespace
             { 12, 4, { -35.49f, -33.51f, -32.25f, -31.47f, -31.00f, -30.73f, -30.55f, -30.48f, -30.52f, -30.49f, -30.46f } },     // Citrus Doom: Model T
             { 11, 4, { -35.54f, -34.63f, -34.02f, -33.51f, -33.08f, -32.68f, -32.18f, -31.30f, -30.72f, -30.57f, -30.47f } },     // Marque Dream: Mark I
             { 3, 4, { -54.92f, -51.78f, -48.69f, -45.68f, -42.78f, -40.02f, -36.95f, -32.86f, -29.94f, -28.61f, -27.99f } },     // Slow Burn: Clean
-            { 30, 4, { -26.61f, -24.06f, -21.88f, -20.55f, -19.76f, -19.33f, -19.09f, -18.97f, -18.93f, -18.93f, -18.94f } },     // Cedar Spring: Boost (b67; measured below)
+            { 29, 4, { -44.30f, -38.99f, -35.24f, -32.99f, -31.91f, -31.43f, -30.90f, -29.64f, -28.97f, -28.83f, -28.71f } },     // Solid Metal: Hybrid + JFET (b84)
+            { 30, 4, { -26.71f, -24.30f, -22.25f, -21.00f, -20.24f, -19.81f, -19.58f, -19.47f, -19.42f, -19.42f, -19.43f } },     // Cedar Spring: Boost (b67; measured below)
+            { 8, 4, { -30.15f, -29.34f, -27.38f, -27.02f, -26.59f, -26.33f, -26.24f, -26.20f, -26.18f, -26.20f, -26.20f } },     // 5555 Block: Vitriol (b88)
         };
         for (const auto& r : rows)
             if (r.model == model && r.voicing == voicing) return r.c;
@@ -1353,19 +1391,19 @@ namespace
     //   34 Tweedle Dum (the 5F6-A / AB165 Bassman)   35 Marque One (the early single-channel Mark)   36 Cedar Grand (the 6L6 reverb combo)
     //   37 Cedar Ten (the 4x10 combo with a gain channel)   38 Brit Forty-Five (the KT66 JTM45)   39 Tweedle Mini (the 5 W single-ended tweed)   40 Jubilant (the silver-jubilee-style head)
     inline AmpVoicing getVoicingBase (int model, int voicing, float semitonesDown);
-    struct CloneRow { int model, voicing, srcModel, srcVoicing; FourthDelta d; float trim; float pwrAdd; float blockMul; int hardMask; };
+    struct CloneRow { int model, voicing, srcModel, srcVoicing; FourthDelta d; float trim; float pwrAdd; float blockMul; int hardMask; float hpAbs0 = 0.0f, hpAbs1 = 0.0f, hpAbs2 = 0.0f; };      // b89: hpAbs0..2 > 0 set each stage's high-pass (Hz) outright, after the d.hp scaling (a voicing whose lows are cut harder before the early clippers than the late ones)
     inline const CloneRow* findCloneRow (int model, int voicing)
     {
 #ifdef STARTERAMP_TUNE
         if (const char* e = std::getenv ("CLONEROW"))      // test builds only: "model,voicing,srcModel,srcVoicing,gain,hp,sag,bass,lowMid,highMid,treble,presence,voiceDb,voiceHz,ext,lpHz,bias,trim,pwrAdd,blockMul,hardMask" replaces that voicing's row
         {
             static CloneRow tr;
-            float t[21] = { -1, -1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, -1 };
+            float t[25] = { -1, -1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, -1, 1, 1, 0, 1 };
             const char* q = e;
-            for (int i = 0; i < 21 && *q != 0; ++i) { char* end = nullptr; t[i] = std::strtof (q, &end); q = (*end == ',') ? end + 1 : end; if (end == q && *end == 0) break; }
+            for (int i = 0; i < 25 && *q != 0; ++i) { char* end = nullptr; t[i] = std::strtof (q, &end); q = (*end == ',') ? end + 1 : end; if (end == q && *end == 0) break; }
             if ((int) t[0] == model && (int) t[1] == voicing)
             {
-                tr = { model, voicing, (int) t[2], (int) t[3], { 0, t[4], t[5], t[6], t[7], t[8], t[9], t[10], t[11], t[12], t[13], t[14], t[15], t[16] }, t[17], t[18], t[19], (int) t[20] };
+                tr = { model, voicing, (int) t[2], (int) t[3], { 0, t[4], t[5], t[6], t[7], t[8], t[9], t[10], t[11], t[12], t[13], t[14], t[15], t[16], t[21], t[22], t[23], t[24] }, t[17], t[18], t[19], (int) t[20] };
                 return &tr;
             }
         }
@@ -1400,8 +1438,8 @@ namespace
             { 37, 2, 30, 0, { 0, 2.50f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.5f, 0.0f, 0.0f, 1.0f, 0.3f, 8000.0f, 0.16f }, 0.0f, -1.0f, 0.0f, -1 },   // Drive
             { 37, 3, 30, 0, { 0, 3.60f, 1.3f, 0.9f, -0.5f, 0.0f, 1.5f, 1.5f, 0.0f, 1.5f, 1.0f, 0.6f, 7000.0f, 0.12f }, 0.0f, -1.0f, 0.0f, -1 },  // Lead
             // 38 Brit Forty-Five: the KT66 head. Built on the Plexi-style amp's Stock and Jumped voicings, with the lower gain and the softer supply
-            { 38, 0, 23, 0, { 0, 0.56f, 1.0f, 1.4f, 1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f }, 0.0f, -1.0f, 0.0f, -1 },   // Normal
-            { 38, 1, 23, 1, { 0, 0.60f, 1.0f, 1.4f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f }, 0.0f, -1.0f, 0.0f, -1 },     // Bright
+            { 38, 0, 23, 0, { 0, 0.56f, 1.0f, 1.4f, 1.0f, 0.0f, 0.0f, -2.0f, -1.5f, 0.0f, 1.0f, 0.0f, 6500.0f, 0.0f }, 0.0f, 0.08f, 0.0f, -1 },   // Normal (b68: the KT66 and GZ34 head rolls off earlier and its power stage starts working sooner than the Plexi's)
+            { 38, 1, 23, 1, { 0, 0.60f, 1.0f, 1.4f, 0.0f, 0.0f, 0.0f, -1.5f, -1.0f, 0.0f, 1.0f, 0.0f, 7000.0f, 0.0f }, 0.0f, 0.06f, 0.0f, -1 },     // Bright (b68, as Normal)
             { 38, 2, 23, 0, { 0, 0.96f, 0.8f, 1.6f, 2.5f, 1.0f, -1.0f, -2.5f, -1.0f, 0.0f, 1.0f, 0.2f, 0.0f, 0.0f }, 0.0f, -1.0f, 0.0f, -1 },    // Cranked: the KT66 is rounder and darker than the EL34
             { 38, 3, 23, 1, { 0, 1.24f, 0.8f, 1.5f, 3.5f, 1.5f, 0.0f, -3.0f, -1.5f, 0.0f, 1.0f, 0.3f, 0.0f, 0.0f }, 0.0f, -1.0f, 0.0f, -1 },     // Pushed: the same rounder, darker voice
             // 39 Tweedle Mini: the 5 W single-ended tweed. Biased a little asymmetric, and the power stage works from the start
@@ -1413,7 +1451,43 @@ namespace
             { 40, 0, 25, 2, { 0, 1.00f, 1.0f, 1.0f, 2.5f, -1.0f, -1.0f, 3.0f, 1.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f }, 0.0f, -1.0f, 0.0f, 0 },     // Clean: full lows and sparkle, the jubilee clean
             { 40, 1, 25, 0, { 0, 1.00f, 1.0f, 1.0f, 3.0f, -2.0f, 1.5f, 2.5f, 2.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f }, 0.0f, -1.0f, 0.0f, 2 },     // Rhythm: big lows, scooped low mids, bright and cutting
             { 40, 2, 25, 1, { 0, 1.10f, 1.0f, 1.0f, 0.0f, -1.5f, 2.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f }, 0.0f, -1.0f, 0.0f, 3 },     // Lead: upper-mid focus
-            { 40, 3, 25, 1, { 0, 1.20f, 1.0f, 1.0f, -1.0f, 0.0f, 1.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.2f, 0.0f, 0.0f }, 0.0f, -1.0f, 0.0f, 3 },     // Lead Hi
+            { 40, 3, 25, 1, { 0, 1.30f, 1.15f, 0.9f, -2.0f, 0.0f, 2.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.35f, 0.0f, 0.0f }, 0.0f, -1.0f, 0.0f, 3 },     // Lead Hi (b90: hotter and tighter, gain x1.30, high-passes x1.15, sag x0.9, extra gain over the knob 0.35, bass -2 dB (were 1.20, 1.0, 1.0, 0.2, -1); it is not a hardware setting, so this is a design of mine. An ESTIMATE)
+            // 41 Clarion (b69): the idealized high-gain amp, designed rather than read from a sheet. Built on Revved Up (tight, clear, firm lows) with: a tighter front end, a pre-gain mid push (the 'pre-boosted' feel), a
+            // low-pass between every gain stage (no fizz), less asymmetry (clearer chords), little sag, and a bigger low-mid and bass lift after the clipping (tight comes before it, thick after it).
+            { 41, 0, 13, 0, { 0, 0.90f, 1.15f, 0.60f, 3.5f, 3.5f, 2.0f, -1.5f, 0.0f, 4.0f, 0.80f, 0.0f, 3600.0f, -0.15f }, 0.0f, -1.0f, 0.0f, -1 },     // Clear: the main rhythm voicing
+            { 41, 1, 13, 1, { 0, 1.00f, 1.10f, 0.70f, 2.5f, 2.5f, 3.0f, -2.0f, 0.0f, 4.5f, 0.75f, 0.5f, 3800.0f, -0.10f }, 0.0f, -1.0f, 0.0f, -1 },     // Lead: more gain and upper-mid focus, a little more open
+            { 41, 2, 13, 0, { 0, 0.90f, 1.00f, 0.90f, 5.0f, 4.0f, 1.0f, -2.0f, 0.0f, 3.0f, 0.70f, 0.0f, 3400.0f, -0.10f }, 0.0f, -1.0f, 0.0f, -1 },     // Thick: more weight in the lows and low mids, a little more sag
+            { 41, 3, 13, 2, { 0, 1.00f, 1.50f, 0.80f, -0.5f, -0.5f, 3.0f, -2.5f, 0.5f, 3.0f, 0.90f, 0.0f, 3000.0f, -0.10f }, 0.0f, -1.0f, 0.0f, -1 },     // Edge: brighter and more forward, built on the lower-gain Crunch channel with a much tighter front end
+            // b89: Cascade, the fifth Clarion voicing, built from the clipping idea in the Kraken-style pedal read (SchematicsRead/Victory_Kraken_pedal_clone_b87.md): the bass is cut harder before the early clipping stages than before the late one
+            // (the pedal's gain legs roll the lows off below about 480, 290 and 72 Hz ahead of its three clippers), so palm-muted lows stay tight without thinning the sound, and the weight is put back after the clipping (bass lift) and the top is left clear (a higher inter-stage low-pass).
+            // ESTIMATE: designed from a third-party clone schematic, not fitted to a capture of the pedal; the high-pass corners (330 / 220 / 90 Hz) are my translation of those gain-leg corners, not a circuit-exact copy. Measured, not listened to.
+            { 41, 4, 13, 0, { 0, 1.00f, 1.0f, 0.60f, 5.0f, 3.0f, 1.5f, -0.5f, 0.0f, 3.0f, 0.80f, 0.0f, 3800.0f, -0.10f }, 0.0f, -1.0f, 0.0f, -1, 330.0f, 220.0f, 90.0f },     // Cascade: tight before the clipping, full after it
+            // 42 Prism (b70): the idealized clean amp, designed rather than read from a sheet. Built on Twin Sparkle's brightest voicing, with the lows tightened (the high-passes between stages doubled), the top opened up
+            // (treble and Presence) and the upper mids lifted a little, so the raw amp is glassy and full range with the cab section off, and stays close to that through a full-range cab (see SuggestedCab).
+            { 42, 0, 0, 3, { 0, 1.00f, 2.00f, 1.00f, -2.0f, 0.0f, 1.5f, 3.5f, 0.4f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f }, 0.0f, -1.0f, 0.0f, -1 },     // Glass: the reference voicing
+            { 42, 1, 0, 3, { 0, 1.00f, 2.00f, 1.00f, -2.0f, 0.0f, 1.5f, 9.0f, 3.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f }, 0.0f, -1.0f, 0.0f, -1 },     // Air: more top, plenty of shimmer above 4 kHz (b90: high mid back to Glass's +1.5 dB, treble +9 dB and presence 3.0 (were 0, +5, 0.7); the audit found it only 1.1 dB from Glass. An ESTIMATE)
+            { 42, 2, 0, 3, { 0, 1.50f, 1.40f, 1.50f,  1.5f, 2.0f, 1.0f, 3.5f, 0.4f, 0.0f, 1.0f, 0.1f, 0.0f, 0.0f }, 0.0f, -1.0f, 0.0f, -1 },     // Body (b72): Shiva-style low end and roundness under Glass's top; some compression and bloom
+            { 42, 3, 0, 3, { 0, 1.80f, 2.00f, 1.30f, -2.0f, 0.0f, 1.0f, 3.0f, 0.4f, 0.0f, 1.0f, 0.3f, 0.0f, 0.0f }, 0.0f, -1.0f, 0.0f, -1 },     // Pushed: breaks up when you dig in
+            // 43 Ember (b73): the idealized lead amp. Built on the Brown Eye Tight voicing (its touch and bite) with weight and smoothness in the style of the Marque Dream lead (more low mids, a rounder top, more sag),
+            // and a wide Amp Gain range (gain lo / hi multipliers and knob taper) so the knob runs from edge of breakup to extreme high gain.
+            { 43, 0, 2, 0, { 0, 1.0f, 0.65f, 1.3f, 3.0f, 2.0f, 1.5f, -1.5f, 0.3f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.2f, 5.0f, 1.7f, 0.55f }, 0.0f, -1.0f, 0.0f, -1 },     // Lead (b74: low-mid peak moved down to about 275 Hz for body): the reference voicing. Knob 0 to 0.2 is edge of breakup, 0.35 to 0.5 crunch to lead, 0.75 up is extreme (saturated for even the softest notes)
+            { 43, 1, 2, 0, { 0, 1.0f, 0.7f, 1.6f, 3.5f, 2.5f, 0.5f, -2.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.45f, 1.0f, 0.55f }, 0.0f, -1.0f, 0.0f, -1 },     // Edge: the knob range is shifted down: breakup in the middle of the knob, lead only near the top; darker and fuller (Dumble-style)
+            { 43, 2, 2, 0, { 0, 1.0f, 0.9f, 1.1f, 2.5f, 1.0f, 3.0f, 0.0f, 0.6f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.2f, 5.0f, 1.7f, 0.7f }, 0.0f, -1.0f, 0.0f, -1 },     // Bite: tighter, more 2 kHz attack and presence
+            { 43, 3, 2, 0, { 0, 1.0f, 0.85f, 1.2f, 3.0f, 1.5f, 1.5f, -1.5f, 0.2f, 0.0f, 1.0f, 0.2f, 5200.0f, 0.0f, 1.8f, 10.0f, 1.3f, 0.6f }, 0.0f, -1.0f, 0.0f, -1 },     // Extreme: more gain from the start (saturated by the middle of the knob), tighter, a low-pass between the stages
+            // 44 Kindle (b80): the idealized low / mid gain amp. Built on the Chime Thirty (class-A, two stages, asymmetric, the 2 kHz chime and jangle) with Ember's weight and touch: the high-passes between the stages
+            // lowered (weight at full gain), a bass and low-mid lift (the low-mid peak moved down), a much rounder top (the Chime Thirty's is bright), more sag, and a gain range that runs from clean through edge of breakup and crunch to a light lead, not further.
+            { 44, 0, 1, 0, { 0, 1.0f, 0.6f, 1.3f, 3.0f, 3.0f, 1.0f, -5.0f, 0.0f, 0.0f, 1.0f, 0.0f, 4600.0f, 0.0f, 0.9f, 1.0f, 0.0f, 0.6f }, 0.0f, -1.0f, 0.0f, -1 },     // Chime: the reference voicing, chime over a full low mid
+            { 44, 1, 1, 0, { 0, 1.1f, 0.7f, 1.3f, 2.5f, 3.0f, 1.5f, -5.0f, 0.0f, 1.5f, 1.0f, 0.0f, 4600.0f, 0.0f, 1.0f, 1.5f, 1.0f, 0.6f }, 0.0f, -1.0f, 0.0f, -1 },     // Crunch: more gain and a mid push, the knob reaches a light lead
+            { 44, 2, 1, 1, { 0, 0.8f, 0.5f, 1.3f, 5.0f, 4.0f, 0.0f, -6.0f, 0.0f, 0.0f, 1.0f, 0.0f, 4600.0f, 0.0f, 0.7f, 1.1f, 0.0f, 0.6f }, 0.0f, -1.0f, 0.0f, -1 },     // Push: the treble-boosted voicing with the harsh top rounded off
+            { 44, 3, 1, 2, { 0, 0.9f, 0.7f, 1.4f, 2.0f, 2.5f, 2.0f, -4.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.85f, 1.35f, 0.0f, 0.6f }, 0.0f, -1.0f, 0.0f, -1 },     // Warm: the Normal channel's roundness with some chime back
+            // 45 Ironside (b84): a 1969 British 100 W head read from its preamp, power-amp and supply sheets (a 50 W combination and a 4 x EL34 100 W head from the same maker were read as well). The
+            // front end is the Plexi-style amp's (two 12AX7 gain stages with a 1M gain pot each, mixed through 470k, a second stage with an UNBYPASSED 820 ohm cathode, a cathode follower, a TMB stack with a
+            // 56k slope resistor instead of 33k, a 22k mid pot), so the rows are built on its voicings with the differences from the sheet: less gain from the unbypassed second stage, a deeper mid scoop from the
+            // 56k slope, a stiffer supply (silicon rectifier, 22k and 2.7k dropping resistors into 33 uF pairs) and more feedback (100k into a 3.3k presence pot). The numbers are my estimates, not measured against the amp.
+            { 45, 0, 23, 0, { 0, 0.85f, 1.25f, 0.80f, -1.0f, -3.0f, -2.0f, 1.5f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f }, 0.0f, -1.0f, 0.0f, -1 },     // Treble: the treble channel (the 270 pF bleed across its mixing resistor keeps the top), the main sound
+            { 45, 1, 23, 0, { 0, 0.80f, 1.0f, 0.80f, 2.0f, 0.5f, -1.0f, -3.0f, 0.0f, 0.0f, 1.0f, 0.0f, 6000.0f, 0.0f }, 0.0f, -1.0f, 0.0f, -1 },     // Bass: the other channel, no bleed: darker, rounder, more low mid
+            { 45, 2, 23, 1, { 0, 0.90f, 1.3f, 0.80f, 2.0f, -2.5f, 0.5f, 3.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f }, 0.0f, -1.0f, 0.0f, -1 },     // Linked: both channels on, both gain pots up (the jumper lead): thicker, more gain
+            { 45, 3, 23, 0, { 0, 0.95f, 0.9f, 1.50f, -1.5f, -1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.2f, 0.0f, 0.0f }, 0.0f, 0.12f, 0.0f, -1 },     // Fifty: the 50 W combination's two EL34s on about 470 V: a softer supply, so it sags and breaks up sooner
         };
         for (const auto& r : rows)
             if (r.model == model && r.voicing == voicing) return &r;
@@ -1433,7 +1507,12 @@ namespace
         v.trebleOffsetDb += q.treble;  v.presenceMaxDb = std::max (0.0f, v.presenceMaxDb + q.presence);
         v.voiceDb += q.voiceDb;  v.voiceHz *= q.voiceHz;
         v.gainExtend += q.ext;
-        if (q.lpHz > 0.0f)
+        for (int i = 0; i < 3; ++i) { v.gainMin[i] *= q.lo;  v.gainMax[i] *= q.hi; }
+        if (q.curve > 0.0f) v.gainCurve = q.curve;
+        v.lowMidHz *= q.lmHz;
+        if (q.lpHz < 0.0f)
+            v.stageLpHz = -q.lpHz;      // b103: a negative value sets the limit exactly (the Singing voicing opens its base voicing's 3500 Hz limit up to 6000)
+        else if (q.lpHz > 0.0f)
             v.stageLpHz = v.stageLpHz > 0.0f ? std::min (v.stageLpHz, q.lpHz) : q.lpHz;
     }
     inline AmpVoicing cloneVoicing (int model, int voicing, float semitonesDown)
@@ -1447,6 +1526,17 @@ namespace
         if (c->pwrAdd >= 0.0f) v.pwrAdd = c->pwrAdd;
         if (c->blockMul > 0.0f) v.blockMul = c->blockMul;
         if (c->hardMask >= 0) v.hardMask = c->hardMask;
+        if (c->hpAbs0 > 0.0f) v.hp[0] = c->hpAbs0;
+        if (c->hpAbs1 > 0.0f) v.hp[1] = c->hpAbs1;
+        if (c->hpAbs2 > 0.0f) v.hp[2] = c->hpAbs2;
+#ifdef STARTERAMP_TUNE
+        if (const char* e = std::getenv ("AMPHP"))      // test builds only: "model,voicing,hp0,hp1,hp2" (Hz; 0 leaves a stage as it is)
+        {
+            float t[5] = { -1, -1, 0, 0, 0 };  const char* q = e;
+            for (int i = 0; i < 5 && *q != 0; ++i) { char* end = nullptr; t[i] = std::strtof (q, &end); q = (*end == ',') ? end + 1 : end; if (end == q && *end == 0) break; }
+            if ((int) t[0] == model && (int) t[1] == voicing) for (int i = 0; i < 3; ++i) if (t[2 + i] > 0.0f) v.hp[i] = t[2 + i];
+        }
+#endif
         return v;
     }
     // Auto Level curves of the split amps (11 points, Amp Gain 0 to 1), measured like the main table. A voicing with no row here uses its source voicing's curve plus its trim.
@@ -1465,6 +1555,19 @@ namespace
         for (int i = 0; i < 3; ++i) { v.gainMin[i] *= std::pow (10.0f, f.minDb / 60.0f); v.gainMax[i] *= std::pow (10.0f, f.maxDb / 60.0f); }
         v.gainCurve = f.curve;  v.trimDb += f.trimDb;
     }
+    // b90: the Triple Blend's voicings Warm and Open used to differ only in how loud the three parts were (its gain-offset table was all zeros), so the audit found
+    // them within 0.3 dB of Three-in-One in tone. They now also move the tone of all three parts: dB on the bass shelf, low mid, high mid, treble and the most the
+    // Presence knob adds. Three-in-One (fitted to the three-amp capture) and Singing are unchanged. An ESTIMATE, a design of mine, measured not listened to.
+    constexpr float kBlendTone[4][5] = { {  0.0f,  0.0f,  0.0f,  0.0f,  0.0f },       // Three-in-One
+                                         {  2.0f,  1.0f, -2.0f, -6.0f, -4.0f },       // Warm: rounder, darker
+                                         { -2.0f, -1.0f,  2.0f,  5.0f,  3.5f },       // Open: tighter lows, more air
+                                         {  0.0f,  0.0f,  0.0f,  0.0f,  0.0f } };    // Singing
+    inline void applyBlendTone (AmpVoicing& v, int voicing)
+    {
+        const float* t = kBlendTone[juce::jlimit (0, 3, voicing)];
+        v.bassOffsetDb += t[0];  v.lowMidOffsetDb += t[1];  v.highMidOffsetDb += t[2];  v.trebleOffsetDb += t[3];
+        v.presenceMaxDb = std::max (0.0f, v.presenceMaxDb + t[4]);
+    }
     inline AmpVoicing getVoicingImpl (int model, int voicing, float semitonesDown)
     {
         if (model >= 34)      // b66: the amps split out of voicings (clone rows above)
@@ -1473,6 +1576,7 @@ namespace
         {
             AmpVoicing v = getVoicingImpl (30, 103, semitonesDown);      // b67: the original Big Spring (Cedar Spring's slot is a Deluxe Reverb variant now)
             applyBlendFit (v, 0);
+            applyBlendTone (v, voicing);      // b90
             return v;
         }
         bool legacy = false;
@@ -1496,8 +1600,8 @@ namespace
             { 0, 1.2f, 2.4f, 1.2f,   -3.0f,  0.0f,  4.0f, -0.5f,  0.0f,   0.0f, 1.0f,  0.0f,    0.0f, 0.0f },   //  7 Bumble Lead: Blues
             { 1, 1.15f, 1.15f, 1.0f, 0.0f, -2.0f,  2.0f,  1.5f,  0.0f,   0.0f, 1.0f,  0.0f,    0.0f, 0.0f },   //  8 5555 Block: Buzz
             { 1, 1.3f, 1.0f, 1.3f,   0.5f,  0.0f,  0.0f,  0.0f, -1.0f,   0.0f, 1.0f,  0.0f, 4800.0f, 0.0f },   //  9 Tweedle Dee: Gritty
-            { 0, 1.0f, 1.0f, 0.5f,   0.0f, -2.0f,  1.0f,  3.0f,  3.0f,   0.0f, 1.3f,  0.0f,    0.0f, 0.0f },   // 10 Jade Chorus: Shimmer
-            { 1, 1.15f, 1.0f, 1.2f,  0.0f,  1.0f, -0.5f, -1.0f,  0.0f,   0.0f, 1.0f,  0.0f, 5000.0f, 0.0f },   // 11 Marque Dream: Singing
+            { 0, 1.0f, 1.0f, 0.5f,   0.0f, -2.0f,  1.0f,  6.0f,  5.0f,   0.0f, 1.3f,  0.0f,    0.0f, 0.0f },   // 10 Jade Chorus: Shimmer (b90: treble +6 and presence +5 dB (were +3 and +3); an ESTIMATE, the audit found it only 1.5 dB from Glass)
+            { 1, 1.15f, 1.0f, 1.2f,  4.0f,  5.0f,  1.5f, -7.0f,  0.0f,   0.0f, 1.0f,  0.0f, -6000.0f, 0.0f, 1.0f, 1.25f },   // 11 Marque Dream: Singing (b103: retuned against the Amp 4 captures: more bass/low-mid, less treble, wider top-of-knob gain)
             { 0, 1.4f, 1.0f, 1.3f,   0.0f,  1.0f, -2.0f, -2.0f,  0.0f,   0.0f, 1.0f,  0.0f, 4200.0f, 0.05f },  // 12 Citrus Doom: Fuzz
             { 2, 1.25f, 1.1f, 0.7f,  1.0f,  0.5f,  0.5f,  2.0f,  2.0f,   0.0f, 1.0f,  0.3f,    0.0f, 0.02f },  // 13 Precision: Polished (v76: now built on Crunch, so it no longer duplicates Tight)
             { 0, 1.0f, 1.0f, 1.0f,   0.0f,  0.0f,  0.0f,  0.0f,  0.0f,   0.0f, 1.0f,  0.0f,    0.0f, 0.0f },   // 14 Digital Dread: Bottom (b50: its own row in hiV, no delta)
@@ -1539,15 +1643,23 @@ namespace
         v.trebleOffsetDb += q.treble;  v.presenceMaxDb = std::max (0.0f, v.presenceMaxDb + q.presence);
         v.voiceDb += q.voiceDb;  v.voiceHz *= q.voiceHz;
         v.gainExtend += q.ext;
-        if (q.lpHz > 0.0f)
+        for (int i = 0; i < 3; ++i) { v.gainMin[i] *= q.lo;  v.gainMax[i] *= q.hi; }
+        if (q.curve > 0.0f) v.gainCurve = q.curve;
+        v.lowMidHz *= q.lmHz;
+        if (q.lpHz < 0.0f)
+            v.stageLpHz = -q.lpHz;      // b103: a negative value sets the limit exactly (the Singing voicing opens its base voicing's 3500 Hz limit up to 6000)
+        else if (q.lpHz > 0.0f)
             v.stageLpHz = v.stageLpHz > 0.0f ? std::min (v.stageLpHz, q.lpHz) : q.lpHz;
         v.trimDb += xr != nullptr ? xr->trim : trim[m];
         if (xr != nullptr)
         {
             if (xr->pwrAdd >= 0.0f) v.pwrAdd = xr->pwrAdd;
             if (xr->blockMul > 0.0f) v.blockMul = xr->blockMul;
+            if (xr->cabLpHz > 0.0f)   v.cabLowpassHz = xr->cabLpHz;      // b88
+            if (xr->stageLpHz > 0.0f) v.stageLpHz    = xr->stageLpHz;
         }
         if (m == 29 && xr == nullptr) v.hardMask = 0;      // the JFET Crunch voicing has no diode or zener clipping stage
+        if (m == 29 && xr != nullptr && voicing == 4) v.hardMask = 7;      // b84 Hybrid + JFET: the Hi-Gain voicing's two LED stages and the JFET head's zener stage, all three clipping hard
         if (m == 34) v.pwrAdd = 0.03f;    // the bigger power stage has plenty of room
         return v;
     }
@@ -1575,12 +1687,62 @@ namespace
         }
     }
 
+    // b87: gain-range layers. Same idea as the fit layers above, but per stage: the three stages' minimum and maximum gain are scaled in dB (the
+    // test builds' AMPG hook, so the fit loop's numbers go in as they came out), the knob taper is absolute, and a level trim in dB.
+    // Fitted (a sweep metric: gain, 2nd and 3rd harmonic against level at Gain 2 / noon / 10) to the user's captures of a 100 W British head's
+    // two channels (Hi-Wat Headroom) and of a 1969-style British head (Ironside). Measured against captures, NOT listened to.
+    struct RangeLayer { int model, voicing; float minDb[3], maxDb[3], curve, trimDb; };
+    constexpr RangeLayer kRangeLayers[] = {
+        // Hi-Wat Headroom: Normal / Brilliant / Linked fitted to the capture's Normal / Brilliant / Jumped at Gain 2, noon and 10 (Open takes Normal's layer)
+        { 21, 0, { 0.0f, -1.30f, -1.26f }, { -1.10f, 12.21f, 3.00f }, 0.823f, 3.47f },
+        { 21, 1, { 0.0f, -1.19f, 18.83f }, { -3.54f, 17.60f, 4.02f }, 0.785f, 1.11f },
+        { 21, 2, { 0.0f,  0.00f,  0.00f }, {  4.59f, 12.19f, 5.80f }, 0.899f, 1.13f },
+        // Ironside: the bottom of the knob is left as it was (minimum gains unchanged, so Gain 2 is no hotter), only the top is extended. Treble is fitted to the
+        // capture's Normal preset (its noon mapped to our knob 0.65, because the presets' knob positions are estimates) and Gain 10, Linked to its Clipped preset (that pairing is my guess); Bass and Fifty take Treble's layer.
+        { 45, 0, { 0.0f,  0.00f,  0.00f }, {  4.26f, 10.19f, 3.00f }, 0.897f, 6.72f },
+        { 45, 2, { 0.0f,  0.00f,  0.00f }, { 18.00f, -11.50f, 18.60f }, 0.855f, 2.41f },
+    };
+    inline thread_local int gRangeLayerOff = 0;      // the Triple Blend's stand-in parts were balanced against a three-amp capture with the old ranges, so they skip the layers
+    struct RangeLayerOff { RangeLayerOff() { ++gRangeLayerOff; }  ~RangeLayerOff() { --gRangeLayerOff; } };
+    // b88: tone layers. Offsets on top of a voicing's own tone (dB on the four tone-stack bands, a multiplier on the bass shelf's corner and on the three high-passes,
+    // and the speaker-less roll-off and inter-stage low-pass in Hz, 0 = unchanged). Fitted so that the voicing's pink-noise octave profile (re 1 kHz, Amp Gain 0.7, all tone
+    // knobs flat) matches the user's Misha Amp 2 captures (Voice 1 and 2, Gain 7 and Max, averaged): within about 1 dB rms at Gain 0.7 and above, 2.7 dB at Gain 3. Measured, NOT listened to.
+    struct ToneLayer { int model, voicing; float bassDb, lowMidDb, highMidDb, trebleDb, bassHzMul, hpMul, cabLpHz, stageLpHz; };
+    constexpr ToneLayer kToneLayers[] = {
+        { 8, 1, 4.52f, 0.12f, 0.58f, 3.37f, 1.322f, 0.887f, 9000.0f, 5100.0f },        // 5555 Block, Modern: b89 halfway between the b87 sound and the full Misha Amp 2 fit (b88: 9.04, 0.24, 1.15, 6.74, 1.747, 0.787, 15800 Hz)
+    };
+    inline void applyToneLayer (AmpVoicing& v, int model, int voicing)
+    {
+        if (gRangeLayerOff > 0) return;
+        for (const auto& t : kToneLayers)
+        {
+            if (t.model != model || t.voicing != voicing) continue;
+            v.bassOffsetDb += t.bassDb;  v.lowMidOffsetDb += t.lowMidDb;  v.highMidOffsetDb += t.highMidDb;  v.trebleOffsetDb += t.trebleDb;
+            v.bassHz *= t.bassHzMul;  for (float& hz : v.hp) hz *= t.hpMul;
+            if (t.cabLpHz > 0.0f)   v.cabLowpassHz = t.cabLpHz;
+            if (t.stageLpHz > 0.0f) v.stageLpHz    = t.stageLpHz;
+        }
+    }
+    inline void applyRangeLayer (AmpVoicing& v, int model, int voicing)
+    {
+        if (gRangeLayerOff > 0) return;
+        for (const auto& r : kRangeLayers)
+        {
+            if (r.model != model || r.voicing != voicing) continue;
+            for (int i = 0; i < 3; ++i) { v.gainMin[i] *= std::pow (10.0f, r.minDb[i] / 20.0f);  v.gainMax[i] *= std::pow (10.0f, r.maxDb[i] / 20.0f); }
+            v.gainCurve = r.curve;
+            v.trimDb += r.trimDb;
+        }
+    }
+
     // b66: a voicing with its fit layers (what a split amp is built on); getVoicing adds only the test-build hooks to it
     inline AmpVoicing getVoicingBase (int model, int voicing, float semitonesDown)
     {
         AmpVoicing v = getVoicingImpl (model, voicing, semitonesDown);
         const bool moved = model < 34 && voicing < 100 && findCloneRow (model, juce::jlimit (0, 6, voicing)) != nullptr;      // b67: a slot that now holds a variant has no fit layer of its own (its base carries its own)
         if (! moved) applyFitLayer (v, model, voicing >= 100 ? voicing - 100 : voicing);
+        if (model == 8 && voicing == 1) applyToneLayer (v, 8, 1);      // b88: Modern toned toward the Misha Amp 2 captures
+        if (model == 21 || model == 45) applyRangeLayer (v, model, model == 21 ? (voicing == 3 ? 0 : voicing) : (voicing == 2 ? 2 : 0));      // b87: Hi-Wat's Open voicing takes the Normal layer (its extra headroom is its own delta on top)
         if (model == 30 && voicing == 103) applyBlendFit (v, 0);      // b63: Big Spring is now the Vibroverb-style voicing: the gain structure fitted to the amp-only captures (the Triple Blend's first part used this fit all along)
         if (model == 3 && voicing == 2) { v.bias[0] += 0.15f;  v.bias[1] += 0.15f;  v.highMidOffsetDb -= 2.5f;  v.trebleOffsetDb += 2.5f; }      // b67: Slow Burn Crunch against the SLO-100 Ch1 Crunch captures G9 and G10: a little asymmetry less (the captures have much less second harmonic) and a flatter upper mid / more top; score 2.5 to 2.1, H2 error 9 to 5 dB. Slow Burn Clean is built on the unmodified base (getVoicingThree), so it is unchanged
         return v;
@@ -1595,6 +1757,14 @@ namespace
             std::sscanf (e, "%f,%f,%f,%f,%f,%f,%f,%f", &t[0], &t[1], &t[2], &t[3], &t[4], &t[5], &t[6], &t[7]);
             if ((int) t[0] == model && (int) t[1] == voicing)
             { v.bassOffsetDb += t[2]; v.lowMidOffsetDb += t[3]; v.highMidOffsetDb += t[4]; v.trebleOffsetDb += t[5]; v.trimDb += t[6]; for (float& hz : v.hp) hz *= t[7]; }
+        }
+        if (const char* e = std::getenv ("AMPLP"))       // test builds only (b88): "model,voicing,cabLowpassHz,stageLpHz,presenceMaxDb,voiceDbAdd,sagMul,bassHz,hpMul0,hpMul1,hpMul2" (0 for a Hz or dB value = leave as is)
+        {
+            float t[11] = { 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1 };
+            std::sscanf (e, "%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f", &t[0], &t[1], &t[2], &t[3], &t[4], &t[5], &t[6], &t[7], &t[8], &t[9], &t[10]);
+            if ((int) t[0] == model && (int) t[1] == voicing)
+            { if (t[2] > 0) v.cabLowpassHz = t[2];  if (t[3] > 0) v.stageLpHz = t[3];  if (t[4] != 0) v.presenceMaxDb = t[4];  v.voiceDb += t[5];  v.sag *= t[6];  if (t[7] > 0) v.bassHz = t[7];
+              v.hp[0] *= t[8];  v.hp[1] *= t[9];  v.hp[2] *= t[10]; }
         }
         if (const char* e = std::getenv ("AMPG"))        // test builds only (b26): "model,voicing,minMul0..2,maxMul0..2,trimAdd"
         {
@@ -1632,7 +1802,7 @@ namespace
     // Amp B's menu has no Acoustic entry, so its positions differ from the parameter values from Club Crunch on:
     // 0 to 4 are the same, 5 = Club Crunch (6), 6 = Bumble Lead (7), 7 = 5555 Block (8), 8 to 11 = the four v55 amps (9 to 12), ... 29 = Cedar Spring (30),
     // 30 = Jazz Box (32), 31 = Brit Eighteen (33) and 32 to 38 = the split amps (34 to 40). Triple Blend (31) is Amp A only.
-    inline int ampBModelValue (int menuIndex) { return menuIndex <= 4 ? juce::jmax (0, menuIndex) : menuIndex <= 29 ? menuIndex + 1 : juce::jmin (menuIndex, 38) + 2; }      // b66: Amp B can pick Jazz Box and Brit Eighteen (30, 31) and the seven split amps (32 to 38)
+    inline int ampBModelValue (int menuIndex) { return menuIndex <= 4 ? juce::jmax (0, menuIndex) : menuIndex <= 29 ? menuIndex + 1 : juce::jmin (menuIndex, 42) + 2; }      // b66: Amp B can pick Jazz Box and Brit Eighteen (30, 31) and the seven split amps (32 to 38)
 
     AmpVoicing metalVoicing (int model, int voicing, float semitonesDown, const MetalSettings& m)
     {
@@ -1735,7 +1905,7 @@ namespace
             float extra = 0.0f;
             static const T ct[] = { { -1, -1, 0.0f }, { 34, 2, 1.0f }, { 35, 1, -1.05f }, { 38, 0, -1.0f }, { 39, 2, 0.9f }, { 40, 0, 1.9f } };
             for (const auto& r : ct) if (r.model == model && r.voicing == voicing) extra = r.db;
-            if (const CloneRow* c = findCloneRow (model, juce::jlimit (0, 3, voicing)))
+            if (const CloneRow* c = findCloneRow (model, juce::jlimit (0, 6, voicing)))
                 return derivedVoicingTrimDb (c->srcModel, c->srcVoicing) + extra;
             return extra;
         }
@@ -1791,6 +1961,22 @@ namespace
                     v.hp[1] = juce::jmax (30.0f, couplingCornerHz (1.0e6f, 0.02e-6f));
                     v.hp[2] = juce::jmax (30.0f, couplingCornerHz (1.0e6f, 0.02e-6f));
                     if (voicing == 1) { v.brightCapPf = 100.0f;  v.brightPotOhm = 1.0e6f; } else { v.brightCapPf = 0.0f; }
+                }
+                if (model == 36)      // b68 Cedar Grand, read from the Vibroverb AB763 sheet: V1/V2 cathodes 820 ohm // 25 uF (full range), .02 uF into 1M, 120 pF bright cap across the 1M volume pot (the Bright voicing)
+                {
+                    v.hp[0] = juce::jmax (25.0f, bypassCornerHz (820.0f, 25.0e-6f, 1600.0f));
+                    v.hp[1] = juce::jmax (25.0f, couplingCornerHz (1.0e6f, 0.02e-6f));
+                    if (voicing == 3) { v.brightCapPf = 120.0f;  v.brightPotOhm = 1.0e6f; } else { v.brightCapPf = 0.0f; }
+                }
+                if (model == 37)      // b68 Cedar Ten, read from the Hot Rod DeVille sheet: V1A 1.5k // 47 uF (full range); V2A 1.5k with a 1 uF bypass that the more-drive JFET switches in (Drive and Lead), V2B 1.5k // 22 uF; .047 uF couplings into 100k to 130k
+                {
+                    v.hp[0] = juce::jmax (25.0f, bypassCornerHz (1500.0f, 47.0e-6f, 1600.0f));
+                    if (voicing >= 2)
+                    {
+                        v.hp[1] = bypassCornerHz (1500.0f, 1.0e-6f, 1600.0f);
+                        v.hp[2] = juce::jmax (30.0f, bypassCornerHz (1500.0f, 22.0e-6f, 1600.0f));
+                    }
+                    else v.hp[1] = juce::jmax (30.0f, couplingCornerHz (230.0e3f, 0.047e-6f));
                 }
                 if (model == 39 && voicing <= 2)      // b67 Tweedle Mini, read from the Champ 5F1 and Princeton 5F2-A sheets: 1.5k cathodes; the Champ leaves both unbypassed and the Princeton bypasses only V1a (25 uF), so a 12AX7 stage with 100k plate load gives about 32 times instead of 62 (-5.7 dB per unbypassed stage); .02 uF couplings
                 {
@@ -1929,11 +2115,25 @@ namespace
             v.hp[0] = bypassCornerHz (2700.0f, 0.68e-6f, 1600.0f);
             v.hp[1] = couplingCornerHz (470.0e3f, 0.022e-6f);
             v.hp[2] = couplingCornerHz (470.0e3f, 0.022e-6f);
+            // b68 (R1): the 2203 master-volume preamp has a 1 nF bright cap across the top of the 1M Preamp Volume pot (C5 on the 1988 sheet)
+            if (model == 15) { v.brightCapPf = 1000.0f;  v.brightPotOhm = 1.0e6f; }
+            // b68 (R3): the 1959 family's other first stage is 820 ohm // 330 uF (full range, a corner near 5 Hz); the Jumped voicing runs both V1 halves, so its low end is the full-range one
+            if (model == 6 && voicing == 1) v.hp[0] = juce::jmax (25.0f, bypassCornerHz (820.0f, 330.0e-6f, 570.0f));
+        }
+        else if (model == 23)      // b68 (R4): Plex Appeal Stock and Jumped read from the 1959 100 W sheets (1988 CAD): V1b 2.7k / 0.68 uF (the bright input), V1a 820 / 330 uF (the normal input; Jumped runs both), .022 uF into the 1M volume pots, 220 pF bright cap across Volume I; Modded and Modded + Jumped keep their mod values
+        {
+            if (voicing == 0 || voicing == 1)
+            {
+                v.hp[0] = voicing == 1 ? juce::jmax (25.0f, bypassCornerHz (820.0f, 330.0e-6f, 570.0f)) : bypassCornerHz (2700.0f, 0.68e-6f, 1600.0f);
+                v.hp[1] = juce::jmax (30.0f, couplingCornerHz (1.0e6f, 0.022e-6f));
+                v.brightCapPf = 220.0f;  v.brightPotOhm = 1.0e6f;
+            }
         }
     }
 
     void applyRealism (AmpVoicing& v, const Realism& r)
     {
+        if (r.derived == 0) v.coldClip = 0.0f;      // b68: the cold clipper belongs to the circuit modes (Circuit-derived and Hybrid), not Classic
         const float hot = std::max (0.0f, r.bias);
         for (int i = 0; i < 3; ++i)
             v.bias[i] = v.bias[i] * (1.0f + 1.5f * hot) + 0.05f * hot * (i < 2 ? 1.0f : 0.5f);
@@ -1996,8 +2196,14 @@ namespace
             if (r.model == 12 && r.voicing == 4) fam = 1;      // b65: the Model T voicing has the 1970s head's own feedback (about -10 dB), where the other Citrus Doom voicings have none
             if (fam >= 0)
             {
-                v.ps.family = fam;  v.ps.feel = juce::jlimit (0, 2, r.feel);  v.ps.filtersOn = true;
-                v.ps.fbLg = PowerSection::loopGainFor (fam, v.ps.feel);
+                PowerSection::VoicingPs vps;
+                const bool hasVps = PowerSection::voicingPsFor (r.model, r.voicing, vps);      // b68: per-voicing feedback row / shift / supply
+                if (hasVps && vps.family >= 0) fam = vps.family;
+                int feelIdx = r.feel + (hasVps ? vps.feelShift : 0);
+                const bool belowLoose = feelIdx < 0;
+                feelIdx = juce::jlimit (0, 2, feelIdx);
+                v.ps.family = fam;  v.ps.feel = feelIdx;  v.ps.filtersOn = true;
+                v.ps.fbLg = PowerSection::loopGainFor (fam, v.ps.feel) * (belowLoose ? 0.5f : 1.0f) * (hasVps ? vps.fbMul : 1.0f);
                 if (r.model == 19) v.ps.fbLg *= 1.9f;           // b65: the Powerball II's feedback network reads about -18 dB (the family's normal setting is about -13 dB)
                 v.presenceMaxDb = 0.0f;                                  // the presence shelf is replaced by the feedback network
                 v.trimDb += derivedTrimDb (r.model, 1);
@@ -2006,6 +2212,7 @@ namespace
         PowerSection::SupplyInfo si;
         if (r.derived >= 2 && PowerSection::supplyFor (r.model, si))
         {
+            {   PowerSection::VoicingPs q;  if (PowerSection::voicingPsFor (r.model, r.voicing, q) && q.hasSupply) si = q.supply; }      // b68: this voicing's own supply
             const float rs = si.rs;
             const float depth = kSupplyCal * 5.0f * si.ipk * rs / si.bplus * 2.0f * r.sagAmt;
             v.ps.supplyOn = true;
@@ -2039,26 +2246,26 @@ namespace
         static const L rows[] =
         {
             { -1, -1, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },     // (placeholder row, matches nothing)
-            { 34, 0, { -37.66f, -35.09f, -32.69f, -30.51f, -28.59f, -26.99f, -25.57f, -24.14f, -23.13f, -22.58f, -22.29f } },     // Tweedle Dum: Tweed Normal
-            { 34, 1, { -36.27f, -33.82f, -31.59f, -29.61f, -27.93f, -26.58f, -25.39f, -24.20f, -23.32f, -22.86f, -22.64f } },     // Tweedle Dum: Tweed Bright
-            { 34, 2, { -33.34f, -30.54f, -28.24f, -26.51f, -25.24f, -24.31f, -23.59f, -23.03f, -22.82f, -22.78f, -22.78f } },     // Tweedle Dum: Cranked
-            { 34, 3, { -40.29f, -37.60f, -35.03f, -32.64f, -30.47f, -28.55f, -26.77f, -24.94f, -23.66f, -22.95f, -22.54f } },     // Tweedle Dum: Silverface
+            { 34, 0, { -37.76f, -35.19f, -32.79f, -30.61f, -28.69f, -27.09f, -25.68f, -24.24f, -23.24f, -22.69f, -22.41f } },     // Tweedle Dum: Tweed Normal
+            { 34, 1, { -36.37f, -33.92f, -31.68f, -29.70f, -28.03f, -26.68f, -25.49f, -24.30f, -23.43f, -22.97f, -22.75f } },     // Tweedle Dum: Tweed Bright
+            { 34, 2, { -33.14f, -30.06f, -27.54f, -25.67f, -24.31f, -23.34f, -22.60f, -22.03f, -21.80f, -21.76f, -21.77f } },     // Tweedle Dum: Cranked
+            { 34, 3, { -40.79f, -37.97f, -35.24f, -32.66f, -30.27f, -28.16f, -26.22f, -24.22f, -22.83f, -22.08f, -21.67f } },     // Tweedle Dum: Silverface
             { 35, 0, { -32.60f, -32.09f, -31.75f, -31.50f, -31.33f, -31.20f, -31.07f, -30.97f, -30.94f, -30.88f, -30.86f } },     // Marque One: Mark I
             { 35, 1, { -46.36f, -43.33f, -40.41f, -37.64f, -35.09f, -32.86f, -30.75f, -28.55f, -27.14f, -26.46f, -26.16f } },     // Marque One: Clean
             { 35, 2, { -31.85f, -31.56f, -31.35f, -31.19f, -31.08f, -31.00f, -30.95f, -30.91f, -30.85f, -30.84f, -30.86f } },     // Marque One: Lead Boost
             { 35, 3, { -31.87f, -31.32f, -30.94f, -30.66f, -30.45f, -30.30f, -30.16f, -30.06f, -30.04f, -29.97f, -29.95f } },     // Marque One: Graphic EQ
-            { 36, 0, { -47.48f, -43.87f, -38.28f, -34.81f, -32.13f, -30.00f, -28.12f, -26.75f, -25.93f, -25.49f, -25.20f } },     // Cedar Grand: Big Spring
-            { 36, 1, { -36.08f, -32.56f, -28.90f, -25.98f, -23.65f, -21.95f, -20.88f, -20.27f, -19.88f, -19.59f, -19.41f } },     // Cedar Grand: Brownface
-            { 36, 2, { -29.27f, -27.03f, -25.11f, -23.58f, -22.43f, -21.62f, -21.01f, -20.53f, -20.34f, -20.30f, -20.30f } },     // Cedar Grand: Cranked
-            { 36, 3, { -46.20f, -42.64f, -37.20f, -33.88f, -31.36f, -29.40f, -27.74f, -26.56f, -25.87f, -25.51f, -25.25f } },     // Cedar Grand: Bright
+            { 36, 0, { -47.06f, -43.46f, -37.87f, -34.41f, -31.75f, -29.65f, -27.80f, -26.45f, -25.63f, -25.20f, -24.90f } },     // Cedar Grand: Big Spring
+            { 36, 1, { -36.27f, -32.77f, -29.13f, -26.21f, -23.90f, -22.20f, -21.13f, -20.53f, -20.13f, -19.85f, -19.67f } },     // Cedar Grand: Brownface
+            { 36, 2, { -28.88f, -26.67f, -24.80f, -23.30f, -22.18f, -21.39f, -20.79f, -20.31f, -20.13f, -20.09f, -20.09f } },     // Cedar Grand: Cranked
+            { 36, 3, { -45.81f, -42.26f, -36.82f, -33.52f, -31.02f, -29.09f, -27.45f, -26.29f, -25.61f, -25.24f, -24.98f } },     // Cedar Grand: Bright
             { 37, 0, { -42.60f, -38.58f, -32.21f, -28.36f, -25.46f, -23.17f, -21.06f, -19.76f, -19.22f, -19.02f, -18.91f } },     // Cedar Ten: Clean
             { 37, 1, { -36.58f, -32.83f, -27.24f, -24.18f, -22.09f, -20.68f, -19.63f, -19.12f, -18.93f, -18.85f, -18.80f } },     // Cedar Ten: Pushed
             { 37, 2, { -24.40f, -22.58f, -21.19f, -20.43f, -20.04f, -19.85f, -19.76f, -19.72f, -19.71f, -19.73f, -19.75f } },     // Cedar Ten: Drive
             { 37, 3, { -21.81f, -20.86f, -20.23f, -19.96f, -19.85f, -19.79f, -19.75f, -19.71f, -19.71f, -19.72f, -19.73f } },     // Cedar Ten: Lead
-            { 38, 0, { -43.51f, -40.64f, -38.03f, -35.74f, -33.81f, -32.26f, -30.81f, -29.18f, -28.20f, -27.86f, -27.70f } },     // Brit Forty-Five: Normal
-            { 38, 1, { -38.39f, -35.38f, -33.06f, -31.45f, -30.40f, -29.70f, -29.07f, -28.51f, -28.26f, -28.03f, -27.90f } },     // Brit Forty-Five: Bright
-            { 38, 2, { -35.14f, -33.17f, -31.62f, -30.42f, -29.51f, -28.80f, -28.15f, -27.56f, -27.22f, -27.02f, -26.93f } },     // Brit Forty-Five: Cranked
-            { 38, 3, { -30.43f, -29.39f, -28.70f, -28.26f, -27.89f, -27.62f, -27.35f, -27.05f, -27.03f, -26.98f, -26.93f } },     // Brit Forty-Five: Pushed
+            { 38, 0, { -43.41f, -40.53f, -37.90f, -35.60f, -33.66f, -32.11f, -30.66f, -29.04f, -28.07f, -27.75f, -27.59f } },     // Brit Forty-Five: Normal
+            { 38, 1, { -38.31f, -35.29f, -32.96f, -31.35f, -30.29f, -29.60f, -28.98f, -28.42f, -28.18f, -27.97f, -27.85f } },     // Brit Forty-Five: Bright
+            { 38, 2, { -35.18f, -33.20f, -31.64f, -30.44f, -29.53f, -28.82f, -28.16f, -27.57f, -27.24f, -27.05f, -26.96f } },     // Brit Forty-Five: Cranked
+            { 38, 3, { -30.45f, -29.41f, -28.72f, -28.27f, -27.90f, -27.63f, -27.36f, -27.07f, -27.05f, -27.01f, -26.96f } },     // Brit Forty-Five: Pushed
             { 39, 0, { -34.29f, -30.65f, -27.33f, -24.50f, -22.30f, -20.75f, -19.65f, -18.77f, -18.27f, -18.06f, -17.97f } },     // Tweedle Mini: Champ
             { 39, 1, { -36.38f, -32.61f, -29.08f, -25.94f, -23.32f, -21.37f, -19.95f, -18.81f, -18.09f, -17.78f, -17.65f } },     // Tweedle Mini: Princeton
             { 39, 2, { -28.21f, -25.69f, -23.78f, -22.46f, -21.57f, -20.93f, -20.45f, -20.13f, -20.04f, -20.03f, -20.02f } },     // Tweedle Mini: Cranked
@@ -2066,7 +2273,28 @@ namespace
             { 40, 0, { -36.10f, -34.48f, -32.94f, -31.50f, -30.19f, -29.03f, -28.02f, -27.17f, -26.46f, -25.86f, -25.36f } },     // Jubilant: Clean
             { 40, 1, { -35.62f, -33.05f, -30.97f, -29.38f, -28.27f, -27.53f, -26.99f, -26.52f, -26.18f, -25.98f, -25.81f } },     // Jubilant: Rhythm
             { 40, 2, { -33.25f, -31.40f, -30.07f, -29.18f, -28.56f, -28.15f, -27.83f, -27.57f, -27.36f, -27.25f, -27.19f } },     // Jubilant: Lead
-            { 40, 3, { -31.60f, -29.97f, -28.82f, -28.04f, -27.50f, -27.14f, -26.87f, -26.66f, -26.49f, -26.41f, -26.36f } },     // Jubilant: Lead Hi
+            { 40, 3, { -31.73f, -30.21f, -29.18f, -28.49f, -27.99f, -27.65f, -27.36f, -27.17f, -27.02f, -26.88f, -26.78f } },     // Jubilant: Lead Hi
+            { 41, 0, { -36.17f, -34.54f, -33.39f, -32.63f, -32.14f, -31.83f, -31.62f, -31.33f, -30.63f, -30.30f, -30.24f } },     // Clarion: Clear
+            { 41, 1, { -34.89f, -33.80f, -33.05f, -32.56f, -32.22f, -31.98f, -31.72f, -31.11f, -30.72f, -30.67f, -30.66f } },     // Clarion: Lead
+            { 41, 2, { -34.87f, -33.30f, -32.25f, -31.58f, -31.19f, -30.94f, -30.71f, -30.29f, -29.73f, -29.59f, -29.55f } },     // Clarion: Thick
+            { 41, 3, { -39.34f, -37.19f, -35.35f, -33.82f, -32.59f, -31.65f, -30.86f, -30.06f, -29.41f, -29.02f, -28.81f } },     // Clarion: Edge
+            { 41, 4, { -38.84f, -37.07f, -35.55f, -34.23f, -33.10f, -32.25f, -31.68f, -31.38f, -30.82f, -30.48f, -30.44f } },     // Clarion: Cascade (b89: Clear's curve plus the measured level difference between the two, so Cascade lands where Clear does)
+            { 42, 0, { -35.14f, -33.11f, -31.13f, -29.20f, -27.34f, -25.56f, -23.60f, -20.89f, -18.51f, -17.12f, -16.35f } },     // Prism: Glass
+            { 42, 1, { -35.19f, -33.16f, -31.17f, -29.24f, -27.38f, -25.61f, -23.64f, -20.93f, -18.55f, -17.16f, -16.39f } },     // Prism: Air
+            { 42, 2, { -26.95f, -25.12f, -23.38f, -21.75f, -20.23f, -18.85f, -17.36f, -15.43f, -14.05f, -13.44f, -13.18f } },     // Prism: Body
+            { 42, 3, { -26.14f, -24.42f, -22.82f, -21.34f, -19.99f, -18.80f, -17.49f, -15.80f, -14.75f, -14.36f, -14.22f } },     // Prism: Pushed
+            { 43, 0, { -41.86f, -33.94f, -32.59f, -30.29f, -28.43f, -27.10f, -26.55f, -26.37f, -26.38f, -26.33f, -26.32f } },     // Ember: Lead
+            { 43, 1, { -39.41f, -36.82f, -34.56f, -32.69f, -31.20f, -30.04f, -28.95f, -27.72f, -26.92f, -26.65f, -26.54f } },     // Ember: Edge
+            { 43, 2, { -43.61f, -35.61f, -34.20f, -31.73f, -29.71f, -28.40f, -27.67f, -27.30f, -27.24f, -27.16f, -27.15f } },     // Ember: Bite
+            { 43, 3, { -35.36f, -30.17f, -28.88f, -27.75f, -27.12f, -26.81f, -26.70f, -26.70f, -26.66f, -26.64f, -26.63f } },     // Ember: Extreme
+            { 44, 0, { -35.31f, -32.17f, -29.43f, -27.20f, -25.51f, -24.28f, -23.31f, -22.44f, -22.09f, -22.01f, -21.97f } },     // Kindle: Chime
+            { 44, 1, { -33.43f, -30.12f, -27.49f, -25.59f, -24.28f, -23.37f, -22.72f, -22.28f, -22.09f, -22.02f, -21.99f } },     // Kindle: Crunch
+            { 44, 2, { -37.77f, -33.91f, -30.53f, -27.84f, -25.91f, -24.59f, -23.58f, -22.81f, -22.50f, -22.40f, -22.35f } },     // Kindle: Push
+            { 44, 3, { -37.48f, -33.53f, -29.91f, -26.75f, -24.23f, -22.41f, -21.02f, -19.90f, -19.40f, -19.26f, -19.23f } },     // Kindle: Warm
+            { 45, 0, { -34.46f, -30.49f, -26.55f, -23.92f, -22.12f, -21.01f, -20.81f, -21.08f, -20.97f, -20.86f, -20.78f } },     // Ironside: Treble
+            { 45, 1, { -32.55f, -28.51f, -24.52f, -22.01f, -20.32f, -19.26f, -18.98f, -19.15f, -19.15f, -19.06f, -18.98f } },     // Ironside: Bass
+            { 45, 2, { -35.46f, -30.93f, -27.22f, -25.86f, -25.41f, -25.05f, -24.60f, -24.28f, -24.09f, -23.78f, -23.57f } },     // Ironside: Linked
+            { 45, 3, { -30.47f, -26.94f, -23.63f, -21.65f, -20.30f, -19.81f, -19.80f, -19.90f, -19.91f, -19.84f, -19.81f } },     // Ironside: Fifty
         };
         for (const auto& r : rows)
             if (r.model == model && r.voicing == voicing) return r.c;
@@ -2082,72 +2310,72 @@ namespace
         if (model < 34 && voicing >= 100 && ! (model == 30 && voicing == 104)) voicing -= 100;      // b67: the originals of voicings that moved to a split amp
         static const float tbl[4][15][11] = {
         {
-            { -34.29f, -32.32f, -30.42f, -28.60f, -26.89f, -25.30f, -23.65f, -21.64f, -20.15f, -19.38f, -18.97f },
+            { -34.31f, -32.35f, -30.46f, -28.65f, -26.93f, -25.35f, -23.70f, -21.70f, -20.21f, -19.44f, -19.03f },
             { -38.25f, -35.44f, -33.00f, -30.97f, -29.36f, -28.12f, -27.08f, -26.09f, -25.59f, -25.29f, -25.09f },
             { -45.91f, -41.25f, -37.54f, -34.85f, -33.13f, -32.13f, -31.34f, -30.72f, -30.36f, -30.19f, -30.13f },
-            { -33.87f, -32.81f, -32.14f, -31.69f, -31.42f, -31.20f, -30.99f, -30.60f, -30.17f, -30.00f, -29.95f },
+            { -34.06f, -33.03f, -32.40f, -31.95f, -31.65f, -31.42f, -31.20f, -30.81f, -30.32f, -30.10f, -30.03f },
             { -33.02f, -31.83f, -31.08f, -30.66f, -30.47f, -30.32f, -30.10f, -29.66f, -29.46f, -29.39f, -29.35f },
             { -37.05f, -34.59f, -32.67f, -31.20f, -30.12f, -29.33f, -28.68f, -28.14f, -27.83f, -27.64f, -27.54f },
             { -36.88f, -33.85f, -31.08f, -28.64f, -26.57f, -24.98f, -23.73f, -22.72f, -22.18f, -21.92f, -21.77f },
-            { -34.96f, -33.39f, -32.46f, -31.90f, -31.55f, -31.31f, -31.08f, -30.66f, -30.08f, -29.69f, -29.54f },
+            { -36.52f, -34.30f, -32.94f, -32.11f, -31.61f, -31.33f, -31.11f, -30.85f, -30.67f, -30.58f, -30.53f },
             { -41.49f, -37.92f, -34.64f, -31.76f, -29.43f, -27.71f, -26.39f, -25.30f, -24.61f, -24.30f, -24.15f },
             { -32.90f, -31.19f, -29.50f, -27.83f, -26.19f, -24.58f, -23.02f, -21.52f, -20.08f, -18.73f, -17.48f },
             { -34.87f, -33.20f, -32.26f, -31.65f, -31.23f, -30.91f, -30.61f, -30.00f, -29.42f, -29.24f, -29.20f },
             { -35.45f, -33.60f, -32.47f, -31.69f, -31.12f, -30.75f, -30.55f, -30.50f, -30.45f, -30.43f, -30.43f },
             { -36.18f, -34.92f, -34.15f, -33.68f, -33.37f, -33.13f, -32.87f, -32.28f, -31.75f, -31.55f, -31.43f },
             { -37.08f, -36.42f, -36.02f, -35.78f, -35.65f, -35.58f, -35.52f, -35.47f, -35.44f, -35.44f, -35.44f },
-            { -31.39f, -31.36f, -31.34f, -31.32f, -31.28f, -31.23f, -31.13f, -30.83f, -30.48f, -30.31f, -30.26f }
+            { -31.97f, -31.94f, -31.92f, -31.90f, -31.86f, -31.81f, -31.72f, -31.41f, -31.06f, -30.90f, -30.85f }
         },
         {
-            { -28.73f, -26.55f, -24.59f, -22.93f, -21.60f, -20.56f, -19.66f, -18.78f, -18.26f, -18.07f, -17.98f },
+            { -28.77f, -26.59f, -24.64f, -22.98f, -21.66f, -20.61f, -19.72f, -18.84f, -18.33f, -18.12f, -18.03f },
             { -36.67f, -34.49f, -32.70f, -31.29f, -30.22f, -29.39f, -28.71f, -28.15f, -27.75f, -27.50f, -27.34f },
             { -35.28f, -33.23f, -32.08f, -31.51f, -31.23f, -30.97f, -30.78f, -30.69f, -30.60f, -30.56f, -30.55f },
-            { -34.36f, -33.51f, -32.96f, -32.62f, -32.38f, -32.21f, -32.04f, -31.71f, -31.42f, -31.30f, -31.26f },
+            { -34.54f, -33.74f, -33.20f, -32.83f, -32.59f, -32.40f, -32.23f, -31.90f, -31.54f, -31.39f, -31.33f },
             { -34.27f, -33.09f, -32.35f, -31.92f, -31.71f, -31.56f, -31.36f, -30.95f, -30.75f, -30.69f, -30.66f },
             { -35.09f, -33.19f, -31.93f, -31.16f, -30.67f, -30.27f, -29.94f, -29.63f, -29.28f, -29.02f, -28.88f },
             { -38.91f, -35.89f, -33.60f, -32.05f, -31.06f, -30.41f, -29.93f, -29.44f, -29.13f, -28.97f, -28.88f },
-            { -33.34f, -32.38f, -31.82f, -31.43f, -31.12f, -30.85f, -30.52f, -29.85f, -29.39f, -29.34f, -29.34f },
+            { -32.18f, -30.74f, -29.91f, -29.51f, -29.37f, -29.32f, -29.22f, -28.99f, -28.79f, -28.67f, -28.63f },
             { -38.57f, -35.52f, -32.88f, -30.78f, -29.21f, -28.06f, -27.11f, -26.28f, -25.90f, -25.79f, -25.75f },
             { -35.44f, -33.25f, -31.12f, -29.08f, -27.14f, -25.33f, -23.69f, -22.23f, -20.97f, -19.91f, -19.06f },
             { -33.29f, -32.38f, -31.78f, -31.47f, -31.29f, -31.18f, -31.02f, -30.72f, -30.61f, -30.60f, -30.60f },
             { -36.51f, -33.97f, -32.15f, -30.96f, -30.14f, -29.55f, -29.10f, -28.81f, -28.70f, -28.70f, -28.68f },
             { -35.51f, -34.61f, -34.06f, -33.71f, -33.45f, -33.24f, -33.01f, -32.42f, -31.97f, -31.77f, -31.62f },
             { -33.99f, -33.19f, -32.75f, -32.50f, -32.31f, -32.15f, -31.94f, -31.73f, -31.55f, -31.49f, -31.46f },
-            { -32.88f, -32.49f, -32.26f, -31.89f, -31.38f, -30.84f, -30.25f, -29.79f, -29.55f, -29.47f, -29.44f }
+            { -33.38f, -33.00f, -32.78f, -32.43f, -31.93f, -31.40f, -30.82f, -30.37f, -30.13f, -30.06f, -30.03f }
         },
         {
-            { -35.73f, -33.38f, -31.17f, -29.14f, -27.36f, -25.89f, -24.53f, -23.10f, -22.16f, -21.75f, -21.57f },
+            { -35.76f, -33.42f, -31.22f, -29.20f, -27.42f, -25.94f, -24.59f, -23.16f, -22.23f, -21.82f, -21.64f },
             { -36.63f, -33.88f, -31.40f, -29.26f, -27.53f, -26.18f, -25.06f, -23.97f, -23.32f, -23.04f, -22.89f },
             { -41.23f, -36.95f, -33.68f, -31.48f, -30.18f, -29.39f, -28.76f, -28.28f, -28.13f, -28.04f, -27.98f },
             { -35.62f, -33.47f, -31.70f, -30.27f, -29.14f, -28.29f, -27.52f, -26.78f, -26.41f, -26.18f, -26.05f },
             { -43.09f, -39.67f, -36.60f, -33.97f, -31.95f, -30.48f, -29.31f, -28.40f, -28.12f, -28.04f, -28.01f },
             { -35.35f, -33.62f, -32.24f, -31.16f, -30.33f, -29.71f, -29.15f, -28.66f, -28.35f, -28.17f, -28.08f },
             { -39.96f, -37.28f, -35.35f, -34.10f, -33.35f, -32.82f, -32.33f, -31.82f, -31.58f, -31.55f, -31.51f },
-            { -35.45f, -33.37f, -31.59f, -30.12f, -28.93f, -27.98f, -27.12f, -26.22f, -25.78f, -25.59f, -25.46f },
+            { -38.20f, -35.96f, -33.89f, -32.06f, -30.46f, -29.12f, -27.77f, -26.29f, -25.71f, -25.49f, -25.39f },
             { -32.86f, -30.08f, -27.89f, -26.27f, -25.09f, -24.21f, -23.60f, -23.22f, -23.03f, -22.94f, -22.90f },
-            { -33.12f, -31.45f, -29.80f, -28.18f, -26.59f, -25.05f, -23.56f, -22.13f, -20.79f, -19.54f, -18.39f },
+            { -35.21f, -33.15f, -31.10f, -29.09f, -27.13f, -25.23f, -23.41f, -21.69f, -20.11f, -18.68f, -17.41f },
             { -34.24f, -32.07f, -30.32f, -28.96f, -27.94f, -27.17f, -26.49f, -25.85f, -25.55f, -25.43f, -25.36f },
             { -36.57f, -34.04f, -31.87f, -30.12f, -28.78f, -27.74f, -26.85f, -25.98f, -25.49f, -25.25f, -25.15f },
             { -36.50f, -34.53f, -32.96f, -31.72f, -30.79f, -30.10f, -29.54f, -29.05f, -28.67f, -28.42f, -28.29f },
             { -33.95f, -32.71f, -32.01f, -31.64f, -31.45f, -31.33f, -31.23f, -31.10f, -31.13f, -31.24f, -31.31f },
-            { -32.79f, -30.83f, -29.30f, -28.12f, -27.27f, -26.65f, -26.12f, -25.68f, -25.43f, -25.25f, -25.14f }
+            { -33.11f, -31.19f, -29.68f, -28.51f, -27.65f, -27.02f, -26.48f, -26.03f, -25.78f, -25.60f, -25.48f }
         },
         {
-            { -34.74f, -32.70f, -30.69f, -28.74f, -26.85f, -25.05f, -23.08f, -20.44f, -18.36f, -17.25f, -16.67f },
+            { -34.76f, -32.72f, -30.71f, -28.77f, -26.89f, -25.10f, -23.13f, -20.49f, -18.41f, -17.31f, -16.73f },
             { -39.88f, -36.77f, -33.94f, -31.48f, -29.43f, -27.78f, -26.37f, -24.99f, -24.17f, -23.83f, -23.61f },
             { -46.32f, -41.78f, -38.20f, -35.61f, -33.94f, -32.94f, -32.16f, -31.52f, -31.18f, -31.02f, -30.97f },
-            { -32.08f, -31.50f, -31.12f, -30.85f, -30.65f, -30.50f, -30.31f, -29.94f, -29.68f, -29.59f, -29.55f },
+            { -32.31f, -31.78f, -31.37f, -31.09f, -30.88f, -30.70f, -30.52f, -30.12f, -29.79f, -29.67f, -29.62f },
             { -33.83f, -32.80f, -32.20f, -31.81f, -31.51f, -31.26f, -30.92f, -30.10f, -29.68f, -29.60f, -29.56f },
             { -35.23f, -33.36f, -31.96f, -30.92f, -30.16f, -29.62f, -29.22f, -28.88f, -28.67f, -28.59f, -28.58f },
             { -37.04f, -34.21f, -31.69f, -29.55f, -27.87f, -26.62f, -25.64f, -24.79f, -24.25f, -23.97f, -23.81f },
-            { -33.84f, -32.99f, -32.54f, -32.24f, -31.98f, -31.73f, -31.36f, -30.42f, -29.38f, -29.04f, -28.94f },
+            { -33.23f, -31.90f, -31.07f, -30.56f, -30.22f, -29.99f, -29.83f, -29.96f, -30.03f, -30.08f, -30.11f },
             { -35.95f, -33.37f, -31.34f, -29.82f, -28.71f, -27.89f, -27.25f, -26.77f, -26.58f, -26.53f, -26.51f },
             { -32.81f, -31.10f, -29.41f, -27.74f, -26.10f, -24.49f, -22.92f, -21.42f, -19.98f, -18.62f, -17.37f },
-            { -32.45f, -31.71f, -31.26f, -31.01f, -30.86f, -30.74f, -30.57f, -30.30f, -30.23f, -30.23f, -30.21f },
+            { -30.54f, -29.69f, -29.22f, -28.97f, -28.81f, -28.67f, -28.47f, -28.21f, -28.08f, -28.05f, -28.03f },
             { -33.03f, -31.93f, -31.20f, -30.63f, -30.25f, -30.05f, -29.96f, -29.92f, -29.87f, -29.86f, -29.86f },
             { -37.83f, -36.26f, -35.02f, -34.07f, -33.35f, -32.83f, -32.43f, -31.99f, -31.52f, -31.28f, -31.17f },
             { -33.58f, -33.07f, -32.74f, -32.51f, -32.37f, -32.28f, -32.23f, -32.13f, -32.06f, -32.03f, -32.03f },
-            { -32.44f, -32.41f, -32.40f, -32.38f, -32.36f, -32.31f, -32.19f, -31.80f, -31.47f, -31.40f, -31.39f }
+            { -33.02f, -32.99f, -32.98f, -32.97f, -32.94f, -32.89f, -32.77f, -32.38f, -32.06f, -31.99f, -31.98f }
         }
         };
         constexpr float target = -23.5f;
@@ -2160,7 +2388,7 @@ namespace
             { -34.45f, -33.19f, -32.47f, -32.05f, -31.77f, -31.58f, -31.35f, -30.86f, -30.20f, -29.88f, -29.79f },
             { -34.17f, -33.08f, -32.45f, -32.13f, -31.93f, -31.75f, -31.50f, -30.85f, -30.21f, -30.06f, -30.03f },
             { -33.85f, -32.47f, -31.82f, -31.43f, -31.10f, -30.87f, -30.54f, -29.74f, -28.48f, -27.86f, -27.69f },
-            { -37.30f, -35.28f, -33.34f, -31.51f, -29.82f, -28.29f, -26.78f, -25.04f, -23.74f, -23.02f, -22.64f },
+            { -36.56f, -33.06f, -28.27f, -24.98f, -22.43f, -20.51f, -18.68f, -17.16f, -16.33f, -16.19f, -16.25f },
             { -32.49f, -31.31f, -30.15f, -29.00f, -27.87f, -26.78f, -25.71f, -24.67f, -23.67f, -22.72f, -21.80f },
             { -35.76f, -33.75f, -32.13f, -30.86f, -29.87f, -29.10f, -28.37f, -27.72f, -27.36f, -27.15f, -27.04f },
             { -35.25f, -33.34f, -31.83f, -30.69f, -29.85f, -29.21f, -28.70f, -28.27f, -28.02f, -27.90f, -27.86f },
@@ -2169,7 +2397,7 @@ namespace
             { -50.88f, -48.36f, -45.85f, -43.36f, -40.90f, -38.48f, -36.13f, -33.87f, -31.72f, -29.75f, -28.02f },
             { -34.57f, -32.48f, -30.62f, -29.00f, -27.70f, -26.70f, -25.76f, -24.74f, -24.23f, -24.04f, -23.97f },  // 28 Dual Thirty
             { -40.47f, -36.39f, -33.72f, -32.23f, -31.51f, -31.08f, -30.63f, -30.05f, -29.74f, -29.53f, -29.41f },  // 29 Solid Metal
-            { -34.73f, -31.22f, -27.60f, -24.76f, -22.59f, -21.07f, -20.14f, -19.64f, -19.32f, -19.10f, -18.97f },  // 30 Cedar Spring (b63: Blackface re-measured after the Deluxe Reverb fit)
+            { -34.53f, -31.12f, -27.64f, -24.94f, -22.90f, -21.47f, -20.59f, -20.11f, -19.80f, -19.58f, -19.45f },  // 30 Cedar Spring (b63: Blackface re-measured after the Deluxe Reverb fit)
             { -37.43f, -32.47f, -27.56f, -24.30f, -22.02f, -20.08f, -19.21f, -18.82f, -18.74f, -18.65f, -18.60f },  // 31 Triple Blend
             { -37.93f, -35.74f, -33.59f, -31.48f, -29.45f, -27.50f, -25.66f, -23.96f, -22.42f, -21.07f, -19.90f },  // 32 Jazz Box
             { -35.94f, -33.84f, -31.86f, -30.02f, -28.35f, -26.86f, -25.37f, -23.61f, -22.33f, -21.70f, -21.38f },  // 33 Brit Eighteen
@@ -2180,7 +2408,7 @@ namespace
             { -34.61f, -32.76f, -31.31f, -30.20f, -29.37f, -28.76f, -28.29f, -27.87f, -27.54f, -27.35f, -27.27f },
             { -34.52f, -33.30f, -32.57f, -32.15f, -31.90f, -31.71f, -31.50f, -31.12f, -30.81f, -30.72f, -30.68f },
             { -33.30f, -31.68f, -30.78f, -30.34f, -30.11f, -29.92f, -29.58f, -29.19f, -28.83f, -28.44f, -28.18f },
-            { -38.60f, -36.39f, -34.29f, -32.31f, -30.50f, -28.91f, -27.39f, -25.72f, -24.49f, -23.82f, -23.47f },
+            { -40.46f, -36.42f, -30.55f, -26.90f, -24.33f, -22.50f, -20.72f, -19.55f, -19.27f, -19.50f, -19.75f },
             { -40.20f, -37.36f, -34.62f, -32.02f, -29.61f, -27.43f, -25.56f, -24.04f, -22.88f, -22.05f, -21.49f },
             { -32.96f, -31.31f, -30.22f, -29.51f, -29.05f, -28.67f, -28.37f, -28.08f, -27.72f, -27.49f, -27.41f },
             { -36.87f, -35.02f, -33.79f, -33.02f, -32.55f, -32.20f, -31.91f, -31.62f, -31.36f, -31.21f, -31.14f },
@@ -2189,8 +2417,8 @@ namespace
             { -33.98f, -31.42f, -29.27f, -27.60f, -26.30f, -25.28f, -24.33f, -23.30f, -22.50f, -22.05f, -21.79f },
             { -34.71f, -33.48f, -32.33f, -31.27f, -30.31f, -29.45f, -28.66f, -27.83f, -27.15f, -26.66f, -26.31f },  // 28 Dual Thirty
             { -36.59f, -33.67f, -31.48f, -29.95f, -28.99f, -28.41f, -28.03f, -27.62f, -27.20f, -26.94f, -26.82f },  // 29 Solid Metal
-            { -34.70f, -32.69f, -30.78f, -29.00f, -27.37f, -25.90f, -24.46f, -22.82f, -21.58f, -20.92f, -20.56f },  // 30 Cedar Spring
-            { -41.01f, -36.10f, -31.16f, -27.88f, -25.50f, -23.40f, -22.47f, -22.07f, -21.99f, -21.89f, -21.83f },  // 31 Triple Blend
+            { -34.61f, -32.67f, -30.83f, -29.13f, -27.58f, -26.18f, -24.81f, -23.25f, -22.07f, -21.42f, -21.07f },  // 30 Cedar Spring
+            { -40.25f, -35.37f, -30.42f, -27.20f, -25.09f, -23.57f, -22.19f, -21.49f, -21.41f, -21.36f, -21.34f },  // 31 Triple Blend
             { -37.20f, -35.03f, -32.90f, -30.84f, -28.85f, -26.97f, -25.21f, -23.62f, -22.20f, -20.97f, -19.93f },  // 32 Jazz Box
             { -36.15f, -33.40f, -30.92f, -28.78f, -26.98f, -25.55f, -24.29f, -23.08f, -22.39f, -22.03f, -21.85f },  // 33 Brit Eighteen
             },
@@ -2200,7 +2428,7 @@ namespace
             { -33.49f, -31.58f, -29.74f, -27.99f, -26.35f, -24.83f, -23.47f, -22.30f, -21.32f, -20.50f, -19.83f },
             { -35.32f, -33.37f, -31.82f, -30.63f, -29.76f, -29.11f, -28.59f, -28.16f, -27.84f, -27.66f, -27.57f },
             { -34.08f, -32.22f, -30.44f, -28.76f, -27.20f, -25.78f, -24.53f, -23.49f, -22.65f, -22.01f, -21.53f },
-            { -39.01f, -36.07f, -33.33f, -30.92f, -28.92f, -27.39f, -26.04f, -24.70f, -23.94f, -23.77f, -23.72f },
+            { -40.59f, -35.02f, -28.86f, -24.72f, -22.33f, -21.12f, -20.55f, -20.97f, -21.52f, -21.84f, -21.94f },
             { -36.06f, -34.49f, -32.96f, -31.47f, -30.02f, -28.63f, -27.29f, -26.02f, -24.83f, -23.71f, -22.68f },
             { -36.44f, -34.92f, -33.95f, -33.32f, -32.89f, -32.63f, -32.43f, -32.09f, -31.51f, -31.05f, -30.86f },
             { -34.37f, -32.87f, -31.93f, -31.37f, -31.00f, -30.73f, -30.53f, -30.32f, -30.06f, -29.87f, -29.79f },
@@ -2208,9 +2436,9 @@ namespace
             { -30.22f, -28.12f, -26.31f, -24.84f, -23.68f, -22.75f, -21.88f, -20.93f, -20.35f, -20.07f, -19.94f },
             { -30.95f, -28.56f, -26.87f, -25.76f, -25.01f, -24.45f, -24.00f, -23.53f, -23.07f, -22.75f, -22.59f },
             { -32.43f, -30.15f, -28.42f, -27.26f, -26.52f, -26.00f, -25.48f, -24.98f, -24.73f, -24.64f, -24.62f },  // 28 Dual Thirty
-            { -38.88f, -34.35f, -31.49f, -30.04f, -29.43f, -29.16f, -28.92f, -28.39f, -28.02f, -27.98f, -27.96f },  // 29 Solid Metal
-            { -32.26f, -29.71f, -27.46f, -25.57f, -24.09f, -23.00f, -22.15f, -21.45f, -21.16f, -21.08f, -21.05f },  // 30 Cedar Spring
-            { -35.62f, -30.64f, -25.74f, -22.51f, -20.36f, -18.69f, -17.88f, -17.48f, -17.37f, -17.27f, -17.23f },  // 31 Triple Blend
+            { -37.44f, -34.73f, -33.32f, -32.68f, -32.38f, -32.24f, -32.15f, -32.14f, -32.11f, -32.11f, -32.12f },  // 29 Solid Metal
+            { -32.23f, -29.80f, -27.66f, -25.88f, -24.47f, -23.42f, -22.58f, -21.87f, -21.56f, -21.47f, -21.43f },  // 30 Cedar Spring
+            { -36.34f, -31.35f, -26.45f, -23.20f, -21.01f, -19.27f, -18.37f, -17.89f, -17.69f, -17.50f, -17.41f },  // 31 Triple Blend
             { -34.94f, -32.76f, -30.63f, -28.58f, -26.64f, -24.83f, -23.16f, -21.66f, -20.34f, -19.22f, -18.30f },  // 32 Jazz Box
             { -35.33f, -32.57f, -30.23f, -28.35f, -26.90f, -25.84f, -24.94f, -24.02f, -23.43f, -23.28f, -23.24f },  // 33 Brit Eighteen
             },
@@ -2220,7 +2448,7 @@ namespace
             { -34.03f, -32.80f, -32.09f, -31.71f, -31.48f, -31.32f, -31.12f, -30.66f, -29.96f, -29.70f, -29.68f },
             { -33.13f, -32.21f, -31.67f, -31.36f, -31.10f, -30.86f, -30.51f, -29.89f, -29.61f, -29.53f, -29.50f },
             { -34.33f, -32.41f, -30.56f, -28.80f, -27.14f, -25.60f, -24.20f, -22.98f, -21.97f, -21.16f, -20.55f },
-            { -38.08f, -35.96f, -33.89f, -31.89f, -29.99f, -28.19f, -26.29f, -23.89f, -22.09f, -21.10f, -20.56f },
+            { -37.40f, -33.78f, -28.72f, -25.09f, -22.11f, -19.66f, -17.29f, -15.36f, -14.05f, -13.42f, -13.09f },
             { -32.22f, -31.04f, -29.87f, -28.73f, -27.60f, -26.50f, -25.43f, -24.39f, -23.39f, -22.44f, -21.52f },
             { -34.85f, -33.64f, -32.90f, -32.38f, -32.05f, -31.80f, -31.57f, -31.14f, -30.61f, -30.41f, -30.35f },
             { -34.62f, -33.08f, -31.88f, -30.97f, -30.31f, -29.83f, -29.44f, -29.08f, -28.74f, -28.57f, -28.50f },
@@ -2228,8 +2456,8 @@ namespace
             { -29.10f, -27.66f, -26.51f, -25.59f, -24.86f, -24.29f, -23.74f, -23.04f, -22.65f, -22.52f, -22.47f },
             { -26.39f, -24.72f, -23.60f, -22.81f, -22.21f, -21.82f, -21.48f, -20.94f, -20.37f, -20.07f, -19.95f },
             { -34.96f, -32.78f, -30.80f, -29.05f, -27.60f, -26.47f, -25.41f, -24.26f, -23.66f, -23.45f, -23.37f },  // 28 Dual Thirty
-            { -49.87f, -43.62f, -37.83f, -33.10f, -29.91f, -28.21f, -27.39f, -26.94f, -26.70f, -26.56f, -26.48f },  // 29 Solid Metal
-            { -40.72f, -36.98f, -32.99f, -29.69f, -26.95f, -24.82f, -23.38f, -22.53f, -21.94f, -21.49f, -21.18f },  // 30 Cedar Spring (b63: Big Spring re-measured after the Vibroverb fit)
+            { -45.54f, -39.95f, -35.55f, -32.68f, -31.15f, -30.44f, -30.07f, -29.80f, -29.65f, -29.61f, -29.60f },  // 29 Solid Metal
+            { -40.45f, -36.78f, -32.91f, -29.75f, -27.15f, -25.15f, -23.80f, -22.99f, -22.42f, -21.98f, -21.67f },  // 30 Cedar Spring (b63: Big Spring re-measured after the Vibroverb fit)
             { -40.28f, -35.35f, -30.30f, -26.41f, -23.20f, -21.89f, -21.29f, -21.09f, -20.90f, -20.80f, -20.74f },  // 31 Triple Blend
             { -28.35f, -26.60f, -24.99f, -23.53f, -22.23f, -21.13f, -20.10f, -19.04f, -18.36f, -18.04f, -17.89f },  // 32 Jazz Box
             { -36.91f, -34.80f, -32.81f, -30.96f, -29.27f, -27.76f, -26.24f, -24.46f, -23.14f, -22.48f, -22.14f },  // 33 Brit Eighteen
@@ -2243,7 +2471,7 @@ namespace
                 const int   ic = juce::jmin ((int) xc2, 9);
                 return target - (cc[ic] + (xc2 - (float) ic) * (cc[ic + 1] - cc[ic]));
             }
-            if (const CloneRow* cr = findCloneRow (model, juce::jlimit (0, 3, voicing)))
+            if (const CloneRow* cr = findCloneRow (model, juce::jlimit (0, 6, voicing)))
                 return autoAmpLevelHybridDb (cr->srcModel, cr->srcVoicing, gain) - cr->trim;
             return 0.0f;
         }
@@ -2314,21 +2542,21 @@ namespace
         // b59: the FET, Variable-mu and Bus rows were re-measured after those styles changed (ratios, attack floors, release stretch): old row plus the loudness change on the same test signal.
         static const float dl[9][6][7] = {
             {},   // 0 Standard
-            { // 1 FET
+            { // 1 FET (b86: re-measured after the knee and per-ratio threshold changes)
               { 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f },
-              { 3.04f, 2.27f, 1.33f, 0.49f, 0.00f, 0.00f, 0.00f },
-              { 3.44f, 2.86f, 1.74f, 0.68f, 0.00f, 0.00f, 0.00f },
-              { 3.08f, 2.76f, 1.80f, 0.77f, 0.00f, 0.00f, 0.00f },
-              { 3.32f, 2.95f, 1.94f, 0.82f, 0.00f, 0.00f, 0.00f },
-              { 3.45f, 3.11f, 2.08f, 1.04f, 0.00f, 0.00f, 0.00f },
+              { 6.47f, 5.77f, 4.62f, 2.84f, 0.74f, 0.00f, 0.00f },
+              { 7.46f, 6.81f, 5.56f, 3.31f, 0.66f, 0.00f, 0.00f },
+              { 4.53f, 4.18f, 3.08f, 1.54f, 0.01f, 0.00f, 0.00f },
+              { 3.46f, 3.11f, 2.03f, 0.88f, 0.00f, 0.00f, 0.00f },
+              { 3.61f, 3.26f, 2.18f, 1.10f, 0.00f, 0.00f, 0.00f },
             },
-            { // 2 Opto
+            { // 2 Opto (b86: re-measured after the faster attack floor and the slower fast-release stage)
               { 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f },
-              { -0.76f, -0.79f, -0.55f, -0.01f, 0.00f, 0.00f, 0.00f },
-              { -0.99f, -1.04f, -0.76f, -0.02f, 0.00f, 0.00f, 0.00f },
-              { -1.14f, -1.16f, -0.88f, -0.03f, 0.00f, 0.00f, 0.00f },
-              { -1.17f, -1.19f, -0.92f, -0.02f, 0.00f, 0.00f, 0.00f },
-              { -1.28f, -1.50f, -1.53f, -0.11f, 0.00f, 0.00f, 0.00f },
+              { -0.63f, -0.74f, -0.65f, -0.09f, 0.00f, 0.00f, 0.00f },
+              { -0.80f, -0.96f, -0.92f, -0.14f, 0.00f, 0.00f, 0.00f },
+              { -0.92f, -1.06f, -1.07f, -0.17f, 0.00f, 0.00f, 0.00f },
+              { -0.95f, -1.10f, -1.11f, -0.17f, 0.00f, 0.00f, 0.00f },
+              { -0.99f, -1.24f, -1.42f, -0.13f, 0.00f, 0.00f, 0.00f },
             },
             { // 3 Variable-mu
               { 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f, 0.00f },
@@ -2392,7 +2620,7 @@ namespace
     // what a high-gain amp does with it. Auto level takes it away again.
     inline float autoOdDeltaDb (int style, bool rangeHigh, float drive, int clip = 0, bool circuit = false)
     {
-        static const float tbl[29][11] = {
+        static const float tbl[30][11] = {
             { -5.30f, -4.67f, -2.15f, 1.03f, 3.83f, 6.08f, 7.88f, 9.33f, 10.52f, 11.51f, 12.38f },
             { -11.07f, -7.54f, -2.14f, 1.72f, 4.37f, 6.25f, 7.67f, 8.76f, 9.63f, 10.35f, 10.94f },
             { -12.53f, -9.68f, -4.02f, 0.70f, 4.16f, 6.68f, 8.55f, 10.00f, 11.17f, 12.12f, 12.91f },
@@ -2422,8 +2650,9 @@ namespace
         { -2.44f, 0.25f, 2.07f, 3.25f, 3.97f, 4.38f, 4.61f, 4.75f, 4.85f, 4.93f, 4.99f },   // b64 Natural Overdrive (mean of the three voicings, each trimmed to the same top level; measured with odmeas_nob)
         { -2.26f, -0.81f, 0.29f, 0.95f, 1.33f, 1.76f, 2.64f, 3.64f, 4.35f, 4.74f, 4.77f },   // b64 Preamp Distortion (measured with odmeas_nob, trimmed 4 dB)
         { -1.70f, 0.70f, 2.35f, 3.48f, 4.23f, 4.70f, 4.98f, 5.15f, 5.26f, 5.32f, 5.36f },   // b67 Metal Zone (measured with odmeas_nob, trimmed 9.1 dB)
+        { -2.98f, -1.97f, -0.65f, 0.85f, 2.25f, 3.31f, 3.97f, 4.32f, 4.51f, 4.62f, 4.68f },   // b78 Timmy-style drive (measured with the b78 timmy78 meas command, trim 1.2)
         };
-        const int row = circuit && style == 0 ? 22 : circuit && style == 2 ? (rangeHigh ? 24 : 25) : style == 11 ? 28 : style == 10 ? 27 : style == 9 ? 26 : style == 8 ? 23 : style >= 6 ? 14 + style : odCircuitActive (style, circuit) ? (style == 1 ? 13 : style == 4 ? 19 : 14 + juce::jlimit (0, 4, clip)) : style == 5 ? 12 : style == 2 ? (rangeHigh ? 2 : 3) : style >= 3 ? (style == 3 ? 4 : 8) + juce::jlimit (0, 3, clip) : juce::jlimit (0, 1, style);
+        const int row = circuit && style == 0 ? 22 : circuit && style == 2 ? (rangeHigh ? 24 : 25) : style == 12 ? 29 : style == 11 ? 28 : style == 10 ? 27 : style == 9 ? 26 : style == 8 ? 23 : style >= 6 ? 14 + style : odCircuitActive (style, circuit) ? (style == 1 ? 13 : style == 4 ? 19 : 14 + juce::jlimit (0, 4, clip)) : style == 5 ? 12 : style == 2 ? (rangeHigh ? 2 : 3) : style >= 3 ? (style == 3 ? 4 : 8) + juce::jlimit (0, 3, clip) : juce::jlimit (0, 1, style);
         const float x = juce::jlimit (0.0f, 1.0f, drive) * 10.0f;
         const int   i = juce::jmin ((int) x, 9);
         return tbl[row][i] + (x - (float) i) * (tbl[row][i + 1] - tbl[row][i]);
@@ -2483,15 +2712,17 @@ namespace
                                              { kBlendBal[0] + 2.0f, kBlendBal[1] - 2.0f, kBlendBal[2] - 4.0f },
                                              { kBlendBal[0] - 3.0f, kBlendBal[1] - 2.0f, kBlendBal[2] + 2.0f },
                                              { kBlendBal[0] - 2.0f, kBlendBal[1] + 2.0f, kBlendBal[2] - 3.0f } };
-    constexpr float kBlendGainOff[4][3]  = { { 0.0f,  0.0f,  0.0f }, { 0.0f,  0.0f,  0.0f }, {  0.0f,  0.0f, 0.0f }, {  0.0f, 0.1f,  0.0f } };
+    constexpr float kBlendGainOff[4][3]  = { { 0.0f,  0.0f,  0.0f }, { 0.0f, -0.08f, 0.0f }, {  0.0f,  0.0f, 0.0f }, {  0.0f, 0.1f,  0.0f } };      // b90: Warm eases the drive amp (part two) back by 0.08 of the knob
 
     // The voicing for part two (which = 0) or three (which = 1) of the blend, built like Amp B's.
     AmpVoicing blendPartVoicing (juce::AudioProcessorValueTreeState& s, int which)
     {
         auto p = [&s] (const char* id) { return s.getRawParameterValue (id)->load(); };
         const auto part = kBlendParts[which];
+        const RangeLayerOff keepOldRanges;      // b87
         AmpVoicing v = metalVoicing (part.model, part.voicing, p ("ampTune"), MetalSettings { 0.0f, 0.5f, 0.0f, 0.5f, false });
         applyBlendFit (v, which + 1);
+        applyBlendTone (v, (int) p ("ampVoicing"));      // b90
         Realism r { 0.0f, 0.5f, 0, 0, 0 };
         r.derived = (int) p ("ampMode") == 1 ? 3 : (int) p ("ampMode") == 2 ? 2 : 0;  r.model = part.model;  r.voicing = part.voicing;
         applyRealism (v, r);
@@ -2720,7 +2951,7 @@ namespace cabbuilder
         { "Big Fifteen",      44.0f, 2.0f,  86.0f, 7.2f, 0.50f, { { 2113.0f, 3.4f, 0.70f }, { 2942.0f, 2.2f, 0.50f }, { 385.0f, -5.0f, 0.90f }, { 0.0f, 0.0f, 1.0f } }, 4024.0f, 3.0f, 0.5f, 3.3f },   // v0.2: a large-diameter (15-inch-style) driver of our own: a big, loose low thump, a scooped low mid, a forward 2 to 3 kHz and an early top roll-off. At least 3.5 dB (rms) from every speaker above.
         // b67: smaller drivers and some off-the-wall ones. These are hand-built from the general character of each kind of driver (no captures): the first three are the 10-inch,
         // 8-inch and 3-inch ends of the box sizes the new combos use; the rest are deliberately not guitar speakers.
-        { "Jensen-Style Ten",     70.0f, 2.0f, 105.0f, 3.5f, 0.45f, { { 1800.0f, 3.0f, 0.55f }, { 3800.0f, 2.5f, 0.40f }, {  600.0f, -1.5f, 0.60f }, { 0.0f, 0.0f, 1.0f } }, 5500.0f, 3.0f, 1.2f, 4.1f , true },
+        { "Vintage-Style Ten",     70.0f, 2.0f, 105.0f, 3.5f, 0.45f, { { 1800.0f, 3.0f, 0.55f }, { 3800.0f, 2.5f, 0.40f }, {  600.0f, -1.5f, 0.60f }, { 0.0f, 0.0f, 1.0f } }, 5500.0f, 3.0f, 1.2f, 4.1f , true },
         { "Paper Eight",          95.0f, 2.0f, 140.0f, 3.0f, 0.40f, { { 1400.0f, 3.5f, 0.60f }, { 3000.0f, 1.5f, 0.50f }, {  450.0f, -2.0f, 0.60f }, { 0.0f, 0.0f, 1.0f } }, 4300.0f, 4.0f, 2.0f, 5.2f , true },
         { "Battery Three-Inch",  220.0f, 2.0f, 300.0f, 4.0f, 0.35f, { { 1200.0f, 5.0f, 0.50f }, { 2600.0f, 3.0f, 0.40f }, {  700.0f, -2.0f, 0.60f }, { 0.0f, 0.0f, 1.0f } }, 3800.0f, 4.0f, 2.5f, 6.3f , true },
         { "Telephone",           320.0f, 4.0f, 400.0f, 0.0f, 0.40f, { { 1000.0f, 6.0f, 0.50f }, { 2000.0f, 3.0f, 0.50f }, {  600.0f, -2.0f, 0.50f }, { 0.0f, 0.0f, 1.0f } }, 3400.0f, 6.0f, 1.5f, 7.4f , true },
@@ -2730,6 +2961,11 @@ namespace cabbuilder
         { "Studio Tweeter",      900.0f, 4.0f, 1000.0f, 0.0f, 0.40f, { { 5000.0f, 4.0f, 0.50f }, { 8000.0f, 3.0f, 0.50f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } }, 16000.0f, 3.0f, 0.8f, 11.8f , true },
         { "Cracked Cone",         80.0f, 2.0f, 100.0f, 3.0f, 0.40f, { { 2000.0f, 3.0f, 0.50f }, { 3500.0f, 4.0f, 0.15f }, { 6000.0f, 2.0f, 0.12f }, { 0.0f, 0.0f, 1.0f } }, 6500.0f, 3.0f, 6.0f, 12.9f , true },
         { "Tin Can",             200.0f, 4.0f, 250.0f, 6.0f, 0.30f, { {  800.0f, 6.0f, 0.30f }, { 3000.0f, -3.0f, 0.50f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } }, 3200.0f, 4.0f, 2.5f, 14.0f , true },
+        // b80: Ideal Defined, the idealized speaker for the idealized amps (Clarion, Prism, Ember, Kindle). Designed from the statistics of the mixed cab recordings (12,041 mix-ready IRs, 14 clusters; the largest cluster is the
+        // reference): the low end reaches lower than the typical mix (60 Hz about 4 dB down against 5 to 10 dB), the low mids are full but not boomy (150 Hz about 6 dB over 1 kHz against 8.6, 300 to 500 Hz about 2 to 3 dB
+        // lower than the typical mix), a small presence lift near 2.5 kHz, a gentle dip across 3 to 4.5 kHz where the fizz sits, and a smooth steep roll-off from 5 kHz with no cone ripple. Fitted to a target curve
+        // for the 4x12 Closed cabinet, the Flat mic, Position 0.3 (the same assumptions as the fitted speakers above); not copied from any driver; a first guess, not listened to.
+        { "Ideal Defined",    54.0f, 2.0f, 150.0f, 1.2f, 0.37f, { { 280.0f, 4.6f, 0.93f }, { 2460.0f, 2.6f, 0.40f }, { 3980.0f, -1.7f, 0.50f }, { 630.0f, -1.0f, 0.75f } }, 5400.0f, 4.6f, 0.0f, 0.0f },
     };
 
     const MicModel mics[] =
@@ -3068,7 +3304,13 @@ namespace cabbuilder
         { 0.26f, 0.20f, 0.15f, 7.0f, 0.0f,  -7.0f, 0.90f, 0.0f, 5200.0f },   // studio room
         { 0.30f, 0.22f, 0.13f, 5.0f, 0.0f,  -8.0f, 0.70f, 1.0f, 5000.0f },   // large studio room
         { 0.52f, 0.34f, 0.30f, 5.0f, 0.0f, -12.0f, 0.80f, 2.0f, 4200.0f },   // living room
+        // b122: three big-room voicings fitted to room-microphone plug-in renders (measured, not listened to).
+        // Parametric like the others: no recorded material is stored.
+        { 0.59f, 0.43f, 0.32f, 1.0f, 0.0f,  -6.0f, 0.80f, 1.0f, 5400.0f },   // big room, full (bass-leaning, open to 4 kHz)
+        { 0.54f, 0.36f, 0.40f, 3.4f, 0.0f,  -3.0f, 0.80f, 1.0f, 4500.0f },   // big room, bass-heavy (open)
+        { 0.61f, 0.43f, 0.30f,-1.5f, 0.0f,  -8.0f, 0.80f, 1.0f, 4800.0f },   // big room, lean (darker top)
     };
+    constexpr int numRooms = (int) (sizeof (rooms) / sizeof (rooms[0]));
 
     // Builds the IR (mono, 48 kHz, 4096 samples; 16384 when a modelled room is on). Minimum phase, via the cepstrum:
     // log magnitude -> inverse FFT -> fold onto positive time -> FFT -> exp -> inverse FFT.
@@ -3110,7 +3352,7 @@ namespace cabbuilder
         // v68: a modelled room: three noise bands with their own decay, shaped by a low-pass
         if (p.room > 0.001f && p.roomType > 0)
         {
-            const auto& rm = rooms[juce::jlimit (1, 3, p.roomType) - 1];
+            const auto& rm = rooms[juce::jlimit (1, numRooms, p.roomType) - 1];
             double mainEnergy = 0.0;
             for (float v : h)
                 mainEnergy += (double) v * (double) v;
@@ -3192,6 +3434,28 @@ StarterAmpProcessor::createParameterLayout()
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
     layout.add (std::make_unique<F> (ID { "inGain", 1 },   "Input (dB)",   R (-24.0f, 24.0f, 0.1f), 0.0f));
+    // b107: two modulators, each able to move up to three knobs
+    {
+        const juce::StringArray srcNames { "Off", "Envelope (follows your playing)", "LFO, sine", "LFO, triangle", "Random steps", "Random glide", "Step sequence (16 steps, in time)" };
+        juce::StringArray targetNames { "None" };
+        for (const auto& t : ModSource::kTargets) targetNames.add (t.label);
+        for (int m = 1; m <= ModSource::kModulators; ++m)
+        {
+            const juce::String q = "mod" + juce::String (m), nm = "Modulator " + juce::String (m) + " ";
+            layout.add (std::make_unique<juce::AudioParameterChoice> (ID { q + "Src", 1 }, nm + "Source", srcNames, 0));
+            layout.add (std::make_unique<F> (ID { q + "Rate", 1 },   nm + "Rate (Hz)", R (0.05f, 20.0f, 0.01f, 0.4f), 1.0f));
+            layout.add (std::make_unique<F> (ID { q + "Smooth", 1 }, nm + "Smooth", R (0.0f, 1.0f, 0.001f), 0.3f));
+            layout.add (std::make_unique<juce::AudioParameterChoice> (ID { q + "Div", 1 }, nm + "Step length", juce::StringArray { "1/4 note", "1/8 note", "1/8 triplet", "1/16 note", "1/16 triplet", "1/32 note" }, 3));      // b120
+            layout.add (std::make_unique<juce::AudioParameterChoice> (ID { q + "Len", 1 }, nm + "Steps", juce::StringArray { "16 steps", "12 steps", "8 steps", "6 steps", "4 steps" }, 0));
+            for (int k = 1; k <= ModSource::kMaxSteps; ++k)
+                layout.add (std::make_unique<F> (ID { q + "S" + juce::String (k), 1 }, nm + "Step " + juce::String (k), R (-1.0f, 1.0f, 0.001f), 0.0f));
+            for (int d = 1; d <= ModSource::kDestinations; ++d)
+            {
+                layout.add (std::make_unique<juce::AudioParameterChoice> (ID { q + "T" + juce::String (d), 1 }, nm + "Target " + juce::String (d), targetNames, 0));
+                layout.add (std::make_unique<F> (ID { q + "A" + juce::String (d), 1 }, nm + "Amount " + juce::String (d), R (-1.0f, 1.0f, 0.001f), 0.0f));
+            }
+        }
+    }
     layout.add (std::make_unique<F> (ID { "gate", 1 },     "Gate (dB)",    R (-90.0f, -30.0f, 0.1f), -65.0f));
 
     // Pickup de-noise (in front of the gate)
@@ -3237,7 +3501,8 @@ StarterAmpProcessor::createParameterLayout()
                                     "Nuke (wave-shaper)", "Crusher (bits and rate)",
                                     "Power Chip (cranked, open)", "Doom (octave, rat-type, boost)",
                                     "Metal Pedal (Cut, 5-band EQ, gate, boost)",
-                                    "Distortion + Reverb (3 programs, order switch)", "Feral (self-oscillating, wandering bias)" }, 0));
+                                    "Distortion + Reverb (3 programs, order switch)", "Feral (self-oscillating, wandering bias)",
+                                    "Arc (gas discharge: Gate = voltage, flat dynamics, crackle)" }, 0));
     layout.add (std::make_unique<F> (ID { "fuzzGain", 1 },  "Fuzz Gain",          R (0.0f, 1.0f, 0.001f), 0.6f));
     layout.add (std::make_unique<F> (ID { "fuzzTone", 1 },  "Fuzz Tone",          R (0.0f, 1.0f, 0.001f), 0.5f));
     layout.add (std::make_unique<F> (ID { "fuzzLevel", 1 }, "Fuzz Level (dB)",    R (-24.0f, 6.0f, 0.1f), -9.0f));
@@ -3302,7 +3567,8 @@ StarterAmpProcessor::createParameterLayout()
                                     "Nuke (wave-shaper)", "Crusher (bits and rate)",
                                     "Power Chip (cranked, open)", "Doom (octave, rat-type, boost)",
                                     "Metal Pedal (Cut, 5-band EQ, gate, boost)",
-                                    "Distortion + Reverb (3 programs, order switch)", "Feral (self-oscillating, wandering bias)" }, 0));
+                                    "Distortion + Reverb (3 programs, order switch)", "Feral (self-oscillating, wandering bias)",
+                                    "Arc (gas discharge: Gate = voltage, flat dynamics, crackle)" }, 0));
     layout.add (std::make_unique<F> (ID { "fuzz2Gain", 1 },  "Fuzz 2 Gain",          R (0.0f, 1.0f, 0.001f), 0.6f));
     layout.add (std::make_unique<F> (ID { "fuzz2Tone", 1 },  "Fuzz 2 Tone",          R (0.0f, 1.0f, 0.001f), 0.5f));
     layout.add (std::make_unique<F> (ID { "fuzz2Level", 1 }, "Fuzz 2 Level (dB)",    R (-24.0f, 6.0f, 0.1f), -9.0f));
@@ -3379,7 +3645,8 @@ StarterAmpProcessor::createParameterLayout()
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "compSat", 1 }, "Comp Saturation",
                 [] { juce::StringArray n { "Off", "Tube-like", "Tape-like", "Both", "Transformer", "FET stage", "Opto tube stage", "Mu iron + tube", "Diode" };  for (auto& t : FxExtra::uniSatNames()) n.add ("Curve: " + t);  return n; }(), 1));
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "compStyle", 1 }, "Comp Style",
-                juce::StringArray { "Standard", "FET", "Opto", "Variable-mu", "Sustainer", "Bus", "Dyna (OTA)", "Thump", "Opto Sustain", "RMS (VCA)", "Crush Limiter" }, 0));
+                juce::StringArray { "Standard", "FET", "Opto", "Variable-mu", "Sustainer", "Bus", "Squash (OTA)", "Thump", "Opto Sustain", "RMS (VCA)", "Crush Limiter", "Sustainer (1980s VCA)", "Sustainer, early OTA" }, 0));
+    layout.add (std::make_unique<F> (ID { "compCsAttack", 1 }, "Comp Sustainer Attack",   R (0.0f, 1.0f, 0.001f), 0.5f));       // b76
     // b58: the Opto Sustain style's own knobs (its Blend is Comp Mix and its Volume is Comp Output)
     layout.add (std::make_unique<F> (ID { "compSustain", 1 }, "Comp Sustain",      R (0.0f, 1.0f, 0.001f), 0.5f));
     layout.add (std::make_unique<F> (ID { "compGrit", 1 },    "Comp Grit",         R (0.0f, 1.0f, 0.001f), 0.0f));
@@ -3396,7 +3663,7 @@ StarterAmpProcessor::createParameterLayout()
     layout.add (std::make_unique<F> (ID { "odTone", 1 },   "OD Tone",      R (0.0f, 1.0f, 0.001f), 0.5f));
     layout.add (std::make_unique<F> (ID { "odEdge", 1 },   "OD Edge",      R (0.0f, 1.0f, 0.001f), 0.3f));
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "odStyle", 1 }, "OD Style",
-                juce::StringArray { "Transparent", "Tight", "Open", "Screamer", "Distortion", "Tube Driver", "Op-Amp Distortion", "Stack Drive", "Blues Driver", "Natural Overdrive", "Preamp Distortion", "Metal Zone" }, 0));
+                juce::StringArray { "Transparent", "Tight", "Open", "Mid Hump", "Distortion", "Tube-style Drive", "Op-Amp Distortion", "Stack Drive", "Blues Drive", "Natural Drive", "Preamp Distortion", "Metal Distortion", "Transparent 2 (cut-only tone)" }, 0));
     layout.add (std::make_unique<juce::AudioParameterBool> (ID { "odRange", 1 }, "OD Range (Open style, on = high)", true));
     layout.add (std::make_unique<F> (ID { "odAttack", 1 }, "OD Attack (Tight style, 0 to 5 = positions 1 to 6)", R (0.0f, 5.0f, 1.0f), 2.0f));
     layout.add (std::make_unique<F> (ID { "odGate", 1 },   "OD Gate (Precision)", R (0.0f, 1.0f, 0.001f), 0.3f));
@@ -3405,17 +3672,19 @@ StarterAmpProcessor::createParameterLayout()
     layout.add (std::make_unique<F> (ID { "odMix", 1 },    "OD Mix",          R (0.0f, 1.0f, 0.001f), 1.0f));      // v94
     layout.add (std::make_unique<juce::AudioParameterFloat> (ID { "odGrip", 1 }, "OD Tighten (Transparent)", juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
     // v58: the Screamer and Distortion styles
-    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "odClip", 1 }, "OD Clipping (Screamer, Distortion)",
+    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "odClip", 1 }, "OD Clipping (Mid Hump, Distortion)",
                 juce::StringArray { "Silicon (classic)", "LED (open)", "Germanium (soft)", "Asymmetric", "None (op-amp rails)" }, 0));
-    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "odVoice", 1 }, "OD Voicing (Screamer, Tube Driver)",
+    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "odVoice", 1 }, "OD Voicing (Mid Hump, Tube-style)",
                 juce::StringArray { "Classic (mid hump, tube)", "Mild (lean, Hex)", "Open (bright, Hex hot)" }, 0));
-    layout.add (std::make_unique<F> (ID { "odBass", 1 },    "OD Bass (Screamer)",     R (0.0f, 1.0f, 0.001f), 0.4f));
-    layout.add (std::make_unique<F> (ID { "odMid", 1 },     "OD Mid (Screamer)",      R (0.0f, 1.0f, 0.001f), 0.5f));
-    layout.add (std::make_unique<F> (ID { "odMidFreq", 1 }, "OD Mid Freq (Screamer)", R (0.0f, 1.0f, 0.001f), 0.5f));
+    layout.add (std::make_unique<F> (ID { "odBass", 1 },    "OD Bass (Mid Hump)",     R (0.0f, 1.0f, 0.001f), 0.4f));
+    layout.add (std::make_unique<F> (ID { "odMid", 1 },     "OD Mid (Mid Hump)",      R (0.0f, 1.0f, 0.001f), 0.5f));
+    layout.add (std::make_unique<F> (ID { "odMidFreq", 1 }, "OD Mid Freq (Mid Hump)", R (0.0f, 1.0f, 0.001f), 0.5f));
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "odMidMod", 1 }, "OD Mids (Distortion)",
                 juce::StringArray { "Scoop (stock)", "Flat", "Boost" }, 0));
-    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "odNob", 1 }, "OD Natural Overdrive Voicing",
-                juce::StringArray { "ODR-1 (natural overdrive)", "ODR-1 Plus (Boost on)", "ODR-S (germanium, 3-band)" }, 0));       // b64
+    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "odMz", 1 }, "OD Metal Mode",
+                juce::StringArray { "Standard", "Custom (more gain, tighter lows)" }, 0));       // b75
+    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "odNob", 1 }, "OD Natural Drive Voicing",
+                juce::StringArray { "Stock (natural drive)", "Plus (Boost on)", "Special (germanium, 3-band)" }, 0));       // b64
 
     // Drive 2 (v93): a full copy of the drive block, for stacking (series) or running beside the first (parallel)
     layout.add (std::make_unique<juce::AudioParameterBool> (ID { "od2On", 1 }, "Drive 2 On", false));
@@ -3423,7 +3692,7 @@ StarterAmpProcessor::createParameterLayout()
     layout.add (std::make_unique<F> (ID { "od2Tone", 1 },   "Drive 2 Tone",      R (0.0f, 1.0f, 0.001f), 0.5f));
     layout.add (std::make_unique<F> (ID { "od2Edge", 1 },   "Drive 2 Edge",      R (0.0f, 1.0f, 0.001f), 0.3f));
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "od2Style", 1 }, "Drive 2 Style",
-                juce::StringArray { "Transparent", "Tight", "Open", "Screamer", "Distortion", "Tube Driver", "Op-Amp Distortion", "Stack Drive", "Blues Driver", "Natural Overdrive", "Preamp Distortion", "Metal Zone" }, 0));
+                juce::StringArray { "Transparent", "Tight", "Open", "Mid Hump", "Distortion", "Tube-style Drive", "Op-Amp Distortion", "Stack Drive", "Blues Drive", "Natural Drive", "Preamp Distortion", "Metal Distortion", "Transparent 2 (cut-only tone)" }, 0));
     layout.add (std::make_unique<juce::AudioParameterBool> (ID { "od2Range", 1 }, "Drive 2 Range (Open style, on = high)", true));
     layout.add (std::make_unique<F> (ID { "od2Attack", 1 }, "Drive 2 Attack (Tight style, 0 to 5 = positions 1 to 6)", R (0.0f, 5.0f, 1.0f), 2.0f));
     layout.add (std::make_unique<F> (ID { "od2Gate", 1 },   "Drive 2 Gate (Precision)", R (0.0f, 1.0f, 0.001f), 0.3f));
@@ -3432,17 +3701,19 @@ StarterAmpProcessor::createParameterLayout()
     layout.add (std::make_unique<F> (ID { "od2Mix", 1 },    "Drive 2 Mix",     R (0.0f, 1.0f, 0.001f), 1.0f));      // v94
     layout.add (std::make_unique<juce::AudioParameterFloat> (ID { "od2Grip", 1 }, "Drive 2 Tighten (Transparent)", juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
     // v58: the Screamer and Distortion styles
-    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "od2Clip", 1 }, "Drive 2 Clipping (Screamer, Distortion)",
+    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "od2Clip", 1 }, "Drive 2 Clipping (Mid Hump, Distortion)",
                 juce::StringArray { "Silicon (classic)", "LED (open)", "Germanium (soft)", "Asymmetric", "None (op-amp rails)" }, 0));
-    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "od2Voice", 1 }, "Drive 2 Voicing (Screamer)",
+    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "od2Voice", 1 }, "Drive 2 Voicing (Mid Hump)",
                 juce::StringArray { "Classic (mid hump, tube)", "Mild (lean, Hex)", "Open (bright, Hex hot)" }, 0));
-    layout.add (std::make_unique<F> (ID { "od2Bass", 1 },    "Drive 2 Bass (Screamer)",     R (0.0f, 1.0f, 0.001f), 0.4f));
-    layout.add (std::make_unique<F> (ID { "od2Mid", 1 },     "Drive 2 Mid (Screamer)",      R (0.0f, 1.0f, 0.001f), 0.5f));
-    layout.add (std::make_unique<F> (ID { "od2MidFreq", 1 }, "Drive 2 Mid Freq (Screamer)", R (0.0f, 1.0f, 0.001f), 0.5f));
+    layout.add (std::make_unique<F> (ID { "od2Bass", 1 },    "Drive 2 Bass (Mid Hump)",     R (0.0f, 1.0f, 0.001f), 0.4f));
+    layout.add (std::make_unique<F> (ID { "od2Mid", 1 },     "Drive 2 Mid (Mid Hump)",      R (0.0f, 1.0f, 0.001f), 0.5f));
+    layout.add (std::make_unique<F> (ID { "od2MidFreq", 1 }, "Drive 2 Mid Freq (Mid Hump)", R (0.0f, 1.0f, 0.001f), 0.5f));
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "od2MidMod", 1 }, "Drive 2 Mids (Distortion)",
                 juce::StringArray { "Scoop (stock)", "Flat", "Boost" }, 0));
-    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "od2Nob", 1 }, "Drive 2 Natural Overdrive Voicing",
-                juce::StringArray { "ODR-1 (natural overdrive)", "ODR-1 Plus (Boost on)", "ODR-S (germanium, 3-band)" }, 0));       // b64
+    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "od2Mz", 1 }, "Drive 2 Metal Mode",
+                juce::StringArray { "Standard", "Custom (more gain, tighter lows)" }, 0));       // b75
+    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "od2Nob", 1 }, "Drive 2 Natural Drive Voicing",
+                juce::StringArray { "Stock (natural drive)", "Plus (Boost on)", "Special (germanium, 3-band)" }, 0));       // b64
 
 
     // Amp
@@ -3469,7 +3740,7 @@ StarterAmpProcessor::createParameterLayout()
                                     "Stolen Fire (growl, flexible)",
                                     "Hi-Wat Headroom (tight, clean to edge)",
                                     "Console DI (class-A channel, no amp)",
-                                    "Plex Appeal (Plexi-style, mod options)",
+                                    "Plex Appeal (early-British-style, mod options)",
                                     "Matt's Amp (thick, dark, doom-friendly)",
                                     "Marmalade (thick, mid-forward crunch)",
                                     "Eclipse (Hi / Lo input, tight, huge)",
@@ -3486,7 +3757,12 @@ StarterAmpProcessor::createParameterLayout()
                                     "Cedar Ten (4x10 combo, clean to gain channel)",
                                     "Brit Forty-Five (KT66, the original 45 W head)",
                                     "Tweedle Mini (5 W single-ended tweed)",
-                                    "Jubilant (silver-jubilee-style, cascaded clipping)" }, 2));
+                                    "Jubilant (silver-jubilee-style, cascaded clipping)",
+                                    "Clarion (clear, tight and thick high gain)",
+                                    "Prism (glassy, full-range clean)",
+                                    "Ember (weighty, smooth lead, edge of breakup to extreme)",
+                                    "Kindle (chime with weight, clean to light lead)",
+                                    "Ironside (raw British 100 W, firm lows)" }, 2));
     // Amp realism (v41): the same seven controls for Amp A and Amp B
     {
         for (const char* pre : { "amp", "ampB" })
@@ -3512,8 +3788,8 @@ StarterAmpProcessor::createParameterLayout()
             layout.add (std::make_unique<juce::AudioParameterChoice> (ID { p + "Stack", 1 }, n + "Tone Stack",
                         juce::StringArray { "Stack as voiced", "Neutral (flat)",
                                     "Passive stack: American combo", "Passive stack: British 50 W", "Passive stack: British lead", "Passive stack: American lead", "Passive stack: chime (class A)",
-                                    "Passive stack: high-gain, 680 pF", "Passive stack: high-gain, 500 pF", "Passive stack: orange-style (driven from a plate)", "Passive stack: Dumble-style (Rock setting)", "Passive stack: German high-gain (200k treble, 500k bass)",
-                                    "Passive stack: bass head (270 pF, linear pots)", "Passive stack: American, bright (1000 pF)", "Passive stack: solid-state combo (150 pF, 0.082 uF)" }, 0));
+                                    "Passive stack: high-gain, 680 pF", "Passive stack: high-gain, 500 pF", "Passive stack: plate-driven", "Passive stack: boutique-style (Rock setting)", "Passive stack: German high-gain (200k treble, 500k bass)",
+                                    "Passive stack: bass head (270 pF, linear pots)", "Passive stack: American, bright (1000 pF)", "Passive stack: solid-state combo (150 pF, 0.082 uF)", "Passive stack: solid-state combo, 1979 (low impedance)" }, 0));
             layout.add (std::make_unique<juce::AudioParameterChoice> (ID { p + "Class", 1 }, n + "Output Class",
                         juce::StringArray { "Class as voiced", "Class A (rich, compressed)", "Class AB (tight, punchy)" }, 0));
             layout.add (std::make_unique<juce::AudioParameterBool> (ID { p + "Deep", 1 }, n + "Deep Switch", false));
@@ -3538,7 +3814,7 @@ StarterAmpProcessor::createParameterLayout()
                                     "Stolen Fire (growl, flexible)",
                                     "Hi-Wat Headroom (tight, clean to edge)",
                                     "Console DI (class-A channel, no amp)",
-                                    "Plex Appeal (Plexi-style, mod options)",
+                                    "Plex Appeal (early-British-style, mod options)",
                                     "Matt's Amp (thick, dark, doom-friendly)",
                                     "Marmalade (thick, mid-forward crunch)",
                                     "Eclipse (Hi / Lo input, tight, huge)",
@@ -3554,7 +3830,12 @@ StarterAmpProcessor::createParameterLayout()
                                     "Cedar Ten (4x10 combo, clean to gain channel)",
                                     "Brit Forty-Five (KT66, the original 45 W head)",
                                     "Tweedle Mini (5 W single-ended tweed)",
-                                    "Jubilant (silver-jubilee-style, cascaded clipping)" }, 0));
+                                    "Jubilant (silver-jubilee-style, cascaded clipping)",
+                                    "Clarion (clear, tight and thick high gain)",
+                                    "Prism (glassy, full-range clean)",
+                                    "Ember (weighty, smooth lead, edge of breakup to extreme)",
+                                    "Kindle (chime with weight, clean to light lead)",
+                                    "Ironside (raw British 100 W, firm lows)" }, 0));
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "ampBVoicing", 1 }, "Amp B Voicing Switch",
                 juce::StringArray { "Voicing 1", "Voicing 2", "Voicing 3", "Voicing 4", "Voicing 5", "Voicing 6", "Voicing 7" }, 0));
     layout.add (std::make_unique<juce::AudioParameterBool> (ID { "ampBUseOd", 1 }, "Amp B Uses Overdrive", true));
@@ -3579,7 +3860,7 @@ StarterAmpProcessor::createParameterLayout()
     // Acoustic / piezo model (used when Amp Model = Acoustic)
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "acBody", 1 }, "Acoustic Body",
                 juce::StringArray { "Body: Dreadnought", "Body: Jumbo", "Body: Parlor / OM", "Body: Nylon classical" }, 0));
-    layout.add (std::make_unique<F> (ID { "acBodyAmt", 1 }, "Acoustic Body Amount",  R (0.0f, 1.0f, 0.001f), 0.8f));
+    layout.add (std::make_unique<F> (ID { "acBodyAmt", 1 }, "Acoustic Body Amount",  R (0.0f, 1.0f, 0.001f), 0.5f));
     layout.add (std::make_unique<F> (ID { "acFix", 1 },     "Acoustic Piezo Fix",    R (0.0f, 1.0f, 0.001f), 0.6f));
     layout.add (std::make_unique<F> (ID { "acPreamp", 1 },  "Acoustic Preamp Warmth", R (0.0f, 1.0f, 0.001f), 0.2f));
     layout.add (std::make_unique<F> (ID { "acSqueeze", 1 }, "Acoustic Squeeze",      R (0.0f, 1.0f, 0.001f), 0.3f));
@@ -3603,11 +3884,22 @@ StarterAmpProcessor::createParameterLayout()
     layout.add (std::make_unique<juce::AudioParameterBool> (ID { "wowOn", 1 }, "Pitch Pedal On", false));
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "wowMode", 1 }, "Pitch Pedal Mode",
                 juce::StringArray { "Octave up", "Two octaves up", "Octave down", "Two octaves down", "Dive bomb", "Bend (-12 to +12)", "Custom (heel and toe)" }, 0));
+    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "wowTrack", 1 }, "Pitch Pedal Tracking",
+                juce::StringArray { "Single note (fast)", "Chords (long window, cleaner lows)", "Chords (fast)" }, 0));       // b77
+    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "wowChar", 1 }, "Pitch Pedal Character",                                    // b78
+                juce::StringArray { "Clean", "Grainy Sweep (lo-fi)", "Glitchy (jumps, dropouts)", "Abrasive (crushed, buzzy)", "Noisy (hiss, drifting)", "Warble (slow wobble)" }, 0));
+    layout.add (std::make_unique<juce::AudioParameterBool> (ID { "wowDryNow", 1 }, "Pitch Pedal Instant Dry", false));       // b118
+    layout.add (std::make_unique<juce::AudioParameterFloat> (ID { "wowGrit", 1 }, "Pitch Pedal Grit", juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.5f));
     layout.add (std::make_unique<F> (ID { "wowPos", 1 },   "Pitch Pedal Position (heel to toe)", R (0.0f, 1.0f, 0.001f), 0.0f));
     layout.add (std::make_unique<F> (ID { "wowHeel", 1 },  "Pitch Pedal Heel (semitones)", R (-24.0f, 24.0f, 0.1f), 0.0f));
     layout.add (std::make_unique<F> (ID { "wowToe", 1 },   "Pitch Pedal Toe (semitones)",  R (-24.0f, 24.0f, 0.1f), 12.0f));
     layout.add (std::make_unique<F> (ID { "wowGlide", 1 }, "Pitch Pedal Glide (ms)", R (0.0f, 500.0f, 1.0f, 0.5f), 40.0f));
     layout.add (std::make_unique<F> (ID { "wowMix", 1 },   "Pitch Pedal Mix", R (0.0f, 1.0f, 0.001f), 1.0f));
+    // b97: formants and lows
+    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "wowForm", 1 }, "Pitch Pedal Tone",
+                juce::StringArray { "Follows the pitch", "Stays natural" }, 0));
+    layout.add (std::make_unique<F> (ID { "wowFormShift", 1 }, "Pitch Pedal Formant (semitones)", R (-12.0f, 12.0f, 0.1f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "wowLowKeep", 1 }, "Pitch Pedal Keep Lows Below (Hz)", R (0.0f, 400.0f, 1.0f, 0.6f), 0.0f));
     // Guitar synth (v0.2): a single-note tracker driving a small synth (see GuitarSynth.h)
     layout.add (std::make_unique<juce::AudioParameterBool> (ID { "synOn", 1 }, "Synth On", false));
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "synWave1", 1 }, "Synth Osc 1 Wave", juce::StringArray { "Saw", "Square", "Pulse", "Triangle", "Sine" }, 0));
@@ -3637,21 +3929,54 @@ StarterAmpProcessor::createParameterLayout()
     layout.add (std::make_unique<F> (ID { "octBLvl", 1 }, "Octave 2 Level", R (0.0f, 1.0f, 0.001f), 0.0f));
     layout.add (std::make_unique<F> (ID { "octDry", 1 },  "Octaver Dry Level", R (0.0f, 1.0f, 0.001f), 1.0f));
     layout.add (std::make_unique<F> (ID { "octTone", 1 }, "Octaver Tone", R (0.0f, 1.0f, 0.001f), 0.5f));
+    // b79: the octaver's bank engine. Everything below is off or neutral by default, so older sessions play through the old two-voice path unchanged.
+    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "octMode", 1 }, "Octaver Voices",
+                juce::StringArray { "Two voices (A and B)", "Bank: -2, -1, +1, +2 octaves (two-bank style)", "Bank: adds the 5th, 12th, 17th and 3 octaves (three-bank style)", "Analogue divider: -1 and -2 octaves (monophonic)" }, 0));
+    layout.add (std::make_unique<F> (ID { "octM2", 1 },  "Octaver -2 Octaves",   R (0.0f, 1.0f, 0.001f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "octM1", 1 },  "Octaver -1 Octave",    R (0.0f, 1.0f, 0.001f), 0.6f));
+    layout.add (std::make_unique<F> (ID { "octP1", 1 },  "Octaver +1 Octave",    R (0.0f, 1.0f, 0.001f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "octP2", 1 },  "Octaver +2 Octaves",   R (0.0f, 1.0f, 0.001f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "octP7", 1 },  "Octaver +5th",         R (0.0f, 1.0f, 0.001f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "octP19", 1 }, "Octaver +Octave and 5th (12th)", R (0.0f, 1.0f, 0.001f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "octP28", 1 }, "Octaver +2 Octaves and 3rd (17th)", R (0.0f, 1.0f, 0.001f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "octP36", 1 }, "Octaver +3 Octaves",   R (0.0f, 1.0f, 0.001f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "octDetune", 1 }, "Octaver Detune (cents)", R (-50.0f, 50.0f, 0.1f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "octAttack", 1 }, "Octaver Attack",    R (0.0f, 1.0f, 0.001f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "octDecay", 1 },  "Octaver Decay",     R (0.0f, 1.0f, 0.001f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "octRes", 1 },    "Octaver Resonance", R (0.0f, 1.0f, 0.001f), 0.0f));
+    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "octDryFx", 1 }, "Octaver Dry Routing",
+                juce::StringArray { "Dry untouched", "Dry through the filter", "Dry through attack and decay", "Dry through both" }, 0));
+    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "octTrack", 1 }, "Octaver Tracking",
+                juce::StringArray { "Single note (fast)", "Chords (long window, cleaner lows)", "Chords (fast)" }, 0));
+    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "octChar", 1 }, "Octaver Character",
+                juce::StringArray { "Clean", "Grainy Sweep (lo-fi)", "Glitchy (jumps, dropouts)", "Abrasive (crushed, buzzy)", "Noisy (hiss, drifting)", "Warble (slow wobble)" }, 0));
+    layout.add (std::make_unique<F> (ID { "octGrit", 1 },   "Octaver Grit",      R (0.0f, 1.0f, 0.001f), 0.5f));
     // Transpose / formant, at the start of the chain
     layout.add (std::make_unique<juce::AudioParameterBool> (ID { "tpOn", 1 }, "Transpose On", false));
-    layout.add (std::make_unique<F> (ID { "tpSemis", 1 },   "Transpose (semitones)", R (-24.0f, 24.0f, 1.0f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "tpSemis", 1 },   "Transpose (semitones)", R (-36.0f, 24.0f, 1.0f), 0.0f));
     layout.add (std::make_unique<F> (ID { "tpFine", 1 },    "Transpose Fine (cents)", R (-50.0f, 50.0f, 1.0f), 0.0f));
     layout.add (std::make_unique<F> (ID { "tpFormant", 1 }, "Formant Shift (semitones)", R (-12.0f, 12.0f, 0.1f), 0.0f));
     layout.add (std::make_unique<juce::AudioParameterBool> (ID { "tpLock", 1 }, "Formant Lock", true));
     layout.add (std::make_unique<F> (ID { "tpMix", 1 },     "Transpose Mix", R (0.0f, 1.0f, 0.001f), 1.0f));
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "tpQuality", 1 }, "Transpose Mode",
-                juce::StringArray { "Fast (~14 ms delay)", "Smooth (~27 ms delay)" }, 0));
+                juce::StringArray { "Fast (least delay)", "Smooth (steadier)" }, 0));
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "ampQuality", 1 }, "Amp Quality",
                 juce::StringArray { "Best (4x, more CPU)", "Balanced (2x)", "Lowest latency (no oversampling)" }, 1));
     // Global mode and the optional final limiter (v33)
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "perfMode", 1 }, "Mode",
                 juce::StringArray { "Normal", "Low Latency", "High Quality" }, 0));
     layout.add (std::make_unique<juce::AudioParameterBool> (ID { "limOn", 1 }, "Limiter On", false));
+    // b120: Repeater (beat repeat) on the finished sound
+    layout.add (std::make_unique<juce::AudioParameterBool> (ID { "repOn", 1 }, "Repeater", false));
+    layout.add (std::make_unique<juce::AudioParameterBool> (ID { "repHold", 1 }, "Repeater: Repeat Now", false));            // not saved as "on" (see restoreState)
+    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "repAuto", 1 }, "Repeater Trigger", juce::StringArray { "Repeat Now switch", "Last beat of every bar", "Last 2 beats of every bar", "Second half of every beat" }, 0));
+    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "repDiv", 1 }, "Repeater Slice", juce::StringArray { "1/4 note", "1/8 note", "1/8 triplet", "1/16 note", "1/16 triplet", "1/32 note" }, 3));
+    layout.add (std::make_unique<F> (ID { "repPitch", 1 }, "Repeater Pitch per Repeat (st)", R (-12.0f, 12.0f, 0.1f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "repGlitch", 1 }, "Repeater Glitch", R (0.0f, 1.0f, 0.001f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "repDecay", 1 }, "Repeater Decay", R (0.0f, 1.0f, 0.001f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "repMix", 1 }, "Repeater Mix", R (0.0f, 1.0f, 0.001f), 1.0f));
+    layout.add (std::make_unique<juce::AudioParameterBool> (ID { "tapeStop", 1 }, "Tape Stop", false));            // b81: not saved as "on" (see restoreState)
+    layout.add (std::make_unique<F> (ID { "tapeStopTime", 1 }, "Tape Stop Time (s)", R (0.1f, 4.0f, 0.01f, 0.5f), 1.2f));
     layout.add (std::make_unique<F> (ID { "limCeil", 1 }, "Limiter Ceiling (dB)", R (-12.0f, 0.0f, 0.1f), -1.0f));
     layout.add (std::make_unique<F> (ID { "limRel", 1 },  "Limiter Release (ms)", R (10.0f, 1000.0f, 1.0f, 0.4f), 150.0f));
     layout.add (std::make_unique<juce::AudioParameterBool> (ID { "outMono", 1 }, "Mono Output", false));
@@ -3668,7 +3993,7 @@ StarterAmpProcessor::createParameterLayout()
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "cabType", 1 }, "Built-in Cab",
                 juce::StringArray { "Amp default", "1x12 Open", "2x12 Combo", "4x12 Closed", "1x12 Bright" }, 0));
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "cabRoomType", 1 }, "Cab Room Type",
-                juce::StringArray { "Original (dark)", "Studio room", "Large studio room", "Living room" }, 0));
+                juce::StringArray { "Original (dark)", "Studio room", "Large studio room", "Living room", "Big room (full)", "Big room (bass-heavy)", "Big room (lean)" }, 0));
     layout.add (std::make_unique<F> (ID { "cabReso", 1 },     "Cab Resonance (dB)", R (-6.0f, 9.0f, 0.1f), 0.0f));
     layout.add (std::make_unique<F> (ID { "cabResoHz", 1 },   "Cab Resonance Freq (Hz)", R (50.0f, 200.0f, 1.0f), 100.0f));
     layout.add (std::make_unique<F> (ID { "cabAir", 1 },      "Cab Air (dB)",       R (-6.0f, 6.0f, 0.1f), 0.0f));
@@ -3749,7 +4074,7 @@ StarterAmpProcessor::createParameterLayout()
 
     // Reverb (Mix at 0 = off)
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "reverbType", 1 }, "Reverb Type",
-                juce::StringArray { "Classic", "Room", "Hall", "Plate", "Ambient", "Cathedral", "Spring", "Soft Plate", "Tumble", "Abyss", "Chorale", "Nonlinear", "IR Reverb", "Black Hole", "Reverse", "ModEcho", "Mangled", "Spring (tank)" }, 0));
+                juce::StringArray { "Classic", "Room", "Hall", "Plate", "Ambient", "Cathedral", "Spring", "Soft Plate", "Tumble", "Abyss", "Chorale", "Nonlinear", "IR Reverb", "Black Hole", "Reverse", "ModEcho", "Mangled", "Spring (tank)", "Studio 78" }, 0));
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "reverbGravity", 1 }, "Black Hole Gravity",
                 juce::StringArray { "Linear", "Surge (swells after you stop)", "Reverse (slow swell in)" }, 0));
     layout.add (std::make_unique<F> (ID { "reverbMix", 1 },     "Reverb Mix",      R (0.0f, 1.0f, 0.001f), 0.0f));
@@ -3793,7 +4118,7 @@ StarterAmpProcessor::createParameterLayout()
     {
         const juce::StringArray notes { "Free (ms)", "1/2", "Dotted 1/4", "1/4", "1/4 triplet", "Dotted 1/8",
                                         "1/8", "1/8 triplet", "Dotted 1/16", "1/16", "1/16 triplet" };
-        const juce::StringArray delayModes { "Digital", "Analog", "Tape", "Lo-Fi", "Oil-can", "Organ (short oil-can)", "Tape Sustain", "Three-Head Tape", "Chorus Bucket", "Studio Tape", "Dub Echo", "Memory Man" };
+        const juce::StringArray delayModes { "Digital", "Analog", "Tape", "Lo-Fi", "Oil-can", "Organ (short oil-can)", "Tape Sustain", "Three-Head Tape", "Chorus Bucket", "Studio Tape", "Dub Echo", "BBD Echo", "Analog BBD delay (1980s)", "Analog BBD Custom (clearer, wider band)" };
         layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "preDelayMode", 1 },  "Delay 1 Mode", delayModes, 1));
         layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "postDelayMode", 1 }, "Delay 2 Mode", delayModes, 1));
         layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "preDelayNote", 1 },  "Delay 1 Note", notes, 0));
@@ -3907,7 +4232,7 @@ StarterAmpProcessor::createParameterLayout()
 
     layout.add (std::make_unique<juce::AudioParameterBool> (ID { "chorusOn", 1 }, "Chorus On", false));
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "chorusMode", 1 }, "Chorus Mode",
-                juce::StringArray { "I", "II", "I + II", "Dimension", "Tri-chorus", "Ensemble", "Detune", "Small Clone (low depth)", "Small Clone (high depth)" }, 0));
+                juce::StringArray { "I", "II", "I + II", "Dimension", "Tri-chorus", "Ensemble", "Detune", "Single-line chorus, low depth", "Single-line chorus, high depth", "Single-line chorus (1980s)", "Two-line chorus (preamp, wider)", "Two-line vibrato (no dry)", "Stereo spatial", "Stereo vintage", "Stereo spatial, wide", "Stereo spatial, four voices", "Stereo shimmer", "Stereo drift", "Stereo dimension" }, 0));
     layout.add (std::make_unique<F> (ID { "chorusMix", 1 },   "Chorus Mix",   R (0.0f, 1.0f, 0.001f), 0.5f));
     layout.add (std::make_unique<F> (ID { "chorusRate", 1 },  "Chorus Rate (x)", R (0.25f, 4.0f, 0.01f, 0.5f), 1.0f));
     layout.add (std::make_unique<F> (ID { "chorusDepth", 1 }, "Chorus Depth", R (0.0f, 1.5f, 0.001f), 1.0f));
@@ -3915,11 +4240,13 @@ StarterAmpProcessor::createParameterLayout()
     layout.add (std::make_unique<F> (ID { "chorusHiss", 1 },  "Chorus Hiss",  R (0.0f, 1.0f, 0.001f), 0.0f));
 
     layout.add (std::make_unique<F> (ID { "reverbPreDelay", 1 }, "Reverb Pre-Delay (ms)", R (0.0f, 250.0f, 0.1f, 0.5f), 15.0f));
-    layout.add (std::make_unique<F> (ID { "reverbDamp", 1 },     "Reverb Damping",   R (0.0f, 1.0f, 0.001f), 0.5f));
+    layout.add (std::make_unique<F> (ID { "reverbDamp", 1 },     "Reverb Damping",   R (-1.0f, 1.0f, 0.001f), -0.2f));
     layout.add (std::make_unique<F> (ID { "reverbWidth", 1 },    "Reverb Width",     R (0.0f, 1.0f, 0.001f), 1.0f));
     layout.add (std::make_unique<F> (ID { "reverbLowCut", 1 },   "Reverb Low Cut (Hz)",  R (20.0f, 1000.0f, 1.0f, 0.4f), 100.0f));
     layout.add (std::make_unique<F> (ID { "reverbHighCut", 1 },  "Reverb High Cut (Hz)", R (1000.0f, 20000.0f, 10.0f, 0.4f), 12000.0f));
     layout.add (std::make_unique<F> (ID { "reverbDuck", 1 },     "Reverb Ducking",   R (0.0f, 1.0f, 0.001f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "reverbDryPan", 1 },   "Reverb Dry Pan",   R (-1.0f, 1.0f, 0.001f), 0.0f));          // b120
+    layout.add (std::make_unique<F> (ID { "reverbWetPan", 1 },   "Reverb Wet Pan",   R (-1.0f, 1.0f, 0.001f), 0.0f));
     layout.add (std::make_unique<juce::AudioParameterBool> (ID { "reverbFreeze", 1 }, "Reverb Freeze", false));
     layout.add (std::make_unique<F> (ID { "shimmerTone", 1 },    "Shimmer Tone (Hz)", R (1500.0f, 12000.0f, 10.0f, 0.4f), 4500.0f));
 
@@ -4015,7 +4342,7 @@ StarterAmpProcessor::createParameterLayout()
             const juce::String p = juce::String ("mf") + juce::String::charToString ((juce::juce_wchar) ('A' + s)), nm = juce::String ("Mod ") + juce::String::charToString ((juce::juce_wchar) ('A' + s)) + " ";
             layout.add (std::make_unique<Bool> (ID { p + "On", 1 }, nm + "On", false));
             layout.add (std::make_unique<Choice> (ID { p + "Type", 1 }, nm + "Type",
-                        juce::StringArray { "Flanger", "Through-zero flanger", "Vibrato", "Uni-V", "Rotary", "Auto-pan", "Harmonic tremolo", "Wobble (tremolo-arm vibrato)", "Tremolo", "Shifted-feedback flanger", "Pitch modulation", "Stutter (rhythmic repeats)", "Chorus", "Phaser", "Lo-Fi warble", "Filter sweep (low-pass)", "Filter sweep (band-pass)", "Notch sweep", "Vowel sweep (formant)", "Auto-wah (envelope)", "Slicer (step gate)", "Filter (all modes)", "Frequency shifter / ring mod", "Vocoder (talk through a synth)" }, s == 0 ? 0 : s == 1 ? 2 : s == 2 ? 12 : 13));
+                        juce::StringArray { "Flanger", "Through-zero flanger", "Vibrato", "Uni-V", "Rotary", "Auto-pan", "Harmonic tremolo", "Wobble (tremolo-arm vibrato)", "Tremolo", "Shifted-feedback flanger", "Pitch modulation", "Stutter (rhythmic repeats)", "Chorus", "Phaser", "Lo-Fi warble", "Filter sweep (low-pass)", "Filter sweep (band-pass)", "Notch sweep", "Vowel sweep (formant)", "Auto-wah (envelope)", "Slicer (step gate)", "Filter (all modes)", "Frequency shifter / ring mod", "Vocoder (talk through a synth)", "Digital damage (codec, dropouts, freeze)", "Sustain hold (sostenuto)" }, s == 0 ? 0 : s == 1 ? 2 : s == 2 ? 12 : 13));
             layout.add (std::make_unique<F> (ID { p + "Shift", 1 }, nm + "Shift (Hz)",
                         R (-2000.0f, 2000.0f,
                            [] (float, float hi, float v01) { return hi * std::sinh (5.5f * (2.0f * v01 - 1.0f)) / std::sinh (5.5f); },     // b62: fine near zero, out to 2 kHz
@@ -4031,6 +4358,7 @@ StarterAmpProcessor::createParameterLayout()
             layout.add (std::make_unique<F> (ID { p + "Tone", 1 }, nm + "Tone (Hz)", R (1500.0f, 16000.0f, 1.0f, 0.4f), 9000.0f));
             layout.add (std::make_unique<F> (ID { p + "Mix", 1 }, nm + "Mix", R (0.0f, 1.0f, 0.001f), s == 1 ? 1.0f : 0.5f));
             layout.add (std::make_unique<F> (ID { p + "Fidelity", 1 }, nm + "Fidelity (1 = clean)", R (0.0f, 1.0f, 0.001f), 1.0f));
+            layout.add (std::make_unique<Choice> (ID { p + "Frame", 1 }, nm + "Digital damage frame", juce::StringArray { "Long (21 ms delay)", "Medium (11 ms)", "Short (5 ms)" }, 0));      // b118
             // b30: the controls of the old stand-alone Phaser and Lo-Fi that the shared knobs cannot cover (shown only for those types)
             layout.add (std::make_unique<F> (ID { p + "Stages", 1 }, nm + "Phaser Stages", R (2.0f, 12.0f, 2.0f), 4.0f));
             layout.add (std::make_unique<F> (ID { p + "Env", 1 },    nm + "Phaser Envelope", R (0.0f, 1.0f, 0.001f), 0.0f));
@@ -4040,19 +4368,28 @@ StarterAmpProcessor::createParameterLayout()
             layout.add (std::make_unique<F> (ID { p + "Level", 1 },  nm + "Lo-Fi Level (dB)", R (-18.0f, 12.0f, 0.1f), 0.0f));
             // b43: what the old stand-alone Chorus, Filter and Tremolo had that the shared knobs cannot cover (shown only for those types)
             layout.add (std::make_unique<Choice> (ID { p + "ChMode", 1 }, nm + "Chorus Mode",
-                        juce::StringArray { "I", "II", "I + II", "Dimension", "Tri-chorus", "Ensemble", "Detune", "Small Clone (low depth)", "Small Clone (high depth)" }, 0));
+                        juce::StringArray { "I", "II", "I + II", "Dimension", "Tri-chorus", "Ensemble", "Detune", "Single-line chorus, low depth", "Single-line chorus, high depth", "Single-line chorus (1980s)", "Two-line chorus (preamp, wider)", "Two-line vibrato (no dry)", "Stereo spatial", "Stereo vintage", "Stereo spatial, wide", "Stereo spatial, four voices", "Stereo shimmer", "Stereo drift", "Stereo dimension" }, 0));
             layout.add (std::make_unique<Choice> (ID { p + "FMode", 1 }, nm + "Filter Mode",
                         juce::StringArray { "Low-pass", "High-pass", "Band-pass", "Notch", "Formant (vowel)", "Resonator (tuned)" }, 0));
             layout.add (std::make_unique<Choice> (ID { p + "FMotion", 1 }, nm + "Filter Motion",
                         juce::StringArray { "Manual", "LFO", "Envelope (follows your playing)", "Random steps" }, 1));
             layout.add (std::make_unique<F> (ID { p + "Vowel", 1 }, nm + "Filter Vowel (A E I O U)", R (0.0f, 1.0f, 0.001f), 0.0f));
             layout.add (std::make_unique<Bool> (ID { p + "Flip", 1 }, nm + "Filter Sweep Down", false));
+            layout.add (std::make_unique<Bool> (ID { p + "Hold", 1 }, nm + "Sustain Hold", false));       // b105
             layout.add (std::make_unique<F> (ID { p + "Pick", 1 }, nm + "Tremolo Pick Response", R (0.0f, 1.0f, 0.001f), 0.0f));
             // b62: the Frequency shifter (mode) and the Vocoder (carrier, bands, drone note, sibilance, response)
+            layout.add (std::make_unique<F> (ID { p + "Breath", 1 }, nm + "Cassette Noise-Reduction Breathing", R (0.0f, 1.0f, 0.001f), 0.0f));          // b120
+            layout.add (std::make_unique<F> (ID { p + "BitMangle", 1 }, nm + "Bit Mangle", R (0.0f, 1.0f, 0.001f), 0.0f));                                // b120 (Lo-Fi and Digital damage)
             layout.add (std::make_unique<Choice> (ID { p + "LoVoice", 1 }, nm + "Lo-Fi Voicing",
-                        juce::StringArray { "Warble (crushed, as before)", "Cassette (tape saturation, head bump, hiss)" }, 0));
+                        juce::StringArray { "Warble (crushed, as before)", "Cassette (tape saturation, head bump, hiss)", "Vinyl (slow wow, soft saturation, ticks and pops)" }, 0));
             layout.add (std::make_unique<Choice> (ID { p + "PhVoice", 1 }, nm + "Phaser Voicing",
-                        juce::StringArray { "Four-stage JFET (Phase 90 style)", "Small Stone (OTA, four stages)", "Small Stone, Color on", "Uni-Vibe (four unequal lamp stages)" }, 0));        // b64
+                        juce::StringArray { "Four-stage JFET (classic)", "OTA, four stages", "OTA, Color on", "Lamp vibe (four unequal lamp stages)" }, 0));        // b64
+            layout.add (std::make_unique<Choice> (ID { p + "PhStereo", 1 }, nm + "Phaser Stereo",
+                        juce::StringArray { "Mono (as before)", "Stereo, sides a quarter cycle apart", "Stereo, sides opposite (half a cycle)" }, 0));        // b106
+            layout.add (std::make_unique<Choice> (ID { p + "ViVoice", 1 }, nm + "Vibrato Voicing",
+                        juce::StringArray { "Clean (as before)", "Rise-time vibrato (BBD)", "Rise-time vibrato, swept filter" }, 0));       // b75
+            layout.add (std::make_unique<Choice> (ID { p + "FlVoice", 1 }, nm + "Flanger Voicing",
+                        juce::StringArray { "Clean (as before)", "Swept-clock BBD flanger", "Swept-clock BBD flanger, fixed comb (clock held still)", "BBD, long line (1024 stages)", "BBD, short line (512 stages, higher band)" }, 0));       // b84, b86
             layout.add (std::make_unique<Choice> (ID { p + "FsMode", 1 }, nm + "Shifter Mode",
                         juce::StringArray { "Shift (single sideband)", "Ring modulator", "Spread (up one side, down the other)" }, 0));
             layout.add (std::make_unique<Choice> (ID { p + "VocCar", 1 }, nm + "Vocoder Carrier",
@@ -4087,6 +4424,7 @@ StarterAmpProcessor::createParameterLayout()
                     juce::StringArray { "Free", "Octaves", "Fifths", "Major pentatonic", "Minor pentatonic", "Major", "Minor", "Whole tone" }, 0));
         layout.add (std::make_unique<Choice> (ID { "granShape", 1 }, "Grain Shape", juce::StringArray { "Smooth", "Swell", "Pluck", "Flat", "Smear", "Glitch" }, 0));
         layout.add (std::make_unique<F> (ID { "granScan", 1 }, "Grain Scan", R (0.0f, 1.0f, 0.001f), 0.0f));
+        layout.add (std::make_unique<F> (ID { "granRecall", 1 }, "Grain Recall", R (0.0f, 1.0f, 0.001f), 0.0f));
         layout.add (std::make_unique<F> (ID { "granTone", 1 }, "Grain Tone (Hz)", R (500.0f, 20000.0f, 1.0f, 0.4f), 20000.0f));
 
         // Pitch effects: which guitar
@@ -4117,10 +4455,10 @@ StarterAmpProcessor::createParameterLayout()
         // Harmonizer (v52)
         layout.add (std::make_unique<Bool> (ID { "hmOn", 1 }, "Harmonizer On", false));
         layout.add (std::make_unique<Choice> (ID { "hmPos", 1 }, "Harmonizer Position", juce::StringArray { "Before the amp", "After the cab" }, 0));
-        layout.add (std::make_unique<Choice> (ID { "hmMode", 1 }, "Harmonizer Mode", juce::StringArray { "Interval", "Scale" }, 1));
+        layout.add (std::make_unique<Choice> (ID { "hmMode", 1 }, "Harmonizer Mode", juce::StringArray { "Interval", "Scale", "MIDI" }, 1));       // b115: MIDI
         layout.add (std::make_unique<Choice> (ID { "hmKey", 1 }, "Harmonizer Key", juce::StringArray { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" }, 4));
         layout.add (std::make_unique<Choice> (ID { "hmScale", 1 }, "Harmonizer Scale",
-                    juce::StringArray { "Major", "Natural minor", "Dorian", "Mixolydian", "Harmonic minor", "Major pentatonic", "Minor pentatonic" }, 0));
+                    juce::StringArray { "Major", "Natural minor", "Dorian", "Mixolydian", "Harmonic minor", "Major pentatonic", "Minor pentatonic", "Melodic minor" }, 0));
         layout.add (std::make_unique<F> (ID { "hmAInt", 1 }, "Harmony A Interval (semitones)", R (-24.0f, 24.0f, 1.0f), 4.0f));
         layout.add (std::make_unique<F> (ID { "hmBInt", 1 }, "Harmony B Interval (semitones)", R (-24.0f, 24.0f, 1.0f), 7.0f));
         layout.add (std::make_unique<F> (ID { "hmADeg", 1 }, "Harmony A Scale Step", R (-7.0f, 7.0f, 1.0f), 2.0f));
@@ -4133,6 +4471,20 @@ StarterAmpProcessor::createParameterLayout()
         layout.add (std::make_unique<F> (ID { "hmTone", 1 }, "Harmony Tone", R (0.0f, 1.0f, 0.001f), 0.7f));
         layout.add (std::make_unique<F> (ID { "hmGlide", 1 }, "Harmony Glide (ms)", R (1.0f, 400.0f, 1.0f, 0.5f), 25.0f));
         layout.add (std::make_unique<Choice> (ID { "hmTrack", 1 }, "Harmonizer Tracking", juce::StringArray { "Single note", "Chords", "Chords (fast)" }, 0));
+        // b115: voices C and D, and the arpeggiator
+        layout.add (std::make_unique<F> (ID { "hmCInt", 1 }, "Harmony C Interval (semitones)", R (-24.0f, 24.0f, 1.0f), 12.0f));
+        layout.add (std::make_unique<F> (ID { "hmDInt", 1 }, "Harmony D Interval (semitones)", R (-24.0f, 24.0f, 1.0f), -12.0f));
+        layout.add (std::make_unique<F> (ID { "hmCDeg", 1 }, "Harmony C Scale Step", R (-7.0f, 7.0f, 1.0f), 7.0f));
+        layout.add (std::make_unique<F> (ID { "hmDDeg", 1 }, "Harmony D Scale Step", R (-7.0f, 7.0f, 1.0f), -7.0f));
+        layout.add (std::make_unique<F> (ID { "hmCLvl", 1 }, "Harmony C Level", R (0.0f, 1.0f, 0.001f), 0.0f));
+        layout.add (std::make_unique<F> (ID { "hmDLvl", 1 }, "Harmony D Level", R (0.0f, 1.0f, 0.001f), 0.0f));
+        layout.add (std::make_unique<F> (ID { "hmCPan", 1 }, "Harmony C Pan", R (-1.0f, 1.0f, 0.001f), -0.2f));
+        layout.add (std::make_unique<F> (ID { "hmDPan", 1 }, "Harmony D Pan", R (-1.0f, 1.0f, 0.001f), 0.2f));
+        layout.add (std::make_unique<Bool> (ID { "hmArp", 1 }, "Harmonizer Arpeggiator", false));
+        layout.add (std::make_unique<Choice> (ID { "hmArpPattern", 1 }, "Arpeggiator Pattern", juce::StringArray { "Up", "Down", "Up and down", "Random" }, 0));
+        layout.add (std::make_unique<Choice> (ID { "hmArpRate", 1 }, "Arpeggiator Rate", juce::StringArray { "1/4", "1/8", "1/8 triplet", "1/16", "1/16 triplet", "1/32" }, 3));
+        layout.add (std::make_unique<F> (ID { "hmArpGate", 1 }, "Arpeggiator Gate", R (0.1f, 1.0f, 0.001f), 0.6f));
+        layout.add (std::make_unique<F> (ID { "hmArpLevel", 1 }, "Arpeggiator Level", R (0.0f, 1.0f, 0.001f), 0.7f));
 
         // Delays (v52): ducking, modulation, diffusion, hold / freeze / infinite, multi-tap
         for (int d = 0; d < 2; ++d)
@@ -4177,6 +4529,7 @@ StarterAmpProcessor::createParameterLayout()
 
     // v83: spring reverb driver (an effect, not part of the amp models), tremolo shape "Optical" is appended to tremShape
     layout.add (std::make_unique<F> (ID { "reverbDrive", 1 }, "Spring Reverb Drive", R (0.0f, 1.0f, 0.001f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "reverbSpringFb", 1 }, "Spring Reverb Feedback", R (0.0f, 1.0f, 0.001f), 0.0f));          // b111
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "ampDerived", 1 }, "Amp A Circuit-Derived Level",
                 juce::StringArray { "Derived: off (classic)", "Derived: power section", "Derived: power + supply", "Derived: power + supply + voicing" }, 0));
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "ampDual", 1 }, "Amp A Dual Voice",
@@ -4185,7 +4538,7 @@ StarterAmpProcessor::createParameterLayout()
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "ampBDerived", 1 }, "Amp B Circuit-Derived Level",
                 juce::StringArray { "Derived: off (classic)", "Derived: power section", "Derived: power + supply", "Derived: power + supply + voicing" }, 0));
     // v94: Tight, Screamer, Distortion and Transparent are hand-tuned again by default; this switch turns on their circuit models.
-    layout.add (std::make_unique<juce::AudioParameterBool> (ID { "odCircuit", 1 }, "OD Circuit Mode (Transparent, Tight, Open, Screamer, Distortion)", false));
+    layout.add (std::make_unique<juce::AudioParameterBool> (ID { "odCircuit", 1 }, "OD Circuit Mode (Transparent, Tight, Open, Mid Hump, Distortion)", false));
     // v94: the amp Mode menus are back. Classic is the original voicing (the default); Circuit-derived uses the stage shapes, power
     // section, supply and component-value voicing worked out from the circuits. Same ids as v87 to v92 so old sessions keep their choice.
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "ampMode", 1 }, "Amp A Mode",
@@ -4218,15 +4571,17 @@ StarterAmpProcessor::createParameterLayout()
     }
     layout.add (std::make_unique<juce::AudioParameterBool> (ID { "rev2On", 1 },    "Reverb 2: Reverb On", false));
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "rev2Type", 1 }, "Reverb 2: Reverb Type",
-                juce::StringArray { "Classic", "Room", "Hall", "Plate", "Ambient", "Cathedral", "Spring", "Soft Plate", "Tumble", "Abyss", "Chorale", "Nonlinear", "IR Reverb", "Black Hole", "Reverse", "ModEcho", "Mangled", "Spring (tank)" }, 0));
+                juce::StringArray { "Classic", "Room", "Hall", "Plate", "Ambient", "Cathedral", "Spring", "Soft Plate", "Tumble", "Abyss", "Chorale", "Nonlinear", "IR Reverb", "Black Hole", "Reverse", "ModEcho", "Mangled", "Spring (tank)", "Studio 78" }, 0));
     layout.add (std::make_unique<F> (ID { "rev2Mix", 1 },     "Reverb 2: Reverb Mix",      R (0.0f, 1.0f, 0.001f), 0.0f));
     layout.add (std::make_unique<F> (ID { "rev2Size", 1 },    "Reverb 2: Reverb Decay (s)", R (0.1f, 30.0f, 0.01f, 0.4f), 2.0f));
-    layout.add (std::make_unique<F> (ID { "rev2Damp", 1 },     "Reverb 2: Reverb Damping",   R (0.0f, 1.0f, 0.001f), 0.5f));
+    layout.add (std::make_unique<F> (ID { "rev2Damp", 1 },     "Reverb 2: Reverb Damping",   R (-1.0f, 1.0f, 0.001f), -0.2f));
     layout.add (std::make_unique<F> (ID { "rev2Width", 1 },    "Reverb 2: Reverb Width",     R (0.0f, 1.0f, 0.001f), 1.0f));
     layout.add (std::make_unique<F> (ID { "rev2PreDelay", 1 }, "Reverb 2: Reverb Pre-Delay (ms)", R (0.0f, 250.0f, 0.1f, 0.5f), 15.0f));
     layout.add (std::make_unique<F> (ID { "rev2LowCut", 1 },   "Reverb 2: Reverb Low Cut (Hz)",  R (20.0f, 1000.0f, 1.0f, 0.4f), 100.0f));
     layout.add (std::make_unique<F> (ID { "rev2HighCut", 1 },  "Reverb 2: Reverb High Cut (Hz)", R (1000.0f, 20000.0f, 10.0f, 0.4f), 12000.0f));
     layout.add (std::make_unique<F> (ID { "rev2Duck", 1 },     "Reverb 2: Reverb Ducking",   R (0.0f, 1.0f, 0.001f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "rev2DryPan", 1 },   "Reverb 2: Reverb Dry Pan",   R (-1.0f, 1.0f, 0.001f), 0.0f));     // b120
+    layout.add (std::make_unique<F> (ID { "rev2WetPan", 1 },   "Reverb 2: Reverb Wet Pan",   R (-1.0f, 1.0f, 0.001f), 0.0f));
     layout.add (std::make_unique<F> (ID { "rev2Diffuse", 1 }, "Reverb 2: Reverb Diffuse", R (0.0f, 1.0f, 0.001f), 0.5f));
     layout.add (std::make_unique<F> (ID { "rev2Space", 1 },   "Reverb 2: Reverb Space (x)", R (0.4f, 2.5f, 0.001f, 0.55f), 1.0f));
     layout.add (std::make_unique<F> (ID { "rev2Mod", 1 },     "Reverb 2: Reverb Mod", R (0.0f, 1.0f, 0.001f), 0.0f));
@@ -4234,6 +4589,7 @@ StarterAmpProcessor::createParameterLayout()
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "rev2DragMode", 1 }, "Reverb 2: Reverb Drag Steps", juce::StringArray { "Smooth", "Semitones", "Fifths and octaves", "Octaves" }, 0));
     layout.add (std::make_unique<F> (ID { "rev2Bloom", 1 },   "Reverb 2: Reverb Bloom", R (0.0f, 1.0f, 0.001f), 0.0f));
     layout.add (std::make_unique<F> (ID { "rev2Drive", 1 }, "Reverb 2: Spring Reverb Drive", R (0.0f, 1.0f, 0.001f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "rev2SpringFb", 1 }, "Reverb 2: Spring Reverb Feedback", R (0.0f, 1.0f, 0.001f), 0.0f));    // b111
     layout.add (std::make_unique<juce::AudioParameterBool> (ID { "rev2Freeze", 1 }, "Reverb 2: Reverb Freeze", false));
     layout.add (std::make_unique<F> (ID { "rev2Symph", 1 },   "Reverb 2: Reverb Symphony", R (0.0f, 1.0f, 0.001f), 0.0f));
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "rev2SymphPitch", 1 }, "Reverb 2: Reverb Symphony Pitch", juce::StringArray { "Octave up", "Octave down", "Fifth up", "Two octaves up" }, 0));
@@ -4266,6 +4622,13 @@ StarterAmpProcessor::createParameterLayout()
         layout.add (std::make_unique<F> (ID { p + "EchoTime", 1 }, n + "ModEcho Time (ms)", R (40.0f, 1500.0f, 1.0f, 0.5f), 350.0f));
         layout.add (std::make_unique<F> (ID { p + "EchoFb", 1 }, n + "ModEcho Feedback", R (0.0f, 0.92f, 0.001f), 0.45f));
         layout.add (std::make_unique<F> (ID { p + "Mangle", 1 }, n + "Mangle", R (0.0f, 1.0f, 0.001f), 0.4f));
+        // b81: the bass band's own decay (a bass multiplier and crossover) and the vintage-digital clock (Studio 78 and friends)
+        layout.add (std::make_unique<F> (ID { p + "BassDecay", 1 }, n + "Bass Decay (x)", R (0.25f, 2.0f, 0.001f, 0.82f), 1.0f));
+        layout.add (std::make_unique<F> (ID { p + "Cross", 1 }, n + "Bass Crossover (Hz)", R (80.0f, 1700.0f, 1.0f, 0.5f), 500.0f));
+        layout.add (std::make_unique<juce::AudioParameterChoice> (ID { p + "Clock", 1 }, n + "Clock",
+                    juce::StringArray { "Clean", "Hall 78 (24 kHz, 14-bit)", "Dirty (12 kHz, 10-bit, saturated)", "Lo-Fi (6 kHz, 8-bit)" }, 0));
+        layout.add (std::make_unique<juce::AudioParameterChoice> (ID { p + "GateShape", 1 }, n + "Gate Shape",
+                    juce::StringArray { "Fade (as before)", "Chop (hard cut, 80s)", "Reverse swell (builds, then cuts)" }, 0));        // b106: Nonlinear only
         // b33: the electronics around a spring tank (Spring and Spring (tank) types only)
         layout.add (std::make_unique<juce::AudioParameterChoice> (ID { p + "Return", 1 }, n + "Spring Return",
                     juce::StringArray { "Generic", "Sparkle", "Chime", "Tight", "Full", "Clean", "Tilt" }, 0));
@@ -4333,6 +4696,13 @@ StarterAmpProcessor::createParameterLayout()
     layout.add (std::make_unique<F> (ID { "msLoCut", 1 }, "Multiband Saturator Low Cut (Hz)", R (20.0f, 1000.0f, 1.0f, 0.4f), 20.0f));
     layout.add (std::make_unique<F> (ID { "msHiCut", 1 }, "Multiband Saturator High Cut (Hz)", R (1000.0f, 20000.0f, 1.0f, 0.4f), 20000.0f));
     layout.add (std::make_unique<juce::AudioParameterBool> (ID { "msAuto", 1 }, "Multiband Saturator Auto Level", false));
+    // b112: Easy mode (one Amount and a Focus give every band its Drive) and per-band Feedback with a shared Pitch
+    layout.add (std::make_unique<juce::AudioParameterBool> (ID { "msEasy", 1 }, "Multiband Saturator Easy Mode", false));
+    layout.add (std::make_unique<F> (ID { "msAmount", 1 }, "Multiband Saturator Easy Amount", R (0.0f, 1.0f, 0.001f), 0.4f));
+    layout.add (std::make_unique<F> (ID { "msFocus", 1 }, "Multiband Saturator Easy Focus", R (-1.0f, 1.0f, 0.001f), 0.0f));
+    for (int k = 1; k <= 4; ++k)
+        layout.add (std::make_unique<F> (ID { "msFb" + juce::String (k), 1 }, "Multiband Saturator Band " + juce::String (k) + " Feedback", R (0.0f, 1.0f, 0.001f), 0.0f));
+    layout.add (std::make_unique<F> (ID { "msFbPitch", 1 }, "Multiband Saturator Feedback Pitch", R (-1.0f, 1.0f, 0.001f), 0.0f));
     layout.add (std::make_unique<juce::AudioParameterBool> (ID { "gxOn", 1 }, "Gate On", false));
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "gxMode", 1 }, "Gate Mode", juce::StringArray { "Gate", "Expander (soft)" }, 0));
     layout.add (std::make_unique<F> (ID { "gxThresh", 1 }, "Gate Threshold (dB)", R (-80.0f, -10.0f, 0.1f), -50.0f));
@@ -4371,6 +4741,7 @@ StarterAmpProcessor::createParameterLayout()
     layout.add (std::make_unique<juce::AudioParameterBool> (ID { "lprArm", 1 }, "Looper Start on First Note", true));
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "lprBars", 1 }, "Looper Length", juce::StringArray { "Free", "1 bar", "2 bars", "4 bars", "8 bars" }, 0));
     layout.add (std::make_unique<F> (ID { "lprLevel", 1 }, "Looper Level (dB)", R (-24.0f, 6.0f, 0.1f), 0.0f));
+    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "lprMode", 1 }, "Looper Playback", juce::StringArray { "Normal", "Reverse", "Half speed (an octave down)", "Half speed, reversed", "Double speed (an octave up)" }, 0));   // b106
     layout.add (std::make_unique<juce::AudioParameterBool> (ID { "lprLatch", 1 }, "Looper Footswitch Latching", false));
     layout.add (std::make_unique<F> (ID { "tremPick", 1 }, "Tremolo Pick Response", R (0.0f, 1.0f, 0.001f), 0.3f));
     {
@@ -4414,7 +4785,12 @@ StarterAmpProcessor::createParameterLayout()
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "wahEnvShape", 1 }, "Envelope Filter Shape",
                 juce::StringArray { "Band-pass", "Low-pass", "High-pass" }, 0));
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "wahVoice", 1 }, "Wah Voice",
-                juce::StringArray { "Generic (Heel and Toe knobs)", "Classic circuit (450 Hz to 1.6 kHz)" }, 1));      // default Classic circuit
+                juce::StringArray { "Generic (Heel and Toe knobs)", "Classic circuit (450 Hz to 1.6 kHz)", "Wide range (Range, Q, Boost)", "Vintage narrow (410 Hz to 2.2 kHz)",
+                                    "Optical", "Optical, Contour", "Low sweep", "Optical with fuzz" }, 1));      // default Classic circuit; b76: the voicings after it
+    layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "wahRange", 1 }, "Wah Range",
+                juce::StringArray { "Voicing's own", "1 (440 Hz heel, wide)", "2 (400 Hz)", "3 (375 Hz)", "4 (345 Hz)", "5 (295 Hz)", "6 (250 Hz heel, low)" }, 0));       // b76: the 535Q / DB01B Range selector
+    layout.add (std::make_unique<F> (ID { "wahBoost", 1 }, "Wah Boost (dB)", R (-6.0f, 17.0f, 0.1f), 0.0f));       // b76
+    layout.add (std::make_unique<F> (ID { "wahFuzz", 1 },  "Wah Fuzz (fuzz-wah voicing)", R (0.0f, 1.0f, 0.001f), 0.6f));       // b76
     // v0.2: IR Reverb (reverb type 12): a loaded file or one of eight generated responses
     layout.add (std::make_unique<juce::AudioParameterChoice> (ID { "reverbIrSource", 1 }, "IR Reverb Source",
                 juce::StringArray { "Loaded file", "Dark Infinite", "Reverse Swell", "Inverted Bloom", "Bass Cathedral", "Gated Slab", "Glass Air", "Wide Void", "Metal Tank" }, 1));
@@ -4454,7 +4830,9 @@ struct StarterAmpProcessor::ParallelAmp
 
     juce::dsp::Oversampling<float> os4 { 1, 2, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true };
     juce::dsp::Oversampling<float> os2 { 1, 1, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true };
-    Filt voicePeak, hp1, hp2, hp3, lp2, lp3, presence, odTone, brightF;   // run at the oversampled rate
+    Filt voicePeak, hp1, hp2, hp3, lp2, lp3, presence, odTone, brightF;
+    bool presPre = false;                    // b68: Presence runs ahead of the power stage (see AmpVoicing::presencePre)
+    ColdClip cold;                           // b68: the SLO-100's cold clipper (see ColdClip.h)
     bool lpOn = false;
     Filt dc, bass, lowMid, highMid, treble, resoF;                // run at the normal rate
     bool  brightOn = false, resoOn = false;
@@ -4521,19 +4899,24 @@ struct StarterAmpProcessor::ParallelAmp
         for (int i = 0; i < 3; ++i) { bias[i] = v.bias[i]; tg[i] = stageGain (v, i, knobGain); }
         sag = v.sag;
         blockMul = v.blockMul;
-        tTrim = dbToGain (v.trimDb + levelDb);
+        tTrim = dbToGain (v.trimDb + (applyPlanTrim && plan.active ? plan.trimDb : 0.0f) + levelDb);   // b70: Amp B now takes the stage plan's trim as Amp A does (it was missing, so Amp B ran up to 4 dB off Amp A in the Circuit-derived and Hybrid modes)
         tLevel = dbToGain (levelDb);
         tOdVol = odVolume;
         odTone.coefficients = sharedOdTone;                 // follows Amp A's OD tone
 
         *voicePeak.coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makePeakFilter (osSr, v.voiceHz, v.voiceQ, dbToGain (v.voiceDb));
-        *hp1.coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass (osSr, v.hp[0]);
+        if (v.hpShelfDb0 < -0.1f) *hp1.coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeLowShelf (osSr, v.hp[0], 0.707f, dbToGain (v.hpShelfDb0));
+        else                      *hp1.coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass (osSr, v.hp[0]);
         *hp2.coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass (osSr, v.hp[1]);
         *hp3.coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeHighPass (osSr, v.hp[2]);
         lpOn = v.stageLpHz > 0.0f;
         *lp2.coefficients = stageLpCoeffs (osSr, juce::jmin (lpOn ? (double) v.stageLpHz : 8000.0, 0.45 * osSr), v.stageLpSecond);
         lp3.coefficients = lp2.coefficients;
-        *presence.coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf (osSr, v.presenceHz, 0.707f, dbToGain (presenceAmt * v.presenceMaxDb + v.presenceBaseDb));
+        if (v.presencePre)      // b68 (R20): 2k rheostat in a shunt with 0.1 uF ahead of the power amp: -10.5 dB at 5 kHz at 0, -3.5 dB at the top of the knob (a high shelf at 2 kHz)
+            *presence.coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf (osSr, 2000.0f, 0.707f, dbToGain (-3.5f - 7.0f * (1.0f - presenceAmt)));
+        else
+            *presence.coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf (osSr, v.presenceHz, 0.707f, dbToGain (presenceAmt * v.presenceMaxDb + v.presenceBaseDb));
+        presPre = v.presencePre;  cold.amt = v.coldClip;  cold.L = v.coldCutoff;
         psp = v.ps;  cutAmp = v.cutAmp;
         if (psp.filtersOn)
         {
@@ -4556,6 +4939,7 @@ struct StarterAmpProcessor::ParallelAmp
     double stackRate = 48000.0;
     std::vector<float> hybScratch;           // the classic power curve's result while the Hybrid mode mixes it with the circuit one
     StageShaper::Plan plan;                  // v80: circuit-derived stage shapes (inactive = the classic ones)
+    bool applyPlanTrim = false;              // b70: true for Amp B only. The two parts of the blend amp (model 31) keep the level their Auto Level table was measured with
     StageShaper::StageState stageSt[3];
     Adaa::Prev odAd, odAdN;                  // b42: anti-aliasing history of the overdrive clipper (built-in preamp / neural capture)
     Adaa::Prev classicAd[3];                 // b41: anti-aliasing history of the classic (tanh / hard clip) stages
@@ -4689,6 +5073,7 @@ struct StarterAmpProcessor::ParallelAmp
             stageM (hp1, lg[0], tg[0], 0);
             if (lpOn) lp2.process (ctx);
             stageM (hp2, lg[1], tg[1], 1);
+            if (cold.amt > 0.0f && stages >= 3) cold.process (y, m);
             if (stages >= 3)
             {
                 if (lpOn) lp3.process (ctx);
@@ -4700,6 +5085,7 @@ struct StarterAmpProcessor::ParallelAmp
         stage (hp1, lg[0], tg[0], bias[0], (hardMask >> 0) & 1, 0);
         if (lpOn) lp2.process (ctx);
         stage (hp2, lg[1], tg[1], bias[1], (hardMask >> 1) & 1, 1);
+        if (cold.amt > 0.0f && stages >= 3) cold.process (y, m);
         if (stages >= 3)
         {
             if (lpOn) lp3.process (ctx);
@@ -4722,6 +5108,7 @@ struct StarterAmpProcessor::ParallelAmp
             sagEnv = env;
         }
         if (psp.supplyOn) psSup.droop (y, m, 0, psp, osRate);
+        if (presPre) presence.process (ctx);      // b68 (R20)
         if (powerDrive > 0.0f || deadZone > 0.0f)
         {
             if (psp.fbLg > 0.0f)
@@ -4754,7 +5141,7 @@ struct StarterAmpProcessor::ParallelAmp
         }
         if (psp.supplyOn) psSup.transformer (y, m, 0, psp, osRate);
         if (psp.filtersOn) psChain.process (y, m, 0);
-        if (! psp.filtersOn || cutAmp) presence.process (ctx);      // b38: the Cut amps keep their roll-off shelf in every mode
+        if ((! psp.filtersOn || cutAmp) && ! presPre) presence.process (ctx);      // b38: the Cut amps keep their roll-off shelf in every mode
         for (int i = 0; i < 3; ++i) lg[i] = tg[i];
 
         if (mode != 2)
@@ -4901,6 +5288,9 @@ bool StarterAmpProcessor::isBusesLayoutSupported (const BusesLayout& layouts) co
 void StarterAmpProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     currentSampleRate = sampleRate;
+    for (auto& m : modSrc) m.prepare (sampleRate);                                                              // b107
+    for (int i = 0; i < ModSource::kNumTargets; ++i) modPar[i] = apvts.getParameter (ModSource::kTargets[i].id);
+    inputCal.prepare (sampleRate);                   // b94
     (void) StageShaper::adaaTables();        // b41: build the anti-aliasing tables here, never on the audio thread
     for (auto& a : classicAd) a.reset();
     for (auto& st : stageSt) st.ad.reset();
@@ -4914,11 +5304,13 @@ void StarterAmpProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     requestAsync();
     lofi.prepare (sampleRate);
     lofiWasOn = false;
+    tapeStop.prepare (sampleRate);
+    repeater.prepare (sampleRate);                                                                               // b120
     boost.prepare (sampleRate);  boostWasOn = false;
     for (auto& m : modFx) m.prepare (sampleRate);
     for (int s = 0; s < 4; ++s)
     {
-        chorusSlot[s].prepare (sampleRate);  phaserSlot[s].prepare (sampleRate);  lofiSlot[s].prepare (sampleRate);  filterSlot[s].prepare (sampleRate);  slicerSlot[s].prepare (sampleRate);
+        chorusSlot[s].prepare (sampleRate);  chorusStSlot[s].prepare (sampleRate);  phaserSlot[s].prepare (sampleRate);  phaserRSlot[s].prepare (sampleRate);  lofiSlot[s].prepare (sampleRate);  filterSlot[s].prepare (sampleRate);  slicerSlot[s].prepare (sampleRate);  ddSlot[s].prepare (sampleRate);  holdSlot[s].prepare (sampleRate);
         shifterSlot[s].prepare (sampleRate);  vocSlot[s].prepare (sampleRate);  droneSlot[s].reset();  vocSynth[s].prepare (sampleRate);
         modWobWasOn[s] = false;  modWasOn[s] = false;  modKind[s] = -1;
     }
@@ -4946,7 +5338,7 @@ void StarterAmpProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
                      &cabHp, &cabLowPeak, &cabMidPeak, &cabLp,
                      &cabResoPeak, &cabAirShelf,
                      &acHp, &acQuack, &acBright, &acHollow, &acBodyLp, &acWarm, &acSpark,
-                     &acBody[0], &acBody[1], &acBody[2], &acBody[3], &acBody[4],
+                     &acBody[0], &acBody[1], &acBody[2], &acBody[3], &acBody[4], &acBody[5], &acBody[6],
                      &fmtCut1, &fmtBoost1, &fmtCut2, &fmtBoost2, &metalFizz, &metalFizz2, &metalDepth, &metalFizzB, &metalFizzB2, &metalDepthB })
     {
         f->prepare (spec);
@@ -4993,7 +5385,7 @@ void StarterAmpProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
         *d->odGainHighPass.state = *Coeffs::makeHighPass (d->rate, 120.0f);  // gain path ignores deep lows
     }
     dyna.prepare (sampleRate);
-    optoSust.prepare (sampleRate);  optoSustWasOn = false;  crushLim.prepare (sampleRate);  crushLimWasOn = false;
+    optoSust.prepare (sampleRate);  optoSustWasOn = false;  cs3.prepare (sampleRate);  cs3WasOn = false;  cs2.prepare (sampleRate);  cs2WasOn = false;  crushLim.prepare (sampleRate);  crushLimWasOn = false;
     programEq.prepare (sampleRate);  programEqWasOn = false;
     *dcBlock.state        = ArrCo::makeHighPass (sampleRate, 25.0f);   // removes DC left by asymmetric clipping
 
@@ -5007,6 +5399,11 @@ void StarterAmpProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
                                          d->osDryA.initProcessing ((size_t) samplesPerBlock); d->osDryB.initProcessing ((size_t) samplesPerBlock); }
     transposer.prepare (sampleRate);
     diEngine.prepare (sampleRate);  diFrameFill = 0;  diWasLearn = false;
+    wowRough.prepare (sampleRate);  wowCharPrev = -1;
+    octBank.prepare (sampleRate);  octNewPrev = -1;  octDiv.prepare (sampleRate);  octDivWasOn = false;
+    wowSS.prepare (sampleRate);  wowDly.prepare ((int) (0.25 * sampleRate));  wowTrackPrev = -1;
+    tpForm.prepare (sampleRate);  tpFormQ.prepare (sampleRate);  tpDly.prepare (1024);  tpFormPrev = false;
+    wowForm.prepare (sampleRate);  wowDly2.prepare ((int) (0.25 * sampleRate));  wowSplit.prepare (sampleRate);  wowFormPrev = wowLowPrev = false;
     wowT.prepare (sampleRate);  octV1.prepare (sampleRate);  octV2.prepare (sampleRate);  synth.prepare (sampleRate);
     riff.prepare (sampleRate);
     harm.prepare (sampleRate);  harmWasOn = false;  harmWindowMs = 0;  harmPosPrev = -1;  harmLatency.store (0);
@@ -5138,7 +5535,7 @@ void StarterAmpProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     swellGains.assign ((size_t) samplesPerBlock + 16, 1.0f);
     hybridScratch.assign ((size_t) std::max (16, samplesPerBlock) * 4 + 64, 0.0f);   // the Hybrid power mode's scratch, sized up front so it never allocates on the audio thread
     phaser.prepare (sampleRate);
-    chorus.prepare (sampleRate);
+    chorus.prepare (sampleRate);  chorusSt.prepare (sampleRate);
     phaserWasOn = chorusWasOn = false;
 
     // Reverb pre-delay (up to 250 ms), wet filters and ducking
@@ -5183,7 +5580,8 @@ void StarterAmpProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     oversampler.reset();
     oversampler2.reset();
     for (DriveState* d : { &d1, &d2 }) { d->osA.reset(); d->osB.reset(); d->osDryA.reset(); d->osDryB.reset(); }
-    setLatencySamples (osLatencySamples());
+    cabLatency.store (cabDelayWanted());  cabLatTarget = cabLatency.load();  cabLatCount = 0;
+    setLatencySamples (reportedLatency());
 
     for (DriveState* d : { &d1, &d2 }) { d->odGainBuffer.setSize ((int) numCh, samplesPerBlock * 4); d->odGainBuffer.clear(); d->odGate.prepare (sampleRate); }
     drivePar.setSize (1, samplesPerBlock);
@@ -5214,7 +5612,7 @@ void StarterAmpProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
         lastAmpTrim  = dbToGain (v.trimDb);
         ampSwitchKey = -1;  ampSwitchPos = 1 << 30;  ampSwitchLast = 0.0f;
         sagEnv[0] = sagEnv[1] = 0.0f;
-        psChainA.reset();  psSupplyA.reset();  psFbLastA = 0.0f;  psLoopAdA.reset();
+        psChainA.reset();  psSupplyA.reset();  psFbLastA = 0.0f;  psLoopAdA.reset();  coldA.reset();
     }
 }
 
@@ -5333,7 +5731,50 @@ void StarterAmpProcessor::processAcoustic (juce::AudioBuffer<float>& buffer, juc
         }
     }
 
-    buffer.applyGain (0, numSamples, dbToGain (param ("acLevel")));
+    // b103: the wider Body knob adds up to about 10.6 dB of level on plucked chords (measured at 0 / 0.25 / 0.5 / 0.75 / 1: +0, +3.5, +7.0, +9.4, +10.6 dB), so the knob takes most of it back
+    buffer.applyGain (0, numSamples, dbToGain (param ("acLevel") - 11.0f * std::pow (param ("acBodyAmt"), 0.85f)));
+}
+
+// b114: the longest Delay among the cab blocks that are switched on (0 when the cab or the guitar cab is off), in samples.
+int StarterAmpProcessor::cabDelayWanted() const
+{
+    if (param ("cabOn") <= 0.5f || (int) param ("ampModel") == 5)
+        return 0;
+    int d = 0;
+    for (int blk = 0; blk < kCabBlocks; ++blk)
+        if (param (kCabIds[blk].on) > 0.5f)
+            d = std::max (d, (int) std::lround (param (kCabIds[blk].delay) * 0.001 * currentSampleRate));
+    return d;
+}
+
+// b114: how long the sound goes on after the input stops, for the host (which uses it to keep playing or rendering). It is worked out from what is
+// switched on: each reverb's decay (and, for the Spring with feedback, its longer ring), and each delay's repeats until they are 60 dB down. A floor of
+// 0.5 s covers the amp, the cab and the smaller effects. Never more than 30 s.
+double StarterAmpProcessor::getTailLengthSeconds() const
+{
+    double t = 0.5;
+    auto reverb = [&] (const char* on, const char* mix, const char* size, const char* type, const char* fbId, const char* freeze)
+    {
+        if (param (on) <= 0.5f || param (mix) <= 0.001f) return;
+        double s = (double) param (size) + 0.25;                        // the pre-delay goes before the decay
+        const double fb = (double) param (fbId);
+        if ((int) param (type) == 17 && fb > 0.001) s *= 1.0 + 12.0 * fb * fb;     // Spring with feedback rings much longer
+        if (param (freeze) > 0.5f) s = 30.0;                             // Freeze holds the tail
+        t = std::max (t, std::min (30.0, s));
+    };
+    reverb ("reverbOn", "reverbMix", "reverbSize", "reverbType", "reverbSpringFb", "reverbFreeze");
+    reverb ("rev2On",   "rev2Mix",   "rev2Size",   "rev2Type",   "rev2SpringFb",   "rev2Freeze");
+    auto delay = [&] (const char* on, const char* mix, const char* note, const char* time, const char* fbId)
+    {
+        if (param (on) <= 0.5f || param (mix) <= 0.001f) return;
+        const double ms = param (note) > 0.5f ? 1990.0 : (double) param (time);       // a note value depends on the tempo: take the longest
+        const double fb = std::min (0.98, (double) param (fbId));
+        const double repeats = fb < 0.02 ? 1.0 : std::ceil (std::log (0.001) / std::log (fb));
+        t = std::max (t, std::min (30.0, ms * 0.001 * (repeats + 1.0)));
+    };
+    delay ("preDelayOn",  "preDelayMix",  "preDelayNote",  "preDelayTime",  "preDelayFeedback");
+    delay ("postDelayOn", "postDelayMix", "postDelayNote", "postDelayTime", "postDelayFeedback");
+    return t;
 }
 
 // Latency added by the amp's oversampling (0 when it is off), as reported to the host.
@@ -5383,11 +5824,13 @@ void StarterAmpProcessor::updateDrive (int which)
         Circuit::DiodeSpec dp = Circuit::diodeSilicon(), dn = dp;
         if (odSel == 7) dp = dn = Circuit::diodeLed();
         else if (odSel == 8) {}                                    // Blues Driver: silicon diodes, no Clipping menu
+        else if (odSel == 12 && (int) P ("Clip") == 4) dp = dn = Circuit::diodeLed();     // b78 Timmy: 'None' is not a real position; use the LED (the highest threshold)
         else if (clipSel == 1) dp = dn = Circuit::diodeLed();
         else if (clipSel == 2) dp = dn = Circuit::diodeGermanium();
         else if (clipSel == 3) dn = Circuit::diodeSiliconPair();
         if (odSel == 9) d.newPed.setupNobels (juce::jlimit (0, 2, (int) P ("Nob")), odGain, odTone, P ("Bass"), P ("Mid"));       // b64
-        else if (odSel == 11) d.newPed.setupMetalZone (odGain, odTone, P ("Bass"), P ("Mid"), P ("MidFreq"));       // b67
+        else if (odSel == 12) d.newPed.setupTimmy (odGain, odTone, P ("Bass"), dp, dn);       // b78
+        else if (odSel == 11) d.newPed.setupMetalZone (odGain, odTone, P ("Bass"), P ("Mid"), P ("MidFreq"), juce::jlimit (0, 1, (int) P ("Mz")));       // b67
         else            d.newPed.setup (odSel - 4, odGain, odTone, dp, dn);
         *d.osOdTone.state = ArrCo::makeHighShelf (osSampleRate, 1800.0f, 0.707f, 1.0f);
     }
@@ -5823,7 +6266,9 @@ void StarterAmpProcessor::updateFilters()
     const auto& v = ampVoicingFor (apvts, false);
 
     *osVoicePeak.state    = ArrCo::makePeakFilter (osSampleRate, v.voiceHz, v.voiceQ, dbToGain (v.voiceDb));
-    *osAmpHighPass1.state = ArrCo::makeHighPass   (osSampleRate, v.hp[0]);
+    if (v.hpShelfDb0 < -0.1f) *osAmpHighPass1.state = ArrCo::makeLowShelf (osSampleRate, v.hp[0], 0.707f, dbToGain (v.hpShelfDb0));      // b68 (R20): a bypassed cathode is a low shelf, not a high-pass
+    else                      *osAmpHighPass1.state = ArrCo::makeHighPass   (osSampleRate, v.hp[0]);
+    coldA.amt = v.coldClip;  coldA.L = v.coldCutoff;  presPreA = v.presencePre;
     *osAmpHighPass2.state = ArrCo::makeHighPass   (osSampleRate, v.hp[1]);
     *osAmpHighPass3.state = ArrCo::makeHighPass   (osSampleRate, v.hp[2]);
     {
@@ -5840,11 +6285,14 @@ void StarterAmpProcessor::updateFilters()
         derivedBright (v, param ("ampGain"), bHz, bDb);
         *osBright.state  = ArrCo::makeHighShelf (osSampleRate, bHz, 0.707f, dbToGain (bDb));
     }
-    *ampResoPk.state = ArrCo::makePeakFilter (currentSampleRate, 105.0f, 1.1f, dbToGain (6.0f * param ("ampReso")));
+    *ampResoPk.state = ArrCo::makePeakFilter (currentSampleRate, 105.0f, 1.1f, dbToGain (6.0f * ampResoEffective()));
 
     // Presence: a treble shelf on the power-amp stage. 0 = off, 1 = full boost
     // for the chosen model. (On a real amp it works by reducing negative
     // feedback at high frequencies, which has a similar effect.)
+    if (v.presencePre)      // b68 (R20): 2k rheostat in a shunt with 0.1 uF ahead of the power amp: -10.5 dB at 5 kHz at 0, -3.5 dB at the top of the knob (a high shelf at 2 kHz)
+        *osPresence.state = ArrCo::makeHighShelf (osSampleRate, 2000.0f, 0.707f, dbToGain (-3.5f - 7.0f * (1.0f - param ("presence"))));
+    else
     *osPresence.state = ArrCo::makeHighShelf (osSampleRate, v.presenceHz, 0.707f,
                                                 dbToGain (param ("presence") * v.presenceMaxDb + v.presenceBaseDb));
     psParamsA = v.ps;  cutAmpA = v.cutAmp;
@@ -5872,8 +6320,9 @@ void StarterAmpProcessor::updateFilters()
         const int   bModelId = ampBModelValue ((int) param ("ampBModel"));
         const float ampBLevelDb = param ("ampBLevel")
             + (param ("ampBAutoLevel") > 0.5f ? autoAmpLevelDb (bModelId, (int) param ("ampBVoicing"), param ("ampBGain"), (int) param ("ampBMode")) : 0.0f);
+        ampB->applyPlanTrim = true;
         ampB->plan = (int) param ("ampBMode") >= 1 ? StageShaper::planFor (bModelId, (int) param ("ampBTube"), (int) param ("ampBPwrTube")) : StageShaper::Plan();
-        if (ampB->plan.active && (int) param ("ampBMode") == 2) { ampB->plan.blend = kHybridShare; ampB->plan.trimDb = ampB->plan.trimDb * kHybridShare + StageShaper::hybridTrimDb (bModelId); }
+        if (ampB->plan.active && (int) param ("ampBMode") == 2) { const float hs = StageShaper::hybridShare (bModelId);  ampB->plan.blend = hs; ampB->plan.trimDb = ampB->plan.trimDb * hs + StageShaper::hybridTrimDb (bModelId) * (hs / kHybridShare); }
         ampB->biasKnob = bBias;
         ampB->stackSel = (int) param ("ampBStack");
         ampB->stackRate = currentSampleRate;
@@ -5903,7 +6352,7 @@ void StarterAmpProcessor::updateFilters()
             const int  mId = kBlendParts[w].model;
             const float gPart = juce::jlimit (0.0f, 1.0f, gA + kBlendGainOff[bv][w + 1]);
             pa->plan = (int) param ("ampMode") >= 1 ? StageShaper::planFor (mId, 0, 0) : StageShaper::Plan();
-            if (pa->plan.active && (int) param ("ampMode") == 2) { pa->plan.blend = kHybridShare; pa->plan.trimDb = pa->plan.trimDb * kHybridShare + StageShaper::hybridTrimDb (mId); }
+            if (pa->plan.active && (int) param ("ampMode") == 2) { pa->plan.blend = kHybridShare; pa->plan.trimDb = pa->plan.trimDb * kHybridShare + StageShaper::hybridTrimDb (mId); }     // b92: the Triple Blend's parts keep the plain 50/50 mix (its Hi-Wat part is not the Hi-Wat Headroom amp's new share)
             pa->biasKnob = 0.0f;
             pa->stackSel = 0;
             pa->stackRate = currentSampleRate;
@@ -5936,21 +6385,7 @@ void StarterAmpProcessor::updateFilters()
         setMetal (metalFizzB, metalFizzB2, metalDepthB, param ("ampBFizz"), param ("ampBDepth"));
     }
 
-    // Transpose "formant" shift: an EQ-style approximation. Spectral emphasis around two reference
-    // regions is cut and re-added shifted by the formant amount (plus the opposite of the transpose
-    // amount when Formant Lock is on, so the tone stays put as the pitch moves).
-    {
-        const float semis = param ("tpSemis") + 0.01f * param ("tpFine");
-        const float eff   = param ("tpFormant") + (param ("tpLock") > 0.5f ? -semis : 0.0f);
-        const float ratio = std::pow (2.0f, juce::jlimit (-24.0f, 24.0f, eff) / 12.0f);
-        const float g     = std::min (9.0f, std::abs (eff) * 0.6f);
-        fmtGainDb = (std::abs (eff) > 0.05f) ? g : 0.0f;
-        const float nyq = 0.45f * (float) currentSampleRate;
-        *fmtCut1.state   = ArrCo::makePeakFilter (currentSampleRate, 700.0f,  0.9f, dbToGain (-g));
-        *fmtBoost1.state = ArrCo::makePeakFilter (currentSampleRate, juce::jlimit (80.0f, nyq, 700.0f * ratio),  0.9f, dbToGain (g));
-        *fmtCut2.state   = ArrCo::makePeakFilter (currentSampleRate, 2200.0f, 0.9f, dbToGain (-g));
-        *fmtBoost2.state = ArrCo::makePeakFilter (currentSampleRate, juce::jlimit (80.0f, nyq, 2200.0f * ratio), 0.9f, dbToGain (g));
-    }
+    // (b99: the Transpose formant is no longer an EQ move; see the Transpose block below, which uses FormantWarpFast.)
 
     // Cab section: low cut, high cut and tilt apply to everything the cab makes
     // (IRs or the built-in cab). Tilt is a low shelf and a high shelf in opposite directions.
@@ -6023,9 +6458,17 @@ void StarterAmpProcessor::updateFilters()
             *acBright.state = ArrCo::makePeakFilter (currentSampleRate, std::min (4800.0f, 0.45f * sr), 1.0f, dbToGain (-6.0f * fix));
             *acHollow.state = ArrCo::makePeakFilter (currentSampleRate, 300.0f, 0.9f, dbToGain (3.0f * fix));
         }
+        // b103: the Body knob had a range of only 3 to 5 dB. The Petrucci acoustic amp's Body knob, measured at 0 and 10, moves the sound (relative to 1 kHz)
+        // about 14 dB at 60 to 100 Hz, 7 dB at 200 Hz, 3 dB at 400 Hz, nothing at 800 Hz, 3 to 7 dB at 1.5 to 3 kHz and 9 to 13 dB from 5 to 12 kHz. A low shelf and a high shelf
+        // now move with the knob (dB linear with the knob) and the five resonances (which scooped 400 Hz and 3 kHz when the knob went up) are scaled to half; the nylon body is darker,
+        // so its high shelf is small. The fit to the capture's two ends has an rms error of about 2 dB over ten points. The default moved from 0.8 to 0.5 (the new middle).
+        // A design fitted to two measured positions, not listened to.
+        constexpr float kBodyModeScale = 0.5f;
         for (int i = 0; i < 5; ++i)
             *acBody[i].state = ArrCo::makePeakFilter (currentSampleRate, std::min (bodies[body][i].hz, 0.45f * sr),
-                                                        bodies[body][i].q, dbToGain (bodies[body][i].db * amt));
+                                                        bodies[body][i].q, dbToGain (bodies[body][i].db * amt * kBodyModeScale));
+        *acBody[5].state = ArrCo::makeLowShelf  (currentSampleRate, 200.0f, 0.6f, dbToGain (16.0f * amt));
+        *acBody[6].state = ArrCo::makeHighShelf (currentSampleRate, std::min (2500.0f, 0.45f * sr), 0.6f, dbToGain ((body == 3 ? 3.5f : 15.0f) * amt));
         const float lpHz = body == 3 ? 20000.0f - (20000.0f - 5500.0f) * amt : 20000.0f;
         *acBodyLp.state = ArrCo::makeLowPass    (currentSampleRate, std::min (lpHz, 0.45f * sr));
         *acWarm.state   = ArrCo::makeLowShelf   (currentSampleRate, 200.0f, 0.707f, dbToGain (param ("acWarmth")));
@@ -6077,14 +6520,15 @@ static const char* revTwoId (const char* id)
     {
         { "reverbOn", "rev2On" }, { "reverbType", "rev2Type" }, { "reverbMix", "rev2Mix" }, { "reverbSize", "rev2Size" }, { "reverbDamp", "rev2Damp" },
         { "reverbWidth", "rev2Width" }, { "reverbPreDelay", "rev2PreDelay" }, { "reverbPreNote", "rev2PreNote" }, { "reverbLowCut", "rev2LowCut" },
-        { "reverbHighCut", "rev2HighCut" }, { "reverbDuck", "rev2Duck" }, { "reverbDiffuse", "rev2Diffuse" }, { "reverbSpace", "rev2Space" },
+        { "reverbHighCut", "rev2HighCut" }, { "reverbDuck", "rev2Duck" }, { "reverbDryPan", "rev2DryPan" }, { "reverbWetPan", "rev2WetPan" }, { "reverbDiffuse", "rev2Diffuse" }, { "reverbSpace", "rev2Space" },
         { "reverbMod", "rev2Mod" }, { "reverbDrag", "rev2Drag" }, { "reverbDragMode", "rev2DragMode" }, { "reverbBloom", "rev2Bloom" },
-        { "reverbDrive", "rev2Drive" }, { "reverbFreeze", "rev2Freeze" }, { "reverbSymph", "rev2Symph" }, { "reverbSymphPitch", "rev2SymphPitch" },
+        { "reverbDrive", "rev2Drive" }, { "reverbSpringFb", "rev2SpringFb" }, { "reverbFreeze", "rev2Freeze" }, { "reverbSymph", "rev2Symph" }, { "reverbSymphPitch", "rev2SymphPitch" },
         { "reverbGravity", "rev2Gravity" }, { "shimmerOn", "rev2ShimmerOn" }, { "shimmerAmount", "rev2ShimmerAmount" }, { "shimmerPitch", "rev2ShimmerPitch" },
         { "shimmerTone", "rev2ShimmerTone" }, { "shimmerMode", "rev2ShimmerMode" }, { "shimmerDetune", "rev2ShimmerDetune" }, { "shimmerBelow", "rev2ShimmerBelow" },
         { "reverbWDrive", "rev2WDrive" }, { "reverbWDriveType", "rev2WDriveType" }, { "reverbDuckRel", "rev2DuckRel" }, { "reverbFocus", "rev2Focus" },
         { "reverbPurity", "rev2Purity" }, { "reverbTrem", "rev2Trem" }, { "reverbTremRate", "rev2TremRate" }, { "reverbTremShape", "rev2TremShape" },
-        { "reverbEchoTime", "rev2EchoTime" }, { "reverbEchoFb", "rev2EchoFb" }, { "reverbMangle", "rev2Mangle" }, { "reverbReturn", "rev2Return" }
+        { "reverbEchoTime", "rev2EchoTime" }, { "reverbEchoFb", "rev2EchoFb" }, { "reverbMangle", "rev2Mangle" }, { "reverbReturn", "rev2Return" },
+        { "reverbBassDecay", "rev2BassDecay" }, { "reverbCross", "rev2Cross" }, { "reverbClock", "rev2Clock" }, { "reverbGateShape", "rev2GateShape" }
     };
     for (const auto& e : table)
         if (std::strcmp (e[0], id) == 0) return e[1];
@@ -6115,6 +6559,20 @@ void StarterAmpProcessor::processBlock (juce::AudioBuffer<float>& hostBuffer, ju
             }
     juce::AudioBuffer<float>& buffer = scActive ? mainView : hostBuffer;
     const int total = buffer.getNumSamples();
+    // b95: a NaN or an infinite sample from the host (a crashed plug-in earlier in the chain, say) would be written into every filter
+    // and delay line, and a NaN used to index the stage curve tables out of range. NaN becomes 0 and anything beyond +-64 (+36 dBFS)
+    // is limited to +-64; every normal signal passes untouched.
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    {
+        float* d = buffer.getWritePointer (ch);
+        for (int i = 0; i < total; ++i)
+        {
+            const float v = d[i];
+            if (! (v == v))      d[i] = 0.0f;
+            else if (v > 64.0f)  d[i] = 64.0f;
+            else if (v < -64.0f) d[i] = -64.0f;
+        }
+    }
     if (total <= preparedBlockSize)
     {
         processBlockChunk (buffer, midiMessages);
@@ -6138,6 +6596,82 @@ void StarterAmpProcessor::processBlock (juce::AudioBuffer<float>& hostBuffer, ju
         cpuLoad.store (prev + 0.05f * (load - prev), std::memory_order_relaxed);   // smoothed over about 20 blocks
         if (load > cpuPeak.load (std::memory_order_relaxed)) cpuPeak.store (load, std::memory_order_relaxed);
     }
+}
+
+// b107: once per block, before the block's knobs are read: run the two modulators and list the knobs they move
+void StarterAmpProcessor::updateModulation (const juce::AudioBuffer<float>& buffer)
+{
+    modN = 0;                                          // the reads below see the plain knobs
+    static const char* const srcId[2]    = { "mod1Src", "mod2Src" };
+    static const char* const rateId[2]   = { "mod1Rate", "mod2Rate" };
+    static const char* const smoothId[2] = { "mod1Smooth", "mod2Smooth" };
+    static const char* const tId[2][3]   = { { "mod1T1", "mod1T2", "mod1T3" }, { "mod2T1", "mod2T2", "mod2T3" } };
+    static const char* const aId[2][3]   = { { "mod1A1", "mod1A2", "mod1A3" }, { "mod2A1", "mod2A2", "mod2A3" } };
+    const int n = buffer.getNumSamples();
+    float pk = -1.0f;                                  // the input level is only measured when an Envelope is on
+    int count = 0;
+    // b120: the position in the beat for the Step sequence and the Repeater: the host's when it is playing and HOST TEMPO is on, else a free-running clock at this plugin's tempo
+    {
+        double bpmNow = (double) param ("tempoBpm");  bool locked = false;
+        if (param ("tempoHost") > 0.5f)
+            if (auto* playHead = getPlayHead())
+                if (auto position = playHead->getPosition())
+                {
+                    if (auto hb = position->getBpm()) bpmNow = *hb;
+                    if (position->getIsPlaying())
+                        if (auto ppq = position->getPpqPosition()) { beatPos = *ppq;  locked = true; }
+                }
+        bpmNow = juce::jlimit (20.0, 400.0, bpmNow);
+        beatBpm = bpmNow;  beatLocked = locked;
+        if (! locked) beatFree += (double) n * bpmNow / (60.0 * std::max (1.0, currentSampleRate));
+        if (! locked) beatPos = beatFree;
+        else beatFree = beatPos + (double) n * bpmNow / (60.0 * std::max (1.0, currentSampleRate));
+    }
+    for (int m = 0; m < ModSource::kModulators; ++m)
+    {
+        const int type = juce::jlimit (0, (int) ModSource::kSources - 1, (int) param (srcId[m]));
+        if (type == ModSource::Off) { modSrc[m].reset();  modShown[m].store (0.0f, std::memory_order_relaxed);  continue; }
+        if (type == ModSource::Envelope && pk < 0.0f)
+        {
+            pk = 0.0f;
+            if (buffer.getNumChannels() > 0)
+            {
+                const float* d = buffer.getReadPointer (0);
+                for (int i = 0; i < n; ++i) pk = std::max (pk, std::abs (d[i]));
+            }
+            pk *= dbToGain (param ("inGain"));
+        }
+        float v;
+        if (type == ModSource::Sequence)
+        {
+            static const char* const divId[2] = { "mod1Div", "mod2Div" };
+            static const char* const lenId[2] = { "mod1Len", "mod2Len" };
+            static const char* const stepId[2][ModSource::kMaxSteps] = {
+                { "mod1S1", "mod1S2", "mod1S3", "mod1S4", "mod1S5", "mod1S6", "mod1S7", "mod1S8", "mod1S9", "mod1S10", "mod1S11", "mod1S12", "mod1S13", "mod1S14", "mod1S15", "mod1S16" },
+                { "mod2S1", "mod2S2", "mod2S3", "mod2S4", "mod2S5", "mod2S6", "mod2S7", "mod2S8", "mod2S9", "mod2S10", "mod2S11", "mod2S12", "mod2S13", "mod2S14", "mod2S15", "mod2S16" } };
+            float st[ModSource::kMaxSteps];
+            for (int k = 0; k < ModSource::kMaxSteps; ++k) st[k] = param (stepId[m][k]);
+            const int len = ModSource::kLens[juce::jlimit (0, 4, (int) param (lenId[m]))];
+            v = modSrc[m].stepSeq (st, len, ModSource::kDivBeats[juce::jlimit (0, 5, (int) param (divId[m]))], beatPos, param (smoothId[m]), n);
+            modStepShown[m].store (modSrc[m].seqIdx, std::memory_order_relaxed);
+        }
+        else v = modSrc[m].step (type, param (rateId[m]), param (smoothId[m]), std::max (0.0f, pk), n);
+        modShown[m].store (v, std::memory_order_relaxed);
+        for (int d = 0; d < ModSource::kDestinations; ++d)
+        {
+            const int t = (int) param (tId[m][d]);
+            const float a = param (aId[m][d]);
+            if (t <= 0 || t > ModSource::kNumTargets || std::abs (a) < 0.001f || modPar[t - 1] == nullptr) continue;
+            ModEntry& e = modTab[count++];
+            const char* id = ModSource::kTargets[t - 1].id;
+            std::uint32_t hv = 2166136261u;            // the same spelling hash as param()
+            std::size_t k = 0;
+            for (; id[k] != 0 && k < sizeof (e.name) - 1; ++k) { hv = (hv ^ (std::uint8_t) id[k]) * 16777619u;  e.name[k] = id[k]; }
+            e.name[k] = 0;
+            e.hash = hv;  e.par = modPar[t - 1];  e.off = a * v;
+        }
+    }
+    modN = count;
 }
 
 void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -6174,6 +6708,9 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
     if (numChannels >= 1 && riffRecMode.load() == 0)
         riff.processInput (buffer.getWritePointer (0), numChannels > 1 ? buffer.getWritePointer (1) : nullptr, numSamples, param ("riffLevel"), param ("riffMute") > 0.5f);
 
+    modAudioThread = true;                              // b107: from here the knobs the modulators move are read with the modulation added
+    updateModulation (buffer);
+
     // Input level meter, and the tuner's copy of the input
     if (numChannels > 0)
     {
@@ -6184,6 +6721,8 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
         loopInPk = pk;
         if (pk > meterIn.load (std::memory_order_relaxed))
             meterIn.store (pk, std::memory_order_relaxed);
+        if (inputCal.isActive())                       // b94: input calibration measures the input as it arrives, before the Input level
+            inputCal.feed (in0, numSamples);
         if (tunerActive.load (std::memory_order_relaxed))
         {
             tunerTap.push (buffer, numSamples);
@@ -6220,7 +6759,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
                 f->reset();
             for (DriveState* d : { &d1, &d2 }) { d->osA.reset(); d->osB.reset(); d->osDryA.reset(); d->osDryB.reset(); }
             sagEnv[0] = sagEnv[1] = 0.0f;
-            psChainA.reset();  psSupplyA.reset();  psFbLastA = 0.0f;  psLoopAdA.reset();
+            psChainA.reset();  psSupplyA.reset();  psFbLastA = 0.0f;  psLoopAdA.reset();  coldA.reset();
             filtersDirty = true;
             latencyDirty.store (true);
             requestAsync();
@@ -6260,7 +6799,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
 
     // Harmonizer: its pitch tracker listens to the clean input (before any pitch effect)
     const bool harmOn = param ("hmOn") > 0.5f;
-    if (harmOn && (int) param ("hmMode") == 1)
+    if (harmOn && (int) param ("hmMode") >= 1)       // b115: Scale and MIDI modes both need to know your note
     {
         if ((int) param ("hmTrack") > 0) harm.feedChords (buffer.getReadPointer (0), numSamples);
         else                             harm.getTracker().feed (buffer.getReadPointer (0), numSamples);
@@ -6305,12 +6844,21 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
     // that delay is reported to the host as latency.
     {
         const float semis  = param ("tpSemis") + 0.01f * param ("tpFine");
-        const bool  active = param ("tpOn") > 0.5f && (std::abs (semis) > 0.001f || fmtGainDb > 0.0f);
+        // b99: Formant and Formant Lock move the spectral envelope per note (FormantWarpFast: a cepstral envelope, each bin rescaled so the
+        // harmonics stay put and only their loudness pattern slides) instead of the old two-region EQ move. The move is the Formant knob plus,
+        // with Lock on, the opposite of the transpose, so the tone stays where the guitar's was. It adds 256 samples of delay while it is on.
+        // Formant Lock moves the tone back by the shift. It is full up to one octave and fades to nothing at two octaves, because the tone mover costs accuracy on very large shifts (G2 captures, -24: notes 91% with full Lock against 100% without).
+        const float lockAmt = (param ("tpLock") > 0.5f ? -semis * juce::jlimit (0.0f, 1.0f, (24.0f - std::abs (semis)) / 12.0f) : 0.0f);
+        const float formEff = juce::jlimit (-24.0f, 24.0f, param ("tpFormant") + lockAmt);
+        const bool  formOn  = param ("tpOn") > 0.5f && std::abs (formEff) > 0.05f;
+        const bool  active = param ("tpOn") > 0.5f && (std::abs (semis) > 0.001f || formOn);
         // String range (v51): 7- and 8-string guitars need a longer window (and a longer search for the splice points)
         const int   tpRange = juce::jlimit (0, 2, (int) param ("tpRange"));
         const float rangeLowHz = tpRange == 0 ? 0.0f : tpRange == 1 ? 58.0f : 40.0f;
-        const int   baseMs = perfMode() == 1 ? 20 : (perfMode() == 2 ? 55 : ((int) param ("tpQuality") == 1 ? 55 : 28));
-        const int   windowMs = rangeLowHz > 0.0f ? std::max (baseMs, (int) std::ceil (2200.0f / rangeLowHz)) : baseMs;
+        // b98: the Transposer now splices with the precise search (see GuitarShifter::setPrecise), which no longer needs a long window to
+        // follow low strings, chords and weak notes, so its window is much shorter than the other pitch blocks use: 12 ms Fast (6 ms of delay),
+        // 28 ms Smooth (14 ms); the performance modes 10 and 40 ms. The 7- and 8-string floors are about half of what they were.
+        const int   windowMs = cleanWindowMs (rangeLowHz);
         transposer.setLowHz (rangeLowHz);
 
         if (active && (! tpWasOn || windowMs != tpWindowMs))
@@ -6319,8 +6867,13 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
             transposer.reset();
             tpWindowMs = windowMs;
         }
+        const bool formQuick = windowMs <= 14;                  // b117: the short windows (Fast, Low Latency) use the 128-sample formant frames (2.7 ms); Smooth, High Quality and the 7/8-string floors keep 256 (5.3 ms)
+        if (active && (! tpWasOn || formOn != tpFormPrev || formQuick != tpFormQuick)) { tpForm.reset();  tpFormQ.reset();  tpDly.reset(); }
+        tpFormQuick = formQuick;
+        tpFormPrev = formOn;
+        const int formLat = formOn ? (formQuick ? FormantWarpQuick::kLatency : FormantWarpFast::kLatency) : 0;
 
-        const int wantedLatency = active ? transposer.latencySamples() : 0;
+        const int wantedLatency = active ? transposer.latencySamples() + formLat : 0;
         if (wantedLatency != tpLatency.load())
         {
             tpLatency.store (wantedLatency);
@@ -6334,14 +6887,16 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
             tpBuf.setSize (1, numSamples, false, false, true);
             float* wet = tpBuf.getWritePointer (0);
             std::copy (x, x + numSamples, wet);
+            transposer.setDualVoice (true, 3.0f, 8.0f, 1.0f);      // b109/b110: a pick attack inside a run restarts the cycle on a second voice and cross-fades to it (Transposer::setDualVoice)
+            transposer.setAttackHold (semis <= -20.0f ? 60.0f : 0.0f, 6.0f);      // b108: deep down-shifts hold the splice search near the nominal delay for 60 ms after a pick attack (GuitarShifter::setAttackHold)
             transposer.process (wet, x, numSamples, semis);      // wet = shifted, x = the delayed dry
 
-            if (fmtGainDb > 0.0f)
+            if (formOn)
             {
-                juce::dsp::AudioBlock<float> wetBlock (tpBuf.getArrayOfWritePointers(), (size_t) 1, (size_t) numSamples);
-                juce::dsp::ProcessContextReplacing<float> wetContext (wetBlock);
-                fmtCut1.process (wetContext);   fmtBoost1.process (wetContext);
-                fmtCut2.process (wetContext);   fmtBoost2.process (wetContext);
+                tpForm.setSemis (formEff);  tpFormQ.setSemis (formEff);
+                for (int i = 0; i < numSamples; ++i)
+                {   wet[i] = formQuick ? tpFormQ.process (wet[i]) : tpForm.process (wet[i]);
+                    x[i] = tpDly.process (x[i], formLat); }        // the dry signal waits for the tone move as well
             }
 
             const float mix = param ("tpMix");
@@ -6363,7 +6918,14 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
             st.on = true;  st.source = juce::jlimit (0, 4, (int) param ("dmSource"));  st.target = juce::jlimit (0, 5, (int) param ("dmTarget"));
             st.amount = param ("dmAmount");  st.level = param ("dmLevel");
             st.active = param ("dmActive") > 0.5f;  st.gain = param ("dmGain");
-            if (param ("tpOn") > 0.5f) { st.semis = param ("tpSemis") + 0.01f * param ("tpFine");  st.tpWet = param ("tpMix"); }
+            if (param ("tpOn") > 0.5f)
+            {
+                // b99: the picture of your pickups moves by what the signal's tone actually moved: the transpose, less whatever the formant mover
+                // gave back. With Formant Lock on that is nothing, so the match works on the same tone as the pickups that go in.
+                const float tSemis = param ("tpSemis") + 0.01f * param ("tpFine");
+                const float tForm  = juce::jlimit (-24.0f, 24.0f, param ("tpFormant") + (param ("tpLock") > 0.5f ? -tSemis * juce::jlimit (0.0f, 1.0f, (24.0f - std::abs (tSemis)) / 12.0f) : 0.0f));      // same fade as the Transpose block
+                st.semis = tSemis + (std::abs (tForm) > 0.05f ? tForm : 0.0f);  st.tpWet = param ("tpMix");
+            }
             if (diLock.tryEnter())
             {
                 const int s = diEngine.update (st, diHaveSrc ? &diSrc : nullptr, diSrcLvl, diHaveRef ? &diRef : nullptr, diRefLvl, diVersion.load());
@@ -6412,31 +6974,77 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
     {
         const int tpRange2 = juce::jlimit (0, 2, (int) param ("tpRange"));
         const float rangeLowHz2 = tpRange2 == 0 ? 0.0f : tpRange2 == 1 ? 58.0f : 40.0f;
-        const int baseMs2 = perfMode() == 1 ? 20 : (perfMode() == 2 ? 55 : ((int) param ("tpQuality") == 1 ? 55 : 28));
-        const int windowMs = rangeLowHz2 > 0.0f ? std::max (baseMs2, (int) std::ceil (2200.0f / rangeLowHz2)) : baseMs2;
+        const int windowMs = cleanWindowMs (rangeLowHz2);     // b99: the same short windows as Transpose (they were 28 / 55 ms)
         octV1.setLowHz (rangeLowHz2);  octV2.setLowHz (rangeLowHz2);  wowT.setLowHz (rangeLowHz2);
         float* x = buffer.getWritePointer (0);
         bool touched = false;
 
         // ---- Octaver
-        const bool octActive = param ("octOn") > 0.5f && (param ("octALvl") > 0.001f || param ("octBLvl") > 0.001f);
-        if (octActive && (! octWasOn || windowMs != octWindowMs))
+        static const float octSemis[4] = { -24.0f, -12.0f, 12.0f, 24.0f };
+        // b79: the bank engine takes over when any of its options is in use; otherwise the original two-voice path runs exactly as before
+        OctaverBank::Params ob;
+        const int octMode = juce::jlimit (0, 3, (int) param ("octMode"));
+        const bool octNew = octMode > 0 || (int) param ("octTrack") > 0 || (int) param ("octChar") > 0 || param ("octAttack") > 0.001f || param ("octDecay") > 0.001f
+                         || param ("octRes") > 0.001f || std::fabs (param ("octDetune")) > 0.01f || (int) param ("octDryFx") > 0;
+        bool octAnyVoice = param ("octALvl") > 0.001f || param ("octBLvl") > 0.001f;
+        if (octNew)
+        {
+            if (octMode == 0)
+            {
+                ob.nVoices = 2;
+                ob.semis[0] = octSemis[juce::jlimit (0, 3, (int) param ("octA"))];  ob.level[0] = param ("octALvl");
+                ob.semis[1] = octSemis[juce::jlimit (0, 3, (int) param ("octB"))];  ob.level[1] = param ("octBLvl");
+            }
+            else if (octMode == 3)
+            {
+                ob.nVoices = 0;       // b86: the analogue divider has its own engine (FxExtra::FlipFlopOctaverFx) and no latency
+            }
+            else
+            {
+                static const char* ids[8] = { "octM2", "octM1", "octP1", "octP2", "octP7", "octP19", "octP28", "octP36" };
+                static const float st[8] = { -24.0f, -12.0f, 12.0f, 24.0f, 7.0f, 19.0f, 28.0f, 36.0f };
+                ob.nVoices = octMode == 1 ? 4 : 8;
+                for (int v = 0; v < ob.nVoices; ++v) { ob.semis[v] = st[v];  ob.level[v] = param (ids[v]); }
+            }
+            ob.track = juce::jlimit (0, 2, (int) param ("octTrack"));  ob.character = juce::jlimit (0, 5, (int) param ("octChar"));  ob.grit = param ("octGrit");
+            ob.detuneCents = param ("octDetune");  ob.attack = param ("octAttack");  ob.decay = param ("octDecay");
+            ob.tone = param ("octTone");  ob.res = param ("octRes");  ob.dry = param ("octDry");  ob.dryFx = (int) param ("octDryFx");
+            ob.windowMs = (float) windowMs;  ob.lowHz = rangeLowHz2;
+            octAnyVoice = false;  for (int v = 0; v < ob.nVoices; ++v) octAnyVoice = octAnyVoice || ob.level[v] > 0.001f;
+            if (octMode == 3) octAnyVoice = param ("octM1") > 0.001f || param ("octM2") > 0.001f;
+        }
+        const bool octActive = param ("octOn") > 0.5f && octAnyVoice;
+        if (octActive && octNew != (octNewPrev == 1)) { octBank.reset();  octV1.reset();  octV2.reset();  octLp1 = octLp2 = 0.0f;  octWindowMs = 0; }
+        octNewPrev = octActive ? (octNew ? 1 : 0) : -1;
+        if (octActive && ! octNew && (! octWasOn || windowMs != octWindowMs))
         {
             octV1.setWindowMs ((float) windowMs);  octV2.setWindowMs ((float) windowMs);
             octV1.reset();  octV2.reset();
             octLp1 = octLp2 = 0.0f;
             octWindowMs = windowMs;
         }
-        const int octLat = octActive ? octV1.latencySamples() : 0;
+        const int octLat = octActive ? (octMode == 3 ? 0 : (octNew ? octBank.latency (ob) : octV1.latencySamples())) : 0;
         if (octLat != octLatency.load())
         {
             octLatency.store (octLat);
             latencyDirty.store (true);
             requestAsync();
         }
-        if (octActive)
+        if (octActive && octNew && octMode == 3)
         {
-            static const float octSemis[4] = { -24.0f, -12.0f, 12.0f, 24.0f };
+            if (! octDivWasOn) octDiv.reset();
+            FxExtra::FlipFlopOctaverFx::Params dp;
+            dp.oct1 = param ("octM1");  dp.oct2 = param ("octM2");  dp.dry = param ("octDry");  dp.tone = param ("octTone");
+            octDiv.process (x, numSamples, dp);
+            touched = true;
+        }
+        else if (octActive && octNew)
+        {
+            octBank.process (x, numSamples, ob);
+            touched = true;
+        }
+        else if (octActive)
+        {
             pitchBuf1.setSize (1, numSamples, false, false, true);
             pitchBuf2.setSize (1, numSamples, false, false, true);
             pitchDry.setSize  (1, numSamples, false, false, true);
@@ -6459,6 +7067,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
             }
             touched = true;
         }
+        octDivWasOn = octActive && octNew && octMode == 3;
         octWasOn = octActive;
 
         // ---- Pitch pedal
@@ -6469,9 +7078,34 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
             wowT.reset();
             wowWindowMs = windowMs;
         }
-        const int wowLat = wowActive ? wowT.latencySamples() : 0;
+        // b77: tracking. 0 = the delay-line shifter (single notes, fast); 1 and 2 = the spectral shifter that moves every note in a chord by the same amount
+        // (1: the long window, cleaner lows and 8-string; 2: the short window, faster). The dry signal is delayed to match.
+        const int wowChar = juce::jlimit (0, 5, (int) param ("wowChar"));
+        const int wowTrack = wowChar > 0 ? 0 : juce::jlimit (0, 2, (int) param ("wowTrack"));
+        if (wowActive && wowChar > 0 && (! wowWasOn || wowChar != wowCharPrev)) { wowRough.reset();  wowDly.reset(); }
+        if (wowActive && wowChar == 0 && wowCharPrev > 0) { wowT.reset();  wowSS.reset();  wowDly.reset();  wowTrackPrev = -1; }       // back from a character: start the clean shifter fresh
+        wowCharPrev = wowActive ? wowChar : -1;
+        if (wowActive && wowTrack > 0 && (! wowWasOn || wowTrack != wowTrackPrev))
+        {
+            wowSS.setSize (wowTrack == 1 ? 1 << 20 : 0);
+            wowSS.reset();  wowDly.reset();
+        }
+        if (wowActive && (wowTrack != wowTrackPrev) && wowTrack == 0) { wowT.reset(); }
+        wowTrackPrev = wowActive ? wowTrack : -1;
+        // b97: the tone switch and the Formant knob (a spectral envelope move, 1024 samples of delay) and Keep Lows (a crossover that leaves the lows dry)
+        const bool wowFormOn = wowActive && ((int) param ("wowForm") == 1 || std::abs (param ("wowFormShift")) > 0.05f);
+        const float wowLowHz = param ("wowLowKeep");
+        const bool wowLowOn = wowActive && wowLowHz >= 20.0f;
+        if (wowActive && (! wowWasOn || wowFormOn != wowFormPrev)) { wowForm.reset();  wowDly2.reset(); }
+        if (wowActive && (! wowWasOn || wowLowOn != wowLowPrev)) { wowSplit.reset();  wowDly2.reset(); }
+        wowFormPrev = wowFormOn;  wowLowPrev = wowLowOn;
+        const int wowEngLat = wowChar > 0 ? wowRough.latency (wowChar) : wowTrack > 0 ? wowSS.latency() : wowT.latencySamples();
+        const int wowFormLat = wowFormOn ? FormantWarp::kLatency : 0;
+        const bool wowDryNow = param ("wowDryNow") > 0.5f;       // b118: the dry is not delayed to match, so nothing is added to the whole signal (nothing is reported to the host)
+        const int wowLat = wowActive && ! wowDryNow ? wowEngLat + wowFormLat : 0;
         if (wowLat != wowLatency.load())
         {
+            wowDly2.reset();
             wowLatency.store (wowLat);
             latencyDirty.store (true);
             requestAsync();
@@ -6503,10 +7137,57 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
             float* wet = pitchBuf1.getWritePointer (0);
             float* dry = pitchDry.getWritePointer (0);
             std::copy (x, x + numSamples, wet);
-            wowT.process (wet, dry, numSamples, wowSemis);
+            const bool wowExtra = wowFormOn || wowLowOn;
+            pitchBuf2.setSize (1, numSamples, false, false, true);
+            float* aux = pitchBuf2.getWritePointer (0);
+            if (wowLowOn)                                       // only the part above the crossover goes to the shifter
+            {
+                wowSplit.setHz (wowLowHz);
+                for (int i = 0; i < numSamples; ++i) wet[i] = wowSplit.hp (x[i]);
+            }
+            if (wowChar > 0)
+            {
+                RoughShifter::Params rp;  rp.semis = wowSemis;  rp.character = wowChar;  rp.grit = param ("wowGrit");
+                const int lat = wowRough.latency (wowChar);
+                for (int i = 0; i < numSamples; ++i)
+                {
+                    wet[i] = wowRough.process (wet[i], rp);
+                    dry[i] = wowDly.process (x[i], lat);
+                }
+            }
+            else if (wowTrack > 0)
+            {
+                wowSS.scaleMode = false;  wowSS.nNotes = 0;
+                wowSS.alphaInterval[0] = wowSS.alphaInterval[1] = std::pow (2.0f, wowSemis / 12.0f);
+                const int lat = wowSS.latency();
+                for (int i = 0; i < numSamples; ++i)
+                {
+                    float y0, y1;
+                    wowSS.process (wet[i], y0, y1);
+                    wet[i] = y0;
+                    dry[i] = wowDly.process (x[i], lat);
+                }
+            }
+            else
+                wowT.process (wet, wowExtra ? aux : dry, numSamples, wowSemis);
+            if (wowExtra)
+            {
+                // the true dry signal, delayed by the shifter and the tone move together
+                for (int i = 0; i < numSamples; ++i) dry[i] = wowDly2.process (x[i], wowEngLat + wowFormLat);
+                if (wowFormOn)
+                {
+                    wowForm.setSemis (param ("wowFormShift") + ((int) param ("wowForm") == 1 ? -wowSemis : 0.0f));
+                    for (int i = 0; i < numSamples; ++i) wet[i] = wowForm.process (wet[i]);
+                }
+                if (wowLowOn)
+                    for (int i = 0; i < numSamples; ++i) wet[i] += wowSplit.lp (dry[i]);
+            }
             const float mix = param ("wowMix");
             for (int i = 0; i < numSamples; ++i)
-                x[i] = dry[i] + mix * (wet[i] - dry[i]);
+            {
+                const float d0 = wowDryNow ? x[i] : dry[i];             // x[i] still holds what you played (wet is a copy)
+                x[i] = d0 + mix * (wet[i] - d0);
+            }
             touched = true;
         }
         wowWasOn = wowActive;
@@ -6531,8 +7212,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
         }
         const int tpR = juce::jlimit (0, 2, (int) param ("tpRange"));
         const float lowHz = tpR == 0 ? 0.0f : tpR == 1 ? 58.0f : 40.0f;
-        const int baseMs = perfMode() == 1 ? 20 : (perfMode() == 2 ? 55 : ((int) param ("tpQuality") == 1 ? 55 : 28));
-        const int winMs = lowHz > 0.0f ? std::max (baseMs, (int) std::ceil (2200.0f / lowHz)) : baseMs;
+        const int winMs = cleanWindowMs (lowHz);               // b99: the same short windows as Transpose (they were 28 / 55 ms)
         // v53: Chords tracking uses the spectral shifter (Chords = long window, Chords (fast) = short window)
         const int track = juce::jlimit (0, 2, (int) param ("hmTrack"));
         const int cfgKey = track == 0 ? winMs : 100000 + track;
@@ -6548,15 +7228,27 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
         if (lat != harmLatency.load()) { harmLatency.store (lat); latencyDirty.store (true); requestAsync(); }
 
         HarmSettings hs;
-        hs.scaleMode = (int) param ("hmMode") == 1;
+        static const char* intId[4] = { "hmAInt", "hmBInt", "hmCInt", "hmDInt" };
+        static const char* degId[4] = { "hmADeg", "hmBDeg", "hmCDeg", "hmDDeg" };
+        static const char* lvlId[4] = { "hmALvl", "hmBLvl", "hmCLvl", "hmDLvl" };
+        static const char* panId[4] = { "hmAPan", "hmBPan", "hmCPan", "hmDPan" };
+        hs.mode = juce::jlimit (0, 2, (int) param ("hmMode"));
         hs.poly = track > 0;
         hs.key = (int) param ("hmKey");  hs.scale = (int) param ("hmScale");
-        hs.semisA = param ("hmAInt");  hs.semisB = param ("hmBInt");
-        hs.degA = (int) std::lround (param ("hmADeg"));  hs.degB = (int) std::lround (param ("hmBDeg"));
-        hs.lvlA = param ("hmALvl");  hs.lvlB = param ("hmBLvl");
-        hs.panA = param ("hmAPan");  hs.panB = param ("hmBPan");
+        for (int v = 0; v < 4; ++v)
+        {
+            hs.semis[v] = param (intId[v]);  hs.deg[v] = (int) std::lround (param (degId[v]));
+            hs.lvl[v] = param (lvlId[v]);  hs.pan[v] = param (panId[v]);
+        }
         hs.dry = param ("hmDry");  hs.tone = param ("hmTone");  hs.glideMs = param ("hmGlide");
         hs.noteOffset = param ("tpOn") > 0.5f ? param ("tpSemis") + 0.01f * param ("tpFine") : 0.0f;
+        if (hs.mode == 2)                                      // b115: the MIDI notes being held, lowest first (voice A gets the lowest)
+            for (int n = 0; n < 128 && hs.nMidi < 4; ++n)
+                if (midiHeld[n >> 6] & (uint64_t (1) << (n & 63))) hs.midiNotes[hs.nMidi++] = n;
+        hs.arp = param ("hmArp") > 0.5f;  hs.arpPattern = juce::jlimit (0, 3, (int) param ("hmArpPattern"));
+        static const float arpBeats[6] = { 1.0f, 0.5f, 1.0f / 3.0f, 0.25f, 1.0f / 6.0f, 0.125f };
+        hs.arpBeats = arpBeats[juce::jlimit (0, 5, (int) param ("hmArpRate"))];
+        hs.arpGate = param ("hmArpGate");  hs.arpLevel = param ("hmArpLevel");  hs.bpm = bpm;
         const bool stereo = position == 1 && numChannels == 2;
         harm.process (buffer.getWritePointer (0), stereo ? buffer.getWritePointer (1) : nullptr, harmScratch, numSamples, hs);
         if (! stereo && numChannels == 2)
@@ -6637,8 +7329,36 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
         // and amp. Left channel only, copied to the right. The meter shows 0 when it is off.
         if (param ("compOn") > 0.5f)
         {
-            if ((int) param ("compStyle") == 10)
+            if ((int) param ("compStyle") == 12)
             {
+                // b85: the early OTA sustainer (FxExtra::Cs2Fx). Sustain (Comp Sustain), Attack (Comp CS-3 Attack), Level (Comp Output), Mix.
+                if (! cs2WasOn) cs2.reset();
+                optoSustWasOn = false;  crushLimWasOn = false;  cs3WasOn = false;  cs2WasOn = false;
+                FxExtra::Cs2Fx::Params cp;
+                cp.sustain = param ("compSustain");  cp.attack = param ("compCsAttack");  cp.mix = param ("compMix");  cp.volumeDb = param ("compOutput");
+                const float gr = cs2.process (buffer.getWritePointer (0), numSamples, cp);
+                if (numChannels == 2)
+                    buffer.copyFrom (1, 0, buffer, 0, 0, numSamples);
+                compGrDb.store (gr);
+                cs2WasOn = true;
+            }
+            else if ((int) param ("compStyle") == 11)
+            {
+                // b76: the Boss CS-3 style (FxExtra::Cs3Fx). Sustain (Comp Sustain), Attack (Comp CS-3 Attack), Tone (Comp Treble), Level (Comp Output), Mix.
+                if (! cs3WasOn) cs3.reset();
+                optoSustWasOn = false;  crushLimWasOn = false;
+                FxExtra::Cs3Fx::Params cp;
+                cp.sustain = param ("compSustain");  cp.attack = param ("compCsAttack");  cp.tone = param ("compTreble");
+                cp.mix = param ("compMix");  cp.volumeDb = param ("compOutput");
+                const float gr = cs3.process (buffer.getWritePointer (0), numSamples, cp);
+                if (numChannels == 2)
+                    buffer.copyFrom (1, 0, buffer, 0, 0, numSamples);
+                compGrDb.store (gr);
+                cs3WasOn = true;
+            }
+            else if ((int) param ("compStyle") == 10)
+            {
+                cs3WasOn = false;
                 // b62: the podium-limiter style (FxExtra::CrushLimiterFx). Crush, Crunch, Darkness, Release, Mix (Comp Mix) and Volume (Comp Output).
                 if (! crushLimWasOn) crushLim.reset();
                 optoSustWasOn = false;
@@ -6666,7 +7386,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
             }
             else if ((int) param ("compStyle") == 6)
             {
-                optoSustWasOn = false;  crushLimWasOn = false;
+                optoSustWasOn = false;  crushLimWasOn = false;  cs3WasOn = false;  cs2WasOn = false;
                 // v93: the Dyna-type compressor (Circuit::DynaComp). Threshold sets the squeeze (lower = more), the other Comp knobs act as named.
                 const float gr = dyna.process (buffer.getWritePointer (0), numSamples, juce::jlimit (0.0f, 1.0f, -param ("compThresh") / 40.0f),
                                                param ("compAttack"), param ("compRelease"), param ("compOutput"), param ("compMix"));
@@ -6676,7 +7396,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
             }
             else
             {
-            optoSustWasOn = false;  crushLimWasOn = false;
+            optoSustWasOn = false;  crushLimWasOn = false;  cs3WasOn = false;  cs2WasOn = false;
             comp.process (buffer.getWritePointer (0), numSamples,
                           CompressorEffect::Params { param ("compThresh"), (int) param ("compRatio"),
                                                      param ("compAttack"), param ("compRelease"),
@@ -6692,7 +7412,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
         else
         {
             compGrDb.store (0.0f);
-            optoSustWasOn = false;  crushLimWasOn = false;
+            optoSustWasOn = false;  crushLimWasOn = false;  cs3WasOn = false;  cs2WasOn = false;
         }
 
     };
@@ -6711,7 +7431,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
                              Wah::Params { (int) param ("wahMode"), param ("wahPos"), param ("wahHeel"), param ("wahToe"),
                                            param ("wahQ"), param ("wahMix"), param ("wahSens"), param ("wahDecay"),
                                            std::min (20.0f, lfoRateHz ("wahNote", "wahRate", bpm)), param ("wahDepth"),
-                                           (int) param ("wahEnvDir"), (int) param ("wahEnvShape"), param ("wahVoice") > 0.5f ? 1 : 0 });
+                                           (int) param ("wahEnvDir"), (int) param ("wahEnvShape"), (int) param ("wahVoice"), (int) param ("wahRange"), param ("wahBoost"), param ("wahFuzz") });
                 if (numChannels == 2)
                     buffer.copyFrom (1, 0, buffer, 0, 0, numSamples);
             }
@@ -6737,17 +7457,28 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
         phaserWasOn = phOn;
     };
 
-    auto runChorus = [&]()
+    auto runChorus = [&] (bool st)
     {
         const bool chOn = param ("chorusOn") > 0.5f;
         if (chOn)
         {
-            if (! chorusWasOn) chorus.reset();
-            chorus.process (buffer.getWritePointer (0), numSamples,
-                            BbdChorus::Params { (int) param ("chorusMode"), param ("chorusMix"), param ("chorusRate"),
-                                                 param ("chorusDepth"), param ("chorusTone"), param ("chorusHiss") });
-            if (numChannels == 2)
-                buffer.copyFrom (1, 0, buffer, 0, 0, numSamples);
+            const int chMode = (int) param ("chorusMode");
+            if (! chorusWasOn) { chorus.reset();  chorusSt.reset(); }
+            if (StereoChorus::isStereoMode (chMode))      // b104: stereo modes; only after the cab are there two channels to keep
+            {
+                chorusSt.process (buffer.getWritePointer (0), (st && numChannels == 2) ? buffer.getWritePointer (1) : nullptr, numSamples,
+                                  StereoChorus::Params { chMode, param ("chorusMix"), param ("chorusRate"), param ("chorusDepth"), param ("chorusTone"), param ("chorusHiss") });
+                if (numChannels == 2 && ! st)
+                    buffer.copyFrom (1, 0, buffer, 0, 0, numSamples);
+            }
+            else
+            {
+                chorus.process (buffer.getWritePointer (0), numSamples,
+                                BbdChorus::Params { chMode, param ("chorusMix"), param ("chorusRate"),
+                                                     param ("chorusDepth"), param ("chorusTone"), param ("chorusHiss") });
+                if (numChannels == 2)
+                    buffer.copyFrom (1, 0, buffer, 0, 0, numSamples);
+            }
         }
         chorusWasOn = chOn;
     };
@@ -6775,7 +7506,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
     for (int s = 0; s < 4; ++s)
     {
         modActive[s] = param (modOnId[s]) > 0.5f;
-        if (modActive[s] && ! modWasOn[s]) modFx[s].reset();
+        if (modActive[s] && ! modWasOn[s]) { modFx[s].reset(); holdSlot[s].reset(); }
         modWasOn[s] = modActive[s];
     }
     auto runModFx = [&] (int s, bool post)
@@ -6793,15 +7524,20 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
         static const char* const newId[4][6] = {
             { "mfAChMode", "mfAFMode", "mfAFMotion", "mfAVowel", "mfAFlip", "mfAPick" }, { "mfBChMode", "mfBFMode", "mfBFMotion", "mfBVowel", "mfBFlip", "mfBPick" },
             { "mfCChMode", "mfCFMode", "mfCFMotion", "mfCVowel", "mfCFlip", "mfCPick" }, { "mfDChMode", "mfDFMode", "mfDFMotion", "mfDVowel", "mfDFlip", "mfDPick" } };
+        static const char* const breathId[4] = { "mfABreath", "mfBBreath", "mfCBreath", "mfDBreath" };       // b120
+        static const char* const bitId[4]    = { "mfABitMangle", "mfBBitMangle", "mfCBitMangle", "mfDBitMangle" };
         static const char* const loVoiceId[4] = { "mfALoVoice", "mfBLoVoice", "mfCLoVoice", "mfDLoVoice" };
+        static const char* const viVoiceId[4] = { "mfAViVoice", "mfBViVoice", "mfCViVoice", "mfDViVoice" };
+        static const char* const flVoiceId[4] = { "mfAFlVoice", "mfBFlVoice", "mfCFlVoice", "mfDFlVoice" };
         static const char* const fsModeId[4] = { "mfAFsMode", "mfBFsMode", "mfCFsMode", "mfDFsMode" };
         static const char* const phVoiceId[4] = { "mfAPhVoice", "mfBPhVoice", "mfCPhVoice", "mfDPhVoice" };
+        static const char* const phStereoId[4] = { "mfAPhStereo", "mfBPhStereo", "mfCPhStereo", "mfDPhStereo" };      // b106
         static const char* const vocId[4][6] = {
             { "mfAVocCar", "mfAVocBands", "mfAVocNote", "mfAVocSib", "mfAVocResp", "" }, { "mfBVocCar", "mfBVocBands", "mfBVocNote", "mfBVocSib", "mfBVocResp", "" },
             { "mfCVocCar", "mfCVocBands", "mfCVocNote", "mfCVocSib", "mfCVocResp", "" }, { "mfDVocCar", "mfDVocBands", "mfDVocNote", "mfDVocSib", "mfDVocResp", "" } };
         if (! modActive[s]) return;
         ModFx::Params mp;
-        mp.type = juce::jlimit (0, 23, (int) param (ids[s][1]));
+        mp.type = juce::jlimit (0, 25, (int) param (ids[s][1]));
         mp.shape = juce::jlimit (0, mp.type == 8 ? 8 : 6, (int) param (ids[s][3]));
         if (mp.type == 8) mp.pick = param (newId[s][5]);
         // b43: the Phaser and Lo-Fi engines keep their own Sine / Triangle / Random (wandering); the other shapes use the shared waves (3 + shape)
@@ -6811,9 +7547,11 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
         mp.rateHz = juce::jlimit (0.02f, 20.0f, lfoRateHz (ids[s][5], ids[s][4], bpm));
         mp.depth = param (ids[s][6]);  mp.feedback = param (ids[s][7]);  mp.manual = param (ids[s][8]);
         mp.toneHz = param (ids[s][9]);  mp.mix = param (ids[s][10]);
+        if (mp.type == 0) mp.flVoice = juce::jlimit (0, 4, (int) param (flVoiceId[s]));      // b84: the Electric Mistress voicings
+        if (mp.type == 2) { mp.viVoice = juce::jlimit (0, 2, (int) param (viVoiceId[s]));  mp.rise = juce::jlimit (0.0f, 1.0f, std::abs (param (ids[s][7])) / 0.9f); }       // b75: the VB-2 voicing; Feedback is its Rise Time
         float* l = buffer.getWritePointer (0);
         float* r = (post && numChannels == 2) ? buffer.getWritePointer (1) : nullptr;
-        if (modKind[s] != mp.type) { modKind[s] = mp.type; modWobWasOn[s] = false; chorusSlot[s].reset(); phaserSlot[s].reset(); lofiSlot[s].reset(); filterSlot[s].reset(); slicerSlot[s].reset(); shifterSlot[s].reset(); vocSlot[s].reset(); vocSynth[s].reset(); droneSlot[s].reset(); }
+        if (modKind[s] != mp.type) { modKind[s] = mp.type; modWobWasOn[s] = false; chorusSlot[s].reset(); chorusStSlot[s].reset(); phaserSlot[s].reset(); phaserRSlot[s].reset(); phaserStMode[s] = -1; lofiSlot[s].reset(); filterSlot[s].reset(); slicerSlot[s].reset(); ddSlot[s].reset(); holdSlot[s].reset(); shifterSlot[s].reset(); vocSlot[s].reset(); vocSynth[s].reset(); droneSlot[s].reset(); }
         if (mp.type == 7)
         {
             // Wobble: Rate, Depth, Mix as usual; Feedback (either sign) sets the random drift of the arm
@@ -6827,13 +7565,30 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
             // b28 Chorus: the Chorus Mode menu picks the mode (I, II, I + II, Dimension, Tri-chorus, Ensemble, Detune), Rate is the speed relative to the
             // mode's own (1 = as built, the whole knob works), Fidelity below 1 adds hiss (0 = the old Hiss at full). Mono, like the old stand-alone Chorus.
             modWobWasOn[s] = false;
-            chorusSlot[s].process (l, numSamples, BbdChorus::Params { juce::jlimit (0, 8, (int) param (newId[s][0])), mp.mix, juce::jlimit (0.02f, 20.0f, mp.rateHz),
-                                                                       juce::jlimit (0.0f, 1.5f, mp.depth * 1.5f), mp.toneHz, juce::jlimit (0.0f, 1.0f, 1.0f - mp.fidelity) });
+            const int chMode = juce::jlimit (0, StereoChorus::lastMode, (int) param (newId[s][0]));
+            if (StereoChorus::isStereoMode (chMode))      // b104: the stereo modes (after the cab the two channels stay two; before the amp they are summed into one)
+                chorusStSlot[s].process (l, r, numSamples, StereoChorus::Params { chMode, mp.mix, juce::jlimit (0.02f, 20.0f, mp.rateHz), juce::jlimit (0.0f, 1.5f, mp.depth * 1.5f),
+                                                                                  mp.toneHz, juce::jlimit (0.0f, 1.0f, 1.0f - mp.fidelity) });
+            else
+                chorusSlot[s].process (l, numSamples, BbdChorus::Params { chMode, mp.mix, juce::jlimit (0.02f, 20.0f, mp.rateHz),
+                                                                           juce::jlimit (0.0f, 1.5f, mp.depth * 1.5f), mp.toneHz, juce::jlimit (0.0f, 1.0f, 1.0f - mp.fidelity) });
         }
         else if (mp.type == 13)
         {
             // b28 Phaser: Manual is the centre frequency (80 Hz to 3 kHz), Stages, Envelope and Lag as knobs, Feedback and Depth as usual
             modWobWasOn[s] = false;
+            const int phSt = juce::jlimit (0, 2, (int) param (phStereoId[s]));
+            if (phSt != phaserStMode[s])           // b106: the right side starts a quarter or half a cycle later (the two sides then keep that gap)
+            {
+                phaserStMode[s] = phSt;
+                phaserSlot[s].setStartPhase (0.0f);   phaserSlot[s].reset();
+                phaserRSlot[s].setStartPhase (phSt == 1 ? 0.25f : 0.5f);  phaserRSlot[s].reset();
+            }
+            const Phaser::Params phP { juce::jlimit (2, 12, (int) std::lround (param (extraId[s][0]))), sweepShape,
+                                       std::min (20.0f, mp.rateHz), mp.depth, 80.0f * std::pow (37.5f, mp.manual), mp.feedback, mp.mix,
+                                       param (extraId[s][1]), param (extraId[s][2]), juce::jlimit (0, 3, (int) param (phVoiceId[s])) };
+            if (phSt > 0 && r != nullptr) { phaserSlot[s].process (l, numSamples, phP);  phaserRSlot[s].process (r, numSamples, phP); }
+            else
             phaserSlot[s].process (l, numSamples, Phaser::Params { juce::jlimit (2, 12, (int) std::lround (param (extraId[s][0]))), sweepShape,
                                                                    std::min (20.0f, mp.rateHz), mp.depth, 80.0f * std::pow (37.5f, mp.manual), mp.feedback, mp.mix,
                                                                    param (extraId[s][1]), param (extraId[s][2]), juce::jlimit (0, 3, (int) param (phVoiceId[s])) });
@@ -6845,7 +7600,9 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
             lofiSlot[s].process (l, numSamples, LoFiWarble::Params { sweepShape, std::min (20.0f, mp.rateHz), mp.depth, mp.manual,
                                                                      juce::jlimit (0.0f, 1.0f, (mp.toneHz - 1500.0f) / 14500.0f),
                                                                      juce::jlimit (0.0f, 1.0f, std::abs (mp.feedback) / 0.9f),
-                                                                     param (extraId[s][3]), param (extraId[s][4]), mp.mix, param (extraId[s][5]), juce::jlimit (0, 1, (int) param (loVoiceId[s])) });
+                                                                     param (extraId[s][3]), param (extraId[s][4]), mp.mix, param (extraId[s][5]), juce::jlimit (0, 2, (int) param (loVoiceId[s])),
+                                                                     param (breathId[s]) });
+            bitMangleSlot[s][0].process (l, numSamples, param (bitId[s]) * mp.mix, currentSampleRate);       // b120
         }
         else if (mp.type == 21)
         {
@@ -6879,7 +7636,11 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
                 for (int i = 0; i < numSamples; ++i) ca[i] = r != nullptr ? 0.5f * (l[i] + r[i]) : l[i];
                 const bool useSc = scActive && scPtr[0] != nullptr;
                 if (useSc)
-                    for (int i = 0; i < numSamples; ++i) mo[i] = 0.5f * (scPtr[0][scOffset + i] + scPtr[1][scOffset + i]);
+                    for (int i = 0; i < numSamples; ++i)       // b114: the sidechain gets the same clean-up as the main input (no NaN or infinite samples, at most +/-16)
+                    {
+                        const float m = 0.5f * (scPtr[0][scOffset + i] + scPtr[1][scOffset + i]);
+                        mo[i] = std::isfinite (m) ? juce::jlimit (-16.0f, 16.0f, m) : 0.0f;
+                    }
                 else
                     std::copy (ca, ca + numSamples, mo);
                 const int car = juce::jlimit (0, 3, (int) param (vocId[s][0]));
@@ -6928,6 +7689,28 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
             filterSlot[s].process (l, r, numSamples, FxExtra::FilterFx::Params { modeOf[mp.type - 15], vowel ? 800.0f : 40.0f * std::pow (300.0f, mp.manual),
                                        juce::jlimit (0.0f, 1.0f, std::abs (mp.feedback) / 0.9f), mp.type == 19 ? 2 : (mp.shape == 6 ? 3 : 1),
                                        juce::jlimit (0.02f, 20.0f, mp.rateHz), mp.depth, vowel ? mp.manual : 0.0f, mp.mix });
+        }
+        else if (mp.type == 25)
+        {
+            // b105 Sustain hold: Hold (switch) captures and holds the note or chord; Depth is Layers (1 to 5), Manual the Rise, Feedback (either sign) the Tail
+            // (the far end never dies away), Tone the top of the held sound, Mix how loud it is against your playing (the middle is the level you played it at).
+            static const char* const holdId[4] = { "mfAHold", "mfBHold", "mfCHold", "mfDHold" };
+            modWobWasOn[s] = false;
+            holdSlot[s].process (l, numSamples, FxExtra::SustainHoldFx::Params { param (holdId[s]) > 0.5f, 1 + (int) std::lround (4.0f * mp.depth), mp.manual,
+                                       juce::jlimit (0.0f, 1.0f, std::abs (mp.feedback) / 0.9f), mp.toneHz, mp.mix });
+        }
+        else if (mp.type == 24)
+        {
+            // b81 Digital damage: Depth is Loss (codec-style holes, a cut-back top end), Manual the Dropouts (lost packets), Feedback (either sign) the
+            // Freeze amount, Rate how often the hole pattern is re-rolled and a new freeze snapshot is taken, Tone the top of the range.
+            // The wet sound is about 21 ms late (1024 samples at 48 kHz; the Frame menu makes it 11 or 5 ms); the dry signal is delayed to match.
+            modWobWasOn[s] = false;
+            { static constexpr const char* frameId[4] = { "mfAFrame", "mfBFrame", "mfCFrame", "mfDFrame" };  ddSlot[s].setFrame ((int) param (frameId[s])); }       // b118
+            ddSlot[s].process (l, r, numSamples, FxExtra::DigitalDamageFx::Params { mp.depth, mp.manual, mp.rateHz,
+                                       juce::jlimit (0.0f, 1.0f, std::abs (mp.feedback) / 0.9f), mp.toneHz, mp.mix });
+            {   const float bm = param (bitId[s]) * mp.mix;       // b120: Bit mangle on the damaged sound (faded out as Mix comes down)
+                bitMangleSlot[s][0].process (l, numSamples, bm, currentSampleRate);
+                if (r != nullptr) bitMangleSlot[s][1].process (r, numSamples, bm, currentSampleRate); }
         }
         else if (mp.type == 20)
         {
@@ -7104,7 +7887,15 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
             sp.xo[0] = param ("msX1");  sp.xo[1] = param ("msX2");  sp.xo[2] = param ("msX3");
             static const char* const drvId[4] = { "msDrive1", "msDrive2", "msDrive3", "msDrive4" };
             static const char* const lvlId[4] = { "msLevel1", "msLevel2", "msLevel3", "msLevel4" };
-            for (int k = 0; k < 4; ++k) { sp.driveDb[k] = param (drvId[k]);  sp.levelDb[k] = param (lvlId[k]); }
+            const bool easy = param ("msEasy") > 0.5f;                  // b112: Easy mode: Amount and Focus set every band's Drive
+            for (int k = 0; k < 4; ++k)
+            {
+                sp.driveDb[k] = easy ? FxExtra::MultibandSatFx::easyDriveDb (param ("msAmount"), param ("msFocus"), k) : param (drvId[k]);
+                sp.levelDb[k] = param (lvlId[k]);
+            }
+            static const char* const fbId[4] = { "msFb1", "msFb2", "msFb3", "msFb4" };
+            for (int k = 0; k < 4; ++k) sp.fb[k] = param (fbId[k]);
+            sp.fbPitch = param ("msFbPitch");
             sp.type = (int) param ("msType");  sp.bias = param ("msBias");
             sp.outDb = param ("msOut");  sp.mix = param ("msMix");
             static const char* const btId[4] = { "msType1", "msType2", "msType3", "msType4" };
@@ -7179,7 +7970,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
                                                  param ("granPitch"), param ("granPitchRand"), param ("granReverse"),
                                                  param ("granWidth"), param ("granFeedback"), param ("granMix"),
                                                  param ("granFreeze") > 0.5f,
-                                                 (int) param ("granScale"), (int) param ("granShape"), param ("granScan"), param ("granTone") });
+                                                 (int) param ("granScale"), (int) param ("granShape"), param ("granScan"), param ("granTone"), param ("granRecall") });
         }
         granWasOn = gOn;
     };
@@ -7278,14 +8069,14 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
                 const float fb = std::pow (10.0f, -3.0f * 0.035f / decayS);
                 rp.roomSize = juce::jlimit (0.0f, 1.0f, (fb - 0.7f) / 0.28f);
             }
-            rp.damping    = P ("reverbDamp");
+            rp.damping    = juce::jlimit (0.0f, 1.0f, P ("reverbDamp"));
             rp.width      = P ("reverbWidth");
             rp.freezeMode = P ("reverbFreeze") > 0.5f ? 1.0f : 0.0f;
             rp.dryLevel   = 0.0f;    // we add the wet signal to the dry ourselves
             rp.wetLevel   = 0.33f;   // JUCE multiplies wet by 3, so this is about unity
             R.shimmerReverb.setParameters (rp);
 
-            int revType = juce::jlimit (0, 17, (int) P ("reverbType"));
+            int revType = juce::jlimit (0, 18, (int) P ("reverbType"));
             if (unit == 1 && revType == 12) revType = 2;                       // the IR reverb belongs to Reverb 1; Reverb 2 plays a Hall instead
             const bool irMode = (unit == 0 && revType == 12);
             if (revType != R.lastRevType)
@@ -7297,7 +8088,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
                 if (unit == 0) irRevConv.reset();
             }
             const float revLen = juce::jlimit (0.3f, 2.2f, 0.3f + 0.12f * P ("reverbSize"));      // Reverse: length of the reversed grains, in seconds
-            if (revType == 17) R.springTank.setParams (P ("reverbSize"), P ("reverbDamp"));
+            if (revType == 17) { R.springTank.setParams (P ("reverbSize"), P ("reverbDamp"));  R.springTank.setFeedback (P ("reverbSpringFb")); }
             if (revType > 0 && revType != 17 && ! irMode)
             {
                 FdnReverb::Extra ex;
@@ -7319,7 +8110,9 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
                     }
                     ex.dragSemis = q;
                 }
-                R.fdnReverb.setParams (revType, revType == 14 ? std::min (P ("reverbSize"), 0.6f * revLen) : P ("reverbSize"), P ("reverbDamp"), P ("reverbWidth"),
+                ex.bassMul = P ("reverbBassDecay");  ex.crossHz = P ("reverbCross");  ex.clock = (int) P ("reverbClock");        // b81
+                ex.gateShape = juce::jlimit (0, 2, (int) P ("reverbGateShape"));       // b106
+                R.fdnReverb.setParams (revType == 18 ? 17 : revType, revType == 14 ? std::min (P ("reverbSize"), 0.6f * revLen) : P ("reverbSize"), P ("reverbDamp"), P ("reverbWidth"),
                                      P ("reverbFreeze") > 0.5f, ex);
             }
             const int gravityMode = juce::jlimit (0, 2, (int) P ("reverbGravity"));
@@ -7359,6 +8152,8 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
             const float shimmerInputBoost = (shimmerMode == 1) ? 1.3f : 1.0f;          // no loop in Input mode, so it can be louder
             const float wetTarget = (P ("reverbOn") > 0.5f ? mix : 0.0f) * 0.75f;
             const float duck    = P ("reverbDuck");
+            const float dryPan = P ("reverbDryPan"), wetPan = P ("reverbWetPan");        // b120: the dry and the reverb each get their own balance (0 = centre, unchanged)
+            const float dpL = std::min (1.0f, 1.0f - dryPan), dpR = std::min (1.0f, 1.0f + dryPan), wpL = std::min (1.0f, 1.0f - wetPan), wpR = std::min (1.0f, 1.0f + wetPan);
             const float duckAtk = 1.0f - std::exp (-1.0f / (0.005f * sr));
             const float duckRel = 1.0f - std::exp (-1.0f / (0.001f * P ("reverbDuckRel") * sr));
             const float drive   = P ("reverbDrive");
@@ -7665,7 +8460,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
                 const float g = R.revWetSmooth * duckGain;
                 // v0.2: Mix is a real blend: at full Mix only the reverb is heard (the dry used to stay at full level)
                 const float dryGain = 1.0f - juce::jlimit (0.0f, 1.0f, R.revWetSmooth * (1.0f / 0.75f));
-                if (right) { left[i] = left[i] * dryGain + g * l; right[i] = right[i] * dryGain + g * r; }
+                if (right) { left[i] = left[i] * dryGain * dpL + g * l * wpL;  right[i] = right[i] * dryGain * dpR + g * r * wpR; }
                 else       { left[i] = left[i] * dryGain + g * 0.5f * (l + r); }
             }
         }
@@ -7753,7 +8548,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
     const bool circuitMode = (int) param ("ampMode") >= 1;
     auto shapePlan = circuitMode && ! acoustic && ! namActive
         ? StageShaper::planFor ((int) param ("ampModel"), (int) param ("ampTube"), (int) param ("ampPwrTube")) : StageShaper::Plan();
-    if (shapePlan.active && (int) param ("ampMode") == 2) { shapePlan.blend = kHybridShare; shapePlan.trimDb = shapePlan.trimDb * kHybridShare + StageShaper::hybridTrimDb ((int) param ("ampModel")); }
+    if (shapePlan.active && (int) param ("ampMode") == 2) { const int hm = (int) param ("ampModel");  const float hs = StageShaper::hybridShare (hm);  shapePlan.blend = hs; shapePlan.trimDb = shapePlan.trimDb * hs + StageShaper::hybridTrimDb (hm) * (hs / kHybridShare); }
     if (! shapePlan.active) for (auto& s : stageSt) s.shift = 0.0f;
 
 
@@ -7837,7 +8632,9 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
         const bool stereoCtx = group == 1 && numChannels == 2;
         const int slotOf = blk == 6 ? 0 : blk == 7 ? 1 : blk == 24 ? 2 : blk == 25 ? 3 : -1;
         // the Chorus, Phaser and Lo-Fi types of a mod slot are mono effects (like the stand-alone ones), so they take the mid / delta route after the cab
-        const bool monoNative = blk <= 5 || blk == 26 || (blk >= 20 && blk <= 23) || (slotOf >= 0 && (int) param (modTypeId[slotOf]) >= 12 && (int) param (modTypeId[slotOf]) != 21);   // b43: the all-modes Filter is true stereo, like the old Filter pedal
+        const bool stereoChorusOn = (blk == 4 && StereoChorus::isStereoMode ((int) param ("chorusMode"))) || (slotOf >= 0 && (int) param (modTypeId[slotOf]) == 12 && StereoChorus::isStereoMode ((int) param (chModeIds[slotOf])));      // b104
+        const bool stereoPhaserOn = slotOf >= 0 && (int) param (modTypeId[slotOf]) == 13 && (int) param (phStereoIds[slotOf]) > 0;      // b106
+        const bool monoNative = ! stereoChorusOn && ! stereoPhaserOn && (blk <= 5 || blk == 26 || (blk >= 20 && blk <= 23) || (slotOf >= 0 && (int) param (modTypeId[slotOf]) >= 12 && (int) param (modTypeId[slotOf]) != 21 && (int) param (modTypeId[slotOf]) != 24));   // b81: Digital damage is true stereo too; b43: the all-modes Filter is true stereo, like the old Filter pedal
         auto call = [&] (bool st)
         {
             switch (blk)
@@ -7847,7 +8644,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
                 case 1:  runComp();  break;
                 case 2:  runWah();   break;
                 case 3:  runPhaser();  break;
-                case 4:  runChorus();  break;
+                case 4:  runChorus (st);  break;
                 case 5:  runPreDelay();  break;
                 case 6:  runModFx (0, st);  break;
                 case 7:  runModFx (1, st);  break;
@@ -8292,6 +9089,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
             stageM (osAmpHighPass1, lastAmpGain1, g1, 0);
             if (stageLp) osAmpLowPass2.process (osContext);
             stageM (osAmpHighPass2, lastAmpGain2, g2, 1);
+            if (coldA.amt > 0.0f && voicing.stages >= 3) coldA.process (osBlock.getChannelPointer (0), osSamples);      // b68
             if (voicing.stages >= 3)
             {
                 if (stageLp) osAmpLowPass3.process (osContext);
@@ -8303,6 +9101,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
         stage (osAmpHighPass1, lastAmpGain1, g1, voicing.bias[0], (voicing.hardMask >> 0) & 1, 0);
         if (stageLp) osAmpLowPass2.process (osContext);
         stage (osAmpHighPass2, lastAmpGain2, g2, voicing.bias[1], (voicing.hardMask >> 1) & 1, 1);
+        if (coldA.amt > 0.0f && voicing.stages >= 3) coldA.process (osBlock.getChannelPointer (0), osSamples);      // b68
         if (voicing.stages >= 3)
         {
             if (stageLp) osAmpLowPass3.process (osContext);
@@ -8346,6 +9145,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
             for (size_t ch = 0; ch < osChannels && ch < 2; ++ch)
                 psSupplyA.droop (osBlock.getChannelPointer (ch), osSamples, (int) ch, psParamsA, osSampleRate);
 
+        if (presPreA) osPresence.process (osContext);      // b68 (R20): the Presence network sits ahead of the power amp
         // Power stage: saturation and (for a cold bias) crossover distortion
         {
             const float pw = effectivePower (param ("ampPower"), voicing), bi = param ("ampBias");
@@ -8394,7 +9194,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
             for (size_t ch = 0; ch < osChannels && ch < 2; ++ch)
                 psChainA.process (osBlock.getChannelPointer (ch), osSamples, (int) ch);
         }
-        if (! psParamsA.filtersOn || cutAmpA)         // b38: the Cut amps keep their roll-off shelf in every mode
+        if ((! psParamsA.filtersOn || cutAmpA) && ! presPreA)         // b38: the Cut amps keep their roll-off shelf in every mode
             osPresence.process (osContext);
 
         lastAmpGain1 = g1;
@@ -8420,7 +9220,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
                 if (param ("mtFizz")  > 0.61f) metalFizz2.process (ampContext);
                 if (param ("mtDepth") > 0.01f) metalDepth.process (ampContext);
             }
-            if (param ("ampReso") > 0.01f && ! namActive)
+            if (ampResoEffective() > 0.01f && ! namActive)
                 ampResoPk.process (ampContext);
             const int stackSel = (int) param ("ampStack");
             if (circuitMode && stackSel == 0 && ampIdx == 9)     // v93 (circuit-derived mode only): the 5E3's single Tone control (Treble), then Bass and Mid on top as before
@@ -8574,6 +9374,20 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
         {
             blockActive[blk] = param (kCabIds[blk].on) > 0.5f && irActive[blk].load() && conv[blk].getCurrentIRSize() > 0;
             if (blockActive[blk]) ++numActive;
+        }
+        {   // b114: report the cab blocks' Delay as latency, once the setting has stayed put for 0.5 s
+            const int want = cabDelayWanted();
+            if (want == cabLatency.load()) { cabLatTarget = want;  cabLatCount = 0; }
+            else
+            {
+                if (want != cabLatTarget) { cabLatTarget = want;  cabLatCount = 0; }
+                cabLatCount += numSamples;
+                if (cabLatCount >= (int) (0.5 * currentSampleRate))
+                {
+                    cabLatency.store (want);  cabLatCount = 0;
+                    latencyDirty.store (true);  requestAsync();
+                }
+            }
         }
 
         // Without IR blocks (built-in cab, or cab off) both amps are simply added (-3 dB each) before the cab filters.
@@ -8901,6 +9715,34 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
         }
     }
 
+    // b120 Repeater: grabs the last slice of the finished sound and loops it (switch, or in time with the bar)
+    if (numChannels >= 1)
+    {
+        float* rl = buffer.getWritePointer (0);
+        float* rr = numChannels > 1 ? buffer.getWritePointer (1) : nullptr;
+        const bool rpOn = param ("repOn") > 0.5f;
+        if (rpOn || repeater.isLive())
+        {
+            FxExtra::RepeaterFx::Params rp { rpOn ? (int) param ("repAuto") : 0, rpOn && param ("repHold") > 0.5f,
+                                             (float) ModSource::kDivBeats[juce::jlimit (0, 5, (int) param ("repDiv"))], param ("repPitch"), param ("repGlitch"), param ("repDecay"), param ("repMix"),
+                                             beatBpm, beatPos };
+            repeater.process (rl, rr, numSamples, rp);
+        }
+        else
+            repeater.listen (rl, rr, numSamples);
+    }
+
+    // b81 Tape stop: the finished sound winds down to a halt and back up (a switch; it is also a MIDI-mappable parameter)
+    if (numChannels >= 1)
+    {
+        const bool tsOn = param ("tapeStop") > 0.5f;
+        if (tsOn || ! tapeStop.isLive())
+            tapeStop.process (buffer.getWritePointer (0), numChannels > 1 ? buffer.getWritePointer (1) : nullptr, numSamples,
+                              FxExtra::TapeStopFx::Params { tsOn, param ("tapeStopTime") });
+        else
+            tapeStop.keepRecording (buffer.getReadPointer (0), numChannels > 1 ? buffer.getReadPointer (1) : nullptr, numSamples);
+    }
+
     // Mono output: both sides get the sum (to check how the sound folds down to mono)
     if (numChannels == 2 && param ("outMono") > 0.5f)
     {
@@ -8951,6 +9793,7 @@ void StarterAmpProcessor::processBlockChunk (juce::AudioBuffer<float>& buffer, j
         lp.beatsPerBar = (int) param ("metroBeats");
         lp.level = dbToGain (param ("lprLevel"));
         lp.bpm = bpm;
+        lp.mode = (int) param ("lprMode");
         looper.process (buffer.getWritePointer (0), numChannels > 1 ? buffer.getWritePointer (1) : nullptr, numSamples, lp, loopInPk);
     }
 
@@ -9479,6 +10322,20 @@ void StarterAmpProcessor::handleMidi (const juce::MidiBuffer& midi)
         if (wantedChannel > 0 && msg.getChannel() != wantedChannel)
             continue;
 
+        // b115: held notes, for the Harmonizer's MIDI mode (note on, note off, and "all notes off")
+        if (msg.isNoteOn() || msg.isNoteOff())
+        {
+            const int nn = msg.getNoteNumber() & 127;
+            if (msg.isNoteOn()) midiHeld[nn >> 6] |= (uint64_t (1) << (nn & 63));
+            else                midiHeld[nn >> 6] &= ~(uint64_t (1) << (nn & 63));
+            midiHeldPub[0].store (midiHeld[0]);  midiHeldPub[1].store (midiHeld[1]);
+            continue;
+        }
+        if (msg.isAllNotesOff() || msg.isAllSoundOff())
+        {
+            midiHeld[0] = midiHeld[1] = 0;  midiHeldPub[0].store (0);  midiHeldPub[1].store (0);
+            continue;
+        }
         int slot = -1, value = 0, maxValue = 127;
         if (msg.isController())
         {
@@ -9630,6 +10487,8 @@ bool StarterAmpProcessor::restoreState (const void* data, int sizeInBytes, bool 
             if (withMidi)
                 midiFromState (apvts.state);
             apvts.state.removeChild (apvts.state.getChildWithName ("midiMap"), nullptr);
+            setParamValue ("repHold", 0.0f);           // b120: nor with the repeater holding
+            setParamValue ("tapeStop", 0.0f);          // b81: a session or preset never loads with the tape stopped
             diLoadFromState (apvts.state);
             fxRowFromString (0, apvts.state.getProperty ("fxPreRow").toString());
             fxRowFromString (1, apvts.state.getProperty ("fxPostRow").toString());
@@ -10150,6 +11009,100 @@ void StarterAmpProcessor::sendIRToBlock (const juce::File& file, int slot)
 
 juce::StringArray StarterAmpProcessor::builtinSpeakerNames() { return cabbuilder::speakerNames(); }
 
+//==============================================================================
+// b70: a suggested cab for each amp. One row per amp model (0 to 44): cabinet, speaker and mic (indexes into the cab builder's lists), mic position and distance.
+// These are picked from what each amp is modelled on (a Twin gets a 2x12 open back, a Mark-series head the big closed 4x12, a tweed Bassman the 4x10) and from the
+// speaker voicings' names and descriptions. They are starting points chosen by reading, not measured against recordings of those cabs.
+namespace SuggestedCab
+{
+    struct Row { signed char cabinet, speaker, mic; float pos, dist; };
+    static const Row rows[46] =
+    {
+        { 1,  5, 1, 0.35f, 2.0f },   //  0 Twin Sparkle: 2x12 open back, Vintage American
+        { 1,  4, 2, 0.30f, 1.5f },   //  1 Chime Thirty: 2x12 open back, Chimey Alnico
+        { 3,  2, 0, 0.30f, 1.0f },   //  2 Brown Eye: 4x12 closed, Rock Bite
+        { 3, 11, 1, 0.30f, 1.0f },   //  3 Slow Burn: 4x12 closed, Smooth Lead
+        { 4,  7, 6, 0.30f, 1.0f },   //  4 Modern Maul: 4x12 straight, Modern Scoop
+        { 16, 38, 5, 0.30f, 1.0f },  //  5 Acoustic: not used (the acoustic body replaces the cab)
+        { 2,  1, 1, 0.30f, 1.5f },   //  6 Club Crunch: 2x12 closed, Vintage Crunch
+        { 1,  6, 3, 0.35f, 2.0f },   //  7 Bumble Lead: 2x12 open back, Hi-Fi Full, ribbon
+        { 5, 16, 6, 0.30f, 1.0f },   //  8 5555 Block: 4x12 angled, Heavy Tight
+        { 0,  5, 1, 0.35f, 1.5f },   //  9 Tweedle Dee: 1x12 open back, Vintage American
+        { 1,  6, 5, 0.30f, 2.0f },   // 10 Jade Chorus: 2x12 open back, Hi-Fi Full, flat
+        { 7, 12, 1, 0.30f, 1.0f },   // 11 Marque Dream: oversized 4x12 (ported), Mid Forward
+        { 3,  9, 7, 0.30f, 1.0f },   // 12 Citrus Doom: 4x12 closed, Dark Thump
+        { 5,  0, 6, 0.30f, 1.0f },   // 13 Revved Up: 4x12 angled, Modern Tight
+        { 4, 16, 7, 0.30f, 1.0f },   // 14 Digital Dread: 4x12 straight, Heavy Tight
+        { 5,  2, 0, 0.30f, 1.0f },   // 15 Master Cranker: 4x12 angled, Rock Bite
+        { 3, 12, 1, 0.30f, 1.0f },   // 16 Harmonic Haze: 4x12 closed, Mid Forward
+        { 4, 16, 7, 0.30f, 1.0f },   // 17 Diesel Fuel: 4x12 straight, Heavy Tight
+        { 4, 15, 6, 0.30f, 1.0f },   // 18 Wreck Stack: 4x12 straight, Heavy Bright
+        { 4,  8, 6, 0.30f, 1.0f },   // 19 Power Brawl: 4x12 straight, Tight Ceramic
+        { 3, 11, 1, 0.30f, 1.0f },   // 20 Stolen Fire: 4x12 closed, Smooth Lead
+        { 3,  6, 1, 0.30f, 1.0f },   // 21 Hi-Wat Headroom: 4x12 closed, Hi-Fi Full
+        { 16, 44, 5, 0.30f, 1.0f },  // 22 Console DI: no cabinet, flat reference
+        { 5,  1, 1, 0.30f, 1.0f },   // 23 Plex Appeal: 4x12 angled, Vintage Crunch
+        { 3,  9, 1, 0.30f, 1.0f },   // 24 Matt's Amp: 4x12 closed, Dark Thump
+        { 3, 12, 1, 0.30f, 1.0f },   // 25 Marmalade: 4x12 closed, Mid Forward
+        { 4, 16, 6, 0.30f, 1.0f },   // 26 Eclipse: 4x12 straight, Heavy Tight
+        { 7, 12, 1, 0.30f, 1.0f },   // 27 Marque Five: oversized 4x12 (ported), Mid Forward
+        { 1,  4, 2, 0.30f, 1.5f },   // 28 Dual Thirty: 2x12 open back, Chimey Alnico
+        { 3,  7, 0, 0.30f, 1.0f },   // 29 Solid Metal: 4x12 closed, Modern Scoop
+        { 0,  5, 1, 0.35f, 1.5f },   // 30 Cedar Spring: 1x12 open back, Vintage American
+        { 1, 13, 11, 0.30f, 2.0f },  // 31 Triple Blend: 2x12 open back, Studio Standard, dynamic + ribbon blend
+        { 9,  3, 3, 0.40f, 2.0f },   // 32 Jazz Box: 1x12 closed, Smooth Vintage, ribbon
+        { 1,  1, 1, 0.30f, 1.5f },   // 33 Brit Eighteen: 2x12 open back, Vintage Crunch
+        { 12, 49, 1, 0.30f, 1.5f },  // 34 Tweedle Dum: 4x10 closed, Jensen-Style Ten
+        { 9, 12, 1, 0.30f, 1.0f },   // 35 Marque One: 1x12 closed, Mid Forward
+        { 13, 48, 1, 0.30f, 1.5f },  // 36 Cedar Grand: 1x15 closed, Big Fifteen
+        { 12, 49, 2, 0.30f, 1.5f },  // 37 Cedar Ten: 4x10 closed, Jensen-Style Ten
+        { 5,  1, 1, 0.30f, 1.0f },   // 38 Brit Forty-Five: 4x12 angled, Vintage Crunch
+        { 14, 50, 1, 0.30f, 1.5f },  // 39 Tweedle Mini: 1x8 small, Paper Eight
+        { 5,  2, 0, 0.30f, 1.0f },   // 40 Jubilant: 4x12 angled, Rock Bite
+        { 4, 44, 1, 0.35f, 1.0f },   // 41 Clarion: 4x12 straight, Ideal Reference (neutral, so the amp's own voicing shows)
+        { 16, 47, 5, 0.0f, 0.5f },   // 42 Prism: speaker only, Ideal Wide Open, flat mic, cap centre, close: measured within about 2.5 dB of the cab-off sound up to 8 kHz (3 dB down at 10 kHz)
+        { 3, 59, 1, 0.30f, 1.0f },   // 43 Ember: 4x12 closed, Ideal Defined (b80; it was Rock Bite, which has a 5 dB hump at 3 kHz; a first guess, not measured)
+        { 3, 59, 1, 0.30f, 1.0f },   // 44 Kindle: 4x12 closed, Ideal Defined (the idealized speaker; a first guess, not measured)
+        { 5, 1, 1, 0.30f, 1.0f }     // 45 Ironside: 4x12 angled with the same speaker and mic as the Plexi-style amp (a first guess, not measured)
+    };
+}
+
+int StarterAmpProcessor::suggestedCabAmp() const
+{
+    const bool aOn = apvts.getRawParameterValue ("ampAOn")->load() > 0.5f;
+    return aOn ? (int) apvts.getRawParameterValue ("ampModel")->load()
+               : ampBModelValue ((int) apvts.getRawParameterValue ("ampBModel")->load());
+}
+
+juce::String StarterAmpProcessor::suggestedCabText (int model)
+{
+    if (model < 0 || model > 45 || model == 5) return {};
+    const auto& r = SuggestedCab::rows[model];
+    return cabbuilder::cabinetNames()[r.cabinet] + ", " + cabbuilder::speakerNames()[r.speaker] + ", " + cabbuilder::micNames()[r.mic];
+}
+
+// Sets cab block A to the built-in model that suits the amp that is playing (Amp A when it is on, otherwise Amp B). Only block A changes; blocks B to D, the room and the
+// shared cab controls stay as they are. If block A held an IR file, it now uses the built-in model (load the file again from the block to go back). Returns the text, or empty if there is no suggestion.
+juce::String StarterAmpProcessor::applySuggestedCab()
+{
+    const int model = suggestedCabAmp();
+    const auto text = suggestedCabText (model);
+    if (text.isEmpty()) return {};
+    const auto& r = SuggestedCab::rows[model];
+    const auto s = cabLetter (0);
+    setParamValue ("cabOn", 1.0f);
+    setParamValue (("cabOn" + s).toRawUTF8(), 1.0f);
+    setParamValue (("cabSrc" + s).toRawUTF8(), 0.0f);
+    setParamValue (("cabCbn" + s).toRawUTF8(), (float) r.cabinet);
+    setParamValue (("cabSpk" + s).toRawUTF8(), (float) r.speaker);
+    setParamValue (("cabMic" + s).toRawUTF8(), (float) r.mic);
+    setParamValue (("cabPos" + s).toRawUTF8(), r.pos);
+    setParamValue (("cabDist" + s).toRawUTF8(), r.dist);
+    setParamValue (("cabAng" + s).toRawUTF8(), 0.0f);
+    return text;
+}
+
+
 double StarterAmpProcessor::builtinCabResponseDb (int speaker, int mic, int cabinet, float position, float distanceIn, float angleDeg, bool realistic, double hz)
 {
     cabbuilder::Params p;
@@ -10216,6 +11169,60 @@ void StarterAmpProcessor::timerCallback()
 {
     if (asyncWanted.exchange (false))
         handleAsyncUpdate();
+    syncBoardToControls();
+}
+
+// b115. The board is the truth for where a pedal sits, but two things used to leave it behind the controls until RESET BOARD was pressed:
+//  - a Mod FX Position menu changed by anything but the editor's own menu click (host automation, a MIDI mapping, a preset) moved the menu and not the board;
+//  - a pedal taken off the board and then switched on from its own page had no cables, so it stayed silent.
+// Both are caught here, a few times a second, on the message thread.
+void StarterAmpProcessor::syncBoardToControls()
+{
+    static const int slots[4] = { 6, 7, 24, 25 };
+    static const char* const ids[4] = { "mfAPos", "mfBPos", "mfCPos", "mfDPos" };
+    int menu[4];
+    for (int k = 0; k < 4; ++k)
+    {
+        auto* prm = apvts.getRawParameterValue (ids[k]);
+        menu[k] = prm != nullptr ? juce::jlimit (0, 2, (int) std::lround (prm->load())) : 0;
+    }
+    unsigned onMask = 0;
+    for (int b = 0; b < PatchGraph::kPedals; ++b)
+        if (PatchGraph::isPedal (b) && fxBlockOn (b)) onMask |= 1u << b;
+    const unsigned ver = pgVersion.load (std::memory_order_acquire);
+    if (! boardSyncInit)                       // first look: the saved board and menus agree, nothing to do
+    {
+        boardSyncInit = true;
+        for (int k = 0; k < 4; ++k) boardLastMenu[k] = menu[k];
+        boardLastOn = 0;                       // look at the pedals that are on once, in case the session was saved with one unplugged
+        boardLastVer = ver;
+    }
+    bool menuMoved = false;
+    for (int k = 0; k < 4; ++k) menuMoved = menuMoved || menu[k] != boardLastMenu[k];
+    if (! menuMoved && onMask == boardLastOn && ver == boardLastVer)
+        return;
+
+    auto d = getPatch();
+    bool changed = false;
+    for (int k = 0; k < 4; ++k)
+        if (menu[k] != boardLastMenu[k] && PatchGraph::laneOf (d, slots[k]) != menu[k]
+            && (PatchGraph::cableCountOf (d, slots[k]) > 0 || (onMask & (1u << slots[k])) != 0))
+            changed = PatchGraph::placeNear (d, slots[k], menu[k]) || changed;
+    for (int b = 0; b < PatchGraph::kPedals; ++b)
+        if ((onMask & (1u << b)) != 0 && PatchGraph::cableCountOf (d, b) == 0)
+        {
+            int lane = PatchGraph::homeBeforeAmp (b) ? 0 : 1;
+            for (int k = 0; k < 4; ++k) if (slots[k] == b) lane = menu[k];
+            changed = PatchGraph::placeNear (d, b, lane) || changed;
+        }
+    if (changed) setPatch (d);                 // this also moves the Position menus to where the slots now sit
+    for (int k = 0; k < 4; ++k)
+    {
+        auto* prm = apvts.getRawParameterValue (ids[k]);
+        boardLastMenu[k] = prm != nullptr ? juce::jlimit (0, 2, (int) std::lround (prm->load())) : 0;
+    }
+    boardLastOn = onMask;
+    boardLastVer = pgVersion.load (std::memory_order_acquire);
 }
 
 void StarterAmpProcessor::handleAsyncUpdate()
@@ -10231,7 +11238,7 @@ void StarterAmpProcessor::handleAsyncUpdate()
 
     rebuildIrReverb();
     if (latencyDirty.exchange (false))
-        setLatencySamples (osLatencySamples());
+        setLatencySamples (reportedLatency());
 
     if (namDirty.exchange (false))
         reloadNamFromState();
@@ -10408,8 +11415,8 @@ juce::StringArray StarterAmpProcessor::factoryPresetTags (int index)
                 return preset.entries[i].value;
         return fallback;
     };
-    static const char* const ampTags[41] = { "Clean", "Clean", "Crunch", "Lead", "High Gain", "Acoustic", "Club Crunch", "Lead", "High Gain", "Crunch", "Clean", "Lead", "High Gain", "High Gain", "High Gain", "Club Crunch", "Lead", "High Gain", "High Gain", "High Gain", "High Gain", "Clean", "Clean", "Club Crunch", "High Gain", "Crunch", "High Gain", "Crunch", "Crunch", "High Gain", "Clean", "Clean", "Clean", "Crunch", "Crunch", "Lead", "Clean", "Clean", "Crunch", "Clean", "Crunch" };      // b66: Tweedle Dum, Marque One, Cedar Grand, Cedar Ten, Brit Forty-Five, Tweedle Mini, Jubilant
-    const int model = juce::jlimit (0, 40, (int) std::lround (get ("ampModel", 0.0f)));
+    static const char* const ampTags[46] = { "Clean", "Clean", "Crunch", "Lead", "High Gain", "Acoustic", "Club Crunch", "Lead", "High Gain", "Crunch", "Clean", "Lead", "High Gain", "High Gain", "High Gain", "Club Crunch", "Lead", "High Gain", "High Gain", "High Gain", "High Gain", "Clean", "Clean", "Club Crunch", "High Gain", "Crunch", "High Gain", "Crunch", "Crunch", "High Gain", "Clean", "Clean", "Clean", "Crunch", "Crunch", "Lead", "Clean", "Clean", "Crunch", "Clean", "Crunch", "High Gain", "Clean", "Lead", "Crunch", "Crunch" };      // b69: Clarion; b66: Tweedle Dum, Marque One, Cedar Grand, Cedar Ten, Brit Forty-Five, Tweedle Mini, Jubilant
+    const int model = juce::jlimit (0, 45, (int) std::lround (get ("ampModel", 0.0f)));
     tags.addIfNotAlreadyThere (ampTags[model]);
     if (get ("fuzzOn", 0.0f) > 0.5f || get ("fuzz2On", 0.0f) > 0.5f)   tags.add ("Fuzz");
     if (get ("wahOn", 0.0f) > 0.5f)    tags.add ("Wah");

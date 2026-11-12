@@ -1,0 +1,53 @@
+fitcapture: Valvestate 8100 preamp
+  capture: 86357c32-Marshall_Valvestate_8100_PreAmp (Marshall Valvstate 8100 Marshall Valvstate 8100), SlimmableContainer (largest size), 12146 parameters, 48.0 kHz
+  candidates: 5 amp/voicing combinations x 5 Gain settings (0.2 to 0.8), pedals/cab/effects off, auto level off
+  library: measuring 25 of 25 candidate runs (2 processes)
+  library: done in 23 s wall, 37 s CPU
+  measuring the capture at 33 input levels...
+  capture measured in 74 s
+  refining the Gain of 4 candidates between the library settings... 31 extra runs, 60 s
+
+Capture curve (what the amps are compared with):
+  input level (dB rms)           -50     -42     -34     -26     -18     -10
+  output level (dB rms)        -23.3   -22.7   -22.0   -21.4   -21.2   -21.0
+  H2 re fundamental (dB)       -43.3   -37.5   -33.2   -33.5   -31.1   -29.7
+  H3 re fundamental (dB)       -21.4   -21.4   -20.1   -20.3   -20.5   -20.9
+  octave bands re 1 kHz (dB, at -26 dB in): 63 Hz -9.2, 125 Hz +6.9, 250 Hz +8.2, 500 Hz -1.6, 1 kHz +0.0, 2 kHz +12.5, 4 kHz +7.9, 8 kHz +2.3
+  gain slope (dB out per dB in): 0.08 low, 0.03 high
+
+Ranking: weighted error = (3 x gain + 2 x H2 + 2 x H3 + 1 x band) / 8, all in dB; best of the five Gain settings for each amp and voicing
+  gain = RMS error of the output-level-vs-input-level curve after removing a constant output offset (the capture's loudness is arbitrary)
+  H2/H3 = RMS error of the 2nd/3rd harmonic re fundamental; band = RMS error of the octave-band shape after removing overall level
+
+   #  amp                        voic  Gain  score |  gain    H2    H3  band | out trim |  shift score*
+   1  Solid Metal                V5    0.80   3.42 |  0.79  3.33  6.95  4.42 |  -15.0  |    -8    2.86
+   2  Solid Metal                V1    0.63   3.75 |  0.58  6.53  4.90  5.38 |  -13.1  |   -12    3.02
+   3  Solid Metal                V2    0.89   4.50 |  0.66  6.55  7.77  5.34 |  -16.7  |   -12    3.76
+   4  Solid Metal                V4    0.69   4.79 |  1.31  5.76  8.15  6.58 |  -12.9  |   -12    4.22
+   5  Solid Metal                V3    0.50   5.82 |  1.35 11.39  6.65  6.38 |  -10.7  |   +10    5.27
+  (out trim = dB to add to the amp's output to match the capture's level; shift* = input level offset in dB that gives the best score*, positive = the
+   amp needs that much more drive than its Gain setting provides; score* = score at that shift and Gain)
+
+Best fits if the capture's drive were a free choice (level offset allowed on top of the Gain settings):
+  1  Solid Metal                V5  Gain 0.65, input offset  -8 dB: score 2.86 (gain 1.03, H2 3.63, H3 3.96, band 4.63)
+  2  Solid Metal                V1  Gain 0.61, input offset -12 dB: score 3.02 (gain 1.45, H2 3.50, H3 4.01, band 4.78)
+  3  Solid Metal                V2  Gain 0.89, input offset -12 dB: score 3.76 (gain 1.58, H2 3.44, H3 6.94, band 4.61)
+  4  Solid Metal                V4  Gain 0.69, input offset -12 dB: score 4.22 (gain 1.68, H2 4.27, H3 7.34, band 5.51)
+  5  Solid Metal                V3  Gain 0.50, input offset +10 dB: score 5.27 (gain 0.82, H2 10.00, H3 6.78, band 6.15)
+
+Best match Solid Metal V5 at Gain 0.80, level-matched (output -15.0 dB):
+  input level (dB rms)           -50     -42     -34     -26     -18     -10
+  capture output               -23.3   -22.7   -22.0   -21.4   -21.2   -21.0
+  amp output (+trim)           -22.0   -21.9   -22.0   -21.9   -21.9   -21.9
+  capture H2 / H3            -43/-21 -37/-21 -33/-20 -34/-20 -31/-20 -30/-21
+  amp H2 / H3                -38/-13 -35/-14 -31/-14 -30/-14 -32/-14 -33/-14
+  gain slope: capture 0.08 low, 0.03 high; amp 0.00 low, 0.00 high
+
+VERDICT: no existing amp within tolerance: a new amp or voicing may be justified.
+  Closest: Solid Metal V5 at Gain 0.80 (gain error 0.8 dB, H2 3.3 dB, H3 7.0 dB, band shape 4.4 dB). Tolerance: gain < 2 dB, H2 and H3 < 3 dB.
+  What is off in the closest match:
+    harmonics (H2 error 3.3 dB, H3 error 7.0 dB): on average the capture's H2 is -1.7 dB and its H3 -6.9 dB against the amp. Different even/odd balance: the capture is more even-order (asymmetric clipping, warmer) than the amp.
+    tone (4.4 dB band-shape error): 63 Hz +3.4 dB  500 Hz -7.0 dB  1 kHz -4.7 dB  2 kHz +6.6 dB  4 kHz +4.5 dB  (capture minus amp). Tone differences matter less than the gain and harmonic components above.
+  Even with a free input-level offset no amp gets within tolerance (best: Solid Metal V5, offset -8 dB, gain 1.0, H2 3.6, H3 4.0): the character differs, not just the amount of gain.
+wrote vs.csv
+total time 158 s

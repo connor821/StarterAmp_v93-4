@@ -48,9 +48,22 @@ namespace NamLite
     public:
         static constexpr int kBlock = 512;                          // the most samples process() takes at once
         virtual ~Network() = default;
-        virtual void reset() = 0;                                   // forget the signal history (and warm up)
+        virtual void clearState() = 0;                              // b102: forget the signal history, without warming up (no allocation, no processing)
         virtual void process (const float* in, float* out, int n) = 0;   // n <= kBlock; in and out may be the same buffer
         virtual int  warmUpSamples() const = 0;
+        virtual void reset() { clearState();  warmChunk (warmUpSamples()); }   // forget the signal history and warm up
+        // b102: feeds 'samples' of silence through the network so it settles; uses scratch buffers made with the network, so it never allocates.
+        // reset() used to make two vectors on every call, which on the audio thread (the stereo pedal slot's second player) was a heap allocation.
+        void warmChunk (int samples)
+        {
+            for (int done = 0; done < samples; done += kBlock)
+            {
+                std::fill (zeroScratch.begin(), zeroScratch.end(), 0.0f);
+                process (zeroScratch.data(), sinkScratch.data(), std::min (kBlock, samples - done));
+            }
+        }
+    private:
+        std::vector<float> zeroScratch = std::vector<float> ((size_t) kBlock, 0.0f), sinkScratch = std::vector<float> ((size_t) kBlock, 0.0f);
     };
 
     //==========================================================================
@@ -128,12 +141,9 @@ namespace NamLite
             return true;
         }
 
-        void reset() override
+        void clearState() override
         {
             for (auto& ar : arrays) for (auto& L : ar.layers) std::fill (L.xin.begin(), L.xin.end(), 0.0f);
-            std::vector<float> zeros ((size_t) kBlock, 0.0f), sink ((size_t) kBlock);
-            for (int done = 0; done < warmUpSamples(); done += kBlock)
-                process (zeros.data(), sink.data(), kBlock);
         }
         int warmUpSamples() const override { return receptive + 64; }
 
@@ -306,11 +316,9 @@ namespace NamLite
             if (pos != w.size()) { error = "the file has more weights than the model uses"; return false; }
             return true;
         }
-        void reset() override
+        void clearState() override
         {
             for (auto& c : cells) { c.h = c.h0; c.c = c.c0; }
-            std::vector<float> zeros ((size_t) kBlock, 0.0f), sink ((size_t) kBlock);
-            for (int done = 0; done < warmUpSamples(); done += kBlock) process (zeros.data(), sink.data(), kBlock);
         }
         int warmUpSamples() const override { return 24000; }
 
@@ -402,12 +410,10 @@ namespace NamLite
             for (auto& L : layers) receptive += L.hist;
             return true;
         }
-        void reset() override
+        void clearState() override
         {
             for (auto& L : layers) std::fill (L.xin.begin(), L.xin.end(), 0.0f);
             std::fill (headIn.begin(), headIn.end(), 0.0f);
-            std::vector<float> zeros ((size_t) kBlock, 0.0f), sink ((size_t) kBlock);
-            for (int done = 0; done < warmUpSamples(); done += kBlock) process (zeros.data(), sink.data(), kBlock);
         }
         int warmUpSamples() const override { return receptive + 64; }
         void process (const float* in, float* out, int n) override
@@ -497,6 +503,7 @@ namespace NamLite
     {
     public:
         std::vector<std::unique_ptr<Network>> nets;
+        void clearState() override { if (! nets.empty()) nets.back()->clearState(); }
         void reset() override { if (! nets.empty()) nets.back()->reset(); }
         int warmUpSamples() const override { return nets.empty() ? 0 : nets.back()->warmUpSamples(); }
         void process (const float* in, float* out, int n) override { nets.back()->process (in, out, n); }
@@ -629,6 +636,10 @@ namespace NamLite
                     else { error = "This model uses an activation (\"" + type + "\") that this plugin does not support."; return nullptr; }
                     specs.push_back (sp);
                 }
+                if (n > 256) { error = "The A2 model has too many layers."; return nullptr; }
+                {   int64_t receptiveSum = 0, bytes = 0;      // b102: the same memory limit as above (channels are checked just below, so use the largest allowed here)
+                    for (auto& sp : specs) { const int64_t h = (int64_t) (sp.K - 1) * sp.D;  receptiveSum += h;  bytes += (int64_t) 256 * (h + Network::kBlock) * 4; }
+                    if (receptiveSum > (1 << 20) || bytes > ((int64_t) 512 << 20)) { error = "The A2 model is larger than this plugin accepts."; return nullptr; } }
                 const auto head = L0.getProperty ("head", {});
                 const int ch = (int) L0.getProperty ("channels", 0), bn = (int) L0.getProperty ("bottleneck", ch);
                 const int hk = head.isObject() ? (int) head.getProperty ("kernel_size", 1) : 1;
@@ -667,7 +678,7 @@ namespace NamLite
                 s.gated     = (bool) L.getProperty ("gated", false);
                 s.headBias  = (bool) L.getProperty ("head_bias", false);
                 const auto dil = L.getProperty ("dilations", {});
-                if (! dil.isArray() || dil.size() == 0 || s.inputSize < 1 || s.condSize != 1 || s.headSize < 1 || s.channels < 1 || s.kernel < 1 || s.channels > 256)
+                if (! dil.isArray() || dil.size() == 0 || dil.size() > 64 || s.inputSize < 1 || s.condSize != 1 || s.headSize < 1 || s.channels < 1 || s.kernel < 1 || s.kernel > 64 || s.channels > 256)       // b102: kernel and dilation-count limits (the kernel had none, and (kernel - 1) * dilation is computed in int)
                 { error = "The WaveNet layer settings are not valid."; return nullptr; }
                 for (int d = 0; d < dil.size(); ++d)
                 {
@@ -681,6 +692,12 @@ namespace NamLite
                 else if (act == "Sigmoid") s.act = WaveNet::Act::Sigmoid;
                 else { error = "This model uses an activation (\"" + act + "\") that this plugin does not support."; return nullptr; }
                 specs.push_back (std::move (s));
+            }
+            if (layers.size() > 16) { error = "The WaveNet model has too many layer arrays."; return nullptr; }
+            {   // b102: the history each layer keeps is (kernel - 1) * dilation samples per channel; refuse models whose total would need an absurd amount of memory or time to settle
+                int64_t receptiveSum = 0, bytes = 0;
+                for (auto& sp : specs) for (int dv : sp.dilations) { const int64_t h = (int64_t) (sp.kernel - 1) * dv;  receptiveSum += h;  bytes += (int64_t) sp.channels * (h + Network::kBlock) * 4; }
+                if (receptiveSum > (1 << 20) || bytes > ((int64_t) 256 << 20)) { error = "The WaveNet model is larger than this plugin accepts."; return nullptr; }
             }
             auto net = std::make_unique<WaveNet>();
             if (! net->build (specs, weights, error)) { error = "The model file is damaged or unsupported: " + error + "."; return nullptr; }
@@ -801,6 +818,7 @@ namespace NamLite
         // Back to the start: the model's own state and the rate converters' history
         void reset()
         {
+            stale = false;  warmLeft = 0;
             model->net->reset();
             if (convert)
             {
@@ -809,6 +827,23 @@ namespace NamLite
                 fifoCount = leadIn;
             }
         }
+        // b102: re-warming without a long stall. reset() settles the network with up to 24,000 samples of silence in one call, which is fine on the message thread
+        // but not on the audio thread (the stereo pedal slot's second player is re-cleared when Dual is switched on again). beginRewarm() clears the state at
+        // once (no allocation); rewarmStep() then settles it a few hundred samples per block. 'stale' says the player has processed audio since it was last settled.
+        bool isStale() const { return stale; }
+        void beginRewarm()
+        {
+            model->net->clearState();
+            if (convert) { down.reset();  up.reset();  std::fill (fifo.begin(), fifo.end(), 0.0f);  fifoCount = leadIn; }
+            warmLeft = model->net->warmUpSamples();  stale = true;
+        }
+        bool rewarmStep (int budget)      // true when the player is settled
+        {
+            const int n = std::min (budget, warmLeft);
+            if (n > 0) { model->net->warmChunk (n);  warmLeft -= n; }
+            if (warmLeft <= 0) stale = false;
+            return warmLeft <= 0;
+        }
         const Info& info() const { return model->info; }
         bool resampling() const { return convert; }
         // Extra delay in host samples added by the sample rate conversion (zero when the rates match).
@@ -816,6 +851,7 @@ namespace NamLite
 
         void process (float* x, int n)
         {
+            stale = true;
             if (! convert)
             {
                 for (int p = 0; p < n; p += Network::kBlock)
@@ -848,7 +884,7 @@ namespace NamLite
         Resampler down, up;
         std::vector<float> low, outModel, fifo, tmpUp;
         double modelRate = 48000.0;
-        int maxHost = 0, fifoCount = 0, leadIn = 0;
-        bool convert = false;
+        int maxHost = 0, fifoCount = 0, leadIn = 0, warmLeft = 0;
+        bool convert = false, stale = false;
     };
 }

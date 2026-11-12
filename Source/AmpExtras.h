@@ -13,11 +13,14 @@ namespace AmpExtras
         static const Item t[] =
         {
             { 30, "Boost" },                    // Cedar Spring: b63 added Quad Ten here; b67 moved it to Cedar Ten (as the original, voicing 104) and put the silverface Volume Boost here
-            { 11, "IV Lead" },                  // Marque Dream: b65 added Mark I here; b67 moved it to Marque One (as the original, voicing 104) and put the Mark IV lead channel here
-            { 12, "Model T" },                  // b65 Citrus Doom: the 1970s 200 W bass head, symmetric and feedback-tamed
-            { 24, "Clean 100" },                // b65 Matt's Amp: the low-gain, dark clean-to-crunch end of the Matamp captures
+            { 11, "Late Lead" },                  // Marque Dream: b65 added Mark I here; b67 moved it to Marque One (as the original, voicing 104) and put the Mark IV lead channel here
+            { 12, "Bass Stack 200" },                  // b65 Citrus Doom: the 1970s 200 W bass head, symmetric and feedback-tamed
+            { 24, "Clean 100" },                // b65 Matt's Amp: the low-gain, dark clean-to-crunch end of the captures
             { 24, "Tight Voice" },              // b65 Matt's Amp: the 100 W head's high bass-cut selector positions
             { 3, "Clean" },                     // b66 Slow Burn: the SLO-100's Clean channel (two low-gain stages with an unbypassed cathode, Crunch/Clean divider, clean master)
+            { 29, "Hybrid + JFET" },            // b84 Solid Metal: a designed blend of the op-amp / LED / 12AX7 hybrid head and the all-JFET head
+            { 8, "Vitriol" },                   // b88 5555 Block: fitted to the user's captures of a 120 W three-gain-stage head (clean-ish at the bottom of the Gain knob, fully saturated by the middle, open top end); measured, not listened to
+            { 41, "Cascade" },                  // b89 Clarion: the Kraken-style pedal's clipping idea (lows cut harder before the early clippers than the late one); designed from a clone schematic, not fitted to a capture
         };
         n = (int) (sizeof (t) / sizeof (t[0]));
         return t;

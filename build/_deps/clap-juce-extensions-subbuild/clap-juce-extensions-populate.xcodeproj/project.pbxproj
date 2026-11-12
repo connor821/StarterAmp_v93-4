@@ -1,0 +1,639 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXAggregateTarget section */
+		2ED82B1311BA8A78D86B5D9B /* clap-juce-extensions-populate */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = B9FB5FF1490141F088C06001 /* Build configuration list for PBXAggregateTarget "clap-juce-extensions-populate" */;
+			buildPhases = (
+				E0F4136A28A5A6E9C758B53B /* Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-mkdir */,
+				1D1256F2B4CEC3017CD6F76E /* Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-download */,
+				2C1E470EFCCFAF1ADE842B34 /* Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-update */,
+				F28111B66544C18D65BD3A91 /* Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-patch */,
+				D2518E5689C80F320043777C /* Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-configure */,
+				10A63FDBB34504F01EEFF85F /* Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-build */,
+				56AC39283CE255B77D728F39 /* Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-install */,
+				3435D04D1E169876C31724D6 /* Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-test */,
+				38B28AD2CA62080F5FEA4903 /* Generate CMakeFiles/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-complete */,
+				FF14261E007E4F2E02FE1625 /* Generate CMakeFiles/clap-juce-extensions-populate */,
+			);
+			dependencies = (
+				E60AD7579EEF4BE785C0D4CB /* PBXTargetDependency */,
+			);
+			name = "clap-juce-extensions-populate";
+			productName = "clap-juce-extensions-populate";
+		};
+		A5FA3AAABC25CD45F2D32646 /* ZERO_CHECK */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = 46066B7EF1F84D5DB3EC0FDA /* Build configuration list for PBXAggregateTarget "ZERO_CHECK" */;
+			buildPhases = (
+				DCB83FFE61554D581F956947 /* Generate CMakeFiles/ZERO_CHECK */,
+			);
+			dependencies = (
+			);
+			name = ZERO_CHECK;
+			productName = ZERO_CHECK;
+		};
+		ED11D62F222E27F484A5B8B8 /* ALL_BUILD */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = 14E5E0BF36C44CD9A46A3F8B /* Build configuration list for PBXAggregateTarget "ALL_BUILD" */;
+			buildPhases = (
+				C367EDDD0303DC935C006960 /* Generate CMakeFiles/ALL_BUILD */,
+			);
+			dependencies = (
+				07570806DDA84C54B67B4D4B /* PBXTargetDependency */,
+				2BD00957ADDC462E8C3B1200 /* PBXTargetDependency */,
+			);
+			name = ALL_BUILD;
+			productName = ALL_BUILD;
+		};
+/* End PBXAggregateTarget section */
+
+/* Begin PBXBuildStyle section */
+		9A6D8E7A52D44EC8BA1B00C4 /* Debug */ = {
+			isa = PBXBuildStyle;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+			};
+			name = Debug;
+		};
+/* End PBXBuildStyle section */
+
+/* Begin PBXContainerItemProxy section */
+		470D995FCC45433F82553CAF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9D4E60399FFB4C4296AC4BF5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A5FA3AAABC25CD45F2D32646;
+			remoteInfo = ZERO_CHECK;
+		};
+		77795E488E3D48C2948914AA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9D4E60399FFB4C4296AC4BF5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A5FA3AAABC25CD45F2D32646;
+			remoteInfo = ZERO_CHECK;
+		};
+		B2E091F628D64FEEBFAA4A7F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9D4E60399FFB4C4296AC4BF5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2ED82B1311BA8A78D86B5D9B;
+			remoteInfo = "clap-juce-extensions-populate";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		B2EE0CE6D38644C4B5405599 /* /Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/CMakeLists.txt */ = {isa = PBXFileReference; explicitFileType = sourcecode.text; fileEncoding = 4; name = CMakeLists.txt; path = CMakeLists.txt; sourceTree = SOURCE_ROOT; };
+		F1D6D2B244054724BBC5A2E9 /* /Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/CMakeLists.txt */ = {isa = PBXFileReference; explicitFileType = sourcecode.text; fileEncoding = 4; name = CMakeLists.txt; path = CMakeLists.txt; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		069B0433A473431189FD64C9 = {
+			isa = PBXGroup;
+			children = (
+				2D5FC18543FB4125AFE0EF9F /* ALL_BUILD */,
+				FE3BF867EB6143EB8EF24151 /* ExternalProjectTargets */,
+				1EFDFC020CBA46A8A0623981 /* Products */,
+				AAA43F1F998E4F259635F689 /* Frameworks */,
+				ED3D178D404A4F77817634D6 /* Resources */,
+			);
+			sourceTree = "<group>";
+		};
+		1EFDFC020CBA46A8A0623981 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		2D5FC18543FB4125AFE0EF9F /* ALL_BUILD */ = {
+			isa = PBXGroup;
+			children = (
+				617B83313D8442A8A2C0D98A /* CMake Rules */,
+				F1D6D2B244054724BBC5A2E9 /* /Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/CMakeLists.txt */,
+			);
+			name = ALL_BUILD;
+			sourceTree = "<group>";
+		};
+		617B83313D8442A8A2C0D98A /* CMake Rules */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = "CMake Rules";
+			sourceTree = "<group>";
+		};
+		654C82EF0D4043BA80421DC6 /* clap-juce-extensions-populate */ = {
+			isa = PBXGroup;
+			children = (
+				8B3F64D825514B35A6EF0725 /* CMake Rules */,
+				B2EE0CE6D38644C4B5405599 /* /Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/CMakeLists.txt */,
+			);
+			name = "clap-juce-extensions-populate";
+			sourceTree = "<group>";
+		};
+		74740890BC9C4D5D8294696C /* clap-juce-extensions-populate */ = {
+			isa = PBXGroup;
+			children = (
+				654C82EF0D4043BA80421DC6 /* clap-juce-extensions-populate */,
+			);
+			name = "clap-juce-extensions-populate";
+			sourceTree = "<group>";
+		};
+		8B3F64D825514B35A6EF0725 /* CMake Rules */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = "CMake Rules";
+			sourceTree = "<group>";
+		};
+		AAA43F1F998E4F259635F689 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		ED3D178D404A4F77817634D6 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Resources;
+			sourceTree = "<group>";
+		};
+		FE3BF867EB6143EB8EF24151 /* ExternalProjectTargets */ = {
+			isa = PBXGroup;
+			children = (
+				74740890BC9C4D5D8294696C /* clap-juce-extensions-populate */,
+			);
+			name = ExternalProjectTargets;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXProject section */
+		9D4E60399FFB4C4296AC4BF5 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2700;
+			};
+			buildConfigurationList = EA9C8C9EB1E94D6998B5E973 /* Build configuration list for PBXProject "clap-juce-extensions-populate" */;
+			buildSettings = {
+			};
+			buildStyles = (
+				9A6D8E7A52D44EC8BA1B00C4 /* Debug */,
+			);
+			compatibilityVersion = "Xcode 3.2";
+			hasScannedForEncodings = 0;
+			mainGroup = 069B0433A473431189FD64C9;
+			projectDirPath = .;
+			projectRoot = "";
+			targets = (
+				ED11D62F222E27F484A5B8B8 /* ALL_BUILD */,
+				2ED82B1311BA8A78D86B5D9B /* clap-juce-extensions-populate */,
+				A5FA3AAABC25CD45F2D32646 /* ZERO_CHECK */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		10A63FDBB34504F01EEFF85F /* Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-build */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-configure"			);
+			name = "Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-build";
+			outputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-build"			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e
+if test \"$CONFIGURATION\" = \"Debug\"; then :
+  cd \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-build\"
+  /opt/homebrew/bin/cmake -E echo_append
+  /opt/homebrew/bin/cmake -E touch \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$CONFIGURATION$EFFECTIVE_PLATFORM_NAME/clap-juce-extensions-populate-build\"
+fi
+";
+			showEnvVarsInLog = 0;
+		};
+		1D1256F2B4CEC3017CD6F76E /* Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-download */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-mkdir","/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/clap-juce-extensions-populate-gitinfo.txt"			);
+			name = "Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-download";
+			outputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-download"			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e
+if test \"$CONFIGURATION\" = \"Debug\"; then :
+  cd \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps\"
+  /opt/homebrew/bin/cmake -DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE -P \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/tmp/clap-juce-extensions-populate-gitclone.cmake\"
+  /opt/homebrew/bin/cmake -E touch \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$CONFIGURATION$EFFECTIVE_PLATFORM_NAME/clap-juce-extensions-populate-download\"
+fi
+";
+			showEnvVarsInLog = 0;
+		};
+		2C1E470EFCCFAF1ADE842B34 /* Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-update */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-download","/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/clap-juce-extensions-populate-update-info.txt","/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/tmp/clap-juce-extensions-populate-gitupdate.cmake"			);
+			name = "Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-update";
+			outputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-update"			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e
+if test \"$CONFIGURATION\" = \"Debug\"; then :
+  cd \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-src\"
+  /opt/homebrew/bin/cmake -Dcan_fetch=YES -DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE -P \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/tmp/clap-juce-extensions-populate-gitupdate.cmake\"
+fi
+";
+			showEnvVarsInLog = 0;
+		};
+		3435D04D1E169876C31724D6 /* Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-test */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-install"			);
+			name = "Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-test";
+			outputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-test"			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e
+if test \"$CONFIGURATION\" = \"Debug\"; then :
+  cd \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-build\"
+  /opt/homebrew/bin/cmake -E echo_append
+  /opt/homebrew/bin/cmake -E touch \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$CONFIGURATION$EFFECTIVE_PLATFORM_NAME/clap-juce-extensions-populate-test\"
+fi
+";
+			showEnvVarsInLog = 0;
+		};
+		38B28AD2CA62080F5FEA4903 /* Generate CMakeFiles/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-complete */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-build","/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-configure","/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-download","/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-install","/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-mkdir","/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-patch","/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-test","/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-update"			);
+			name = "Generate CMakeFiles/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-complete";
+			outputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/CMakeFiles/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-complete"			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e
+if test \"$CONFIGURATION\" = \"Debug\"; then :
+  cd \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild\"
+  /opt/homebrew/bin/cmake -E make_directory \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/CMakeFiles/$CONFIGURATION$EFFECTIVE_PLATFORM_NAME\"
+  /opt/homebrew/bin/cmake -E touch \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/CMakeFiles/$CONFIGURATION$EFFECTIVE_PLATFORM_NAME/clap-juce-extensions-populate-complete\"
+  /opt/homebrew/bin/cmake -E touch \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$CONFIGURATION$EFFECTIVE_PLATFORM_NAME/clap-juce-extensions-populate-done\"
+fi
+";
+			showEnvVarsInLog = 0;
+		};
+		3C0110FC8322DE7E50886E21 = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# shell script goes here
+exit 0";
+			showEnvVarsInLog = 0;
+		};
+		56AC39283CE255B77D728F39 /* Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-install */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-build"			);
+			name = "Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-install";
+			outputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-install"			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e
+if test \"$CONFIGURATION\" = \"Debug\"; then :
+  cd \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-build\"
+  /opt/homebrew/bin/cmake -E echo_append
+  /opt/homebrew/bin/cmake -E touch \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$CONFIGURATION$EFFECTIVE_PLATFORM_NAME/clap-juce-extensions-populate-install\"
+fi
+";
+			showEnvVarsInLog = 0;
+		};
+		73C7B3D1F3354810B48BDC00 = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# shell script goes here
+exit 0";
+			showEnvVarsInLog = 0;
+		};
+		9B50530E35CC49C82C2FACCF = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# shell script goes here
+exit 0";
+			showEnvVarsInLog = 0;
+		};
+		C367EDDD0303DC935C006960 /* Generate CMakeFiles/ALL_BUILD */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate CMakeFiles/ALL_BUILD";
+			outputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/CMakeFiles/ALL_BUILD"			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e
+if test \"$CONFIGURATION\" = \"Debug\"; then :
+  cd \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild\"
+  echo Build\\ all\\ projects
+fi
+";
+			showEnvVarsInLog = 0;
+		};
+		D2518E5689C80F320043777C /* Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-configure */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-patch","/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/tmp/clap-juce-extensions-populate-cfgcmd.txt"			);
+			name = "Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-configure";
+			outputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-configure"			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e
+if test \"$CONFIGURATION\" = \"Debug\"; then :
+  cd \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-build\"
+  /opt/homebrew/bin/cmake -E echo_append
+  /opt/homebrew/bin/cmake -E touch \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$CONFIGURATION$EFFECTIVE_PLATFORM_NAME/clap-juce-extensions-populate-configure\"
+fi
+";
+			showEnvVarsInLog = 0;
+		};
+		DCB83FFE61554D581F956947 /* Generate CMakeFiles/ZERO_CHECK */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate CMakeFiles/ZERO_CHECK";
+			outputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/CMakeFiles/ZERO_CHECK"			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e
+if test \"$CONFIGURATION\" = \"Debug\"; then :
+  cd \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild\"
+  make -f /Users/connor/Downloads/StarterAmp_v0.1\\ 22/build/_deps/clap-juce-extensions-subbuild/CMakeScripts/ReRunCMake.make
+fi
+";
+			showEnvVarsInLog = 0;
+		};
+		E0F4136A28A5A6E9C758B53B /* Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-mkdir */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-mkdir";
+			outputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-mkdir"			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e
+if test \"$CONFIGURATION\" = \"Debug\"; then :
+  cd \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild\"
+  /opt/homebrew/bin/cmake -Dcfgdir=/$CONFIGURATION$EFFECTIVE_PLATFORM_NAME -P \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/tmp/clap-juce-extensions-populate-mkdirs.cmake\"
+  /opt/homebrew/bin/cmake -E touch \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$CONFIGURATION$EFFECTIVE_PLATFORM_NAME/clap-juce-extensions-populate-mkdir\"
+fi
+";
+			showEnvVarsInLog = 0;
+		};
+		F28111B66544C18D65BD3A91 /* Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-patch */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-update","/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/clap-juce-extensions-populate-patch-info.txt"			);
+			name = "Generate clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-patch";
+			outputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-patch"			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e
+if test \"$CONFIGURATION\" = \"Debug\"; then :
+  cd \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild\"
+  /opt/homebrew/bin/cmake -E echo_append
+  /opt/homebrew/bin/cmake -E touch \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/clap-juce-extensions-populate-prefix/src/clap-juce-extensions-populate-stamp/$CONFIGURATION$EFFECTIVE_PLATFORM_NAME/clap-juce-extensions-populate-patch\"
+fi
+";
+			showEnvVarsInLog = 0;
+		};
+		FF14261E007E4F2E02FE1625 /* Generate CMakeFiles/clap-juce-extensions-populate */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/CMakeFiles/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/clap-juce-extensions-populate-complete"			);
+			name = "Generate CMakeFiles/clap-juce-extensions-populate";
+			outputPaths = (
+"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/CMakeFiles/clap-juce-extensions-populate"			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e
+if test \"$CONFIGURATION\" = \"Debug\"; then :
+  cd \"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild\"
+fi
+";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		07570806DDA84C54B67B4D4B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2ED82B1311BA8A78D86B5D9B /* clap-juce-extensions-populate */;
+			targetProxy = B2E091F628D64FEEBFAA4A7F /* PBXContainerItemProxy */;
+		};
+		2BD00957ADDC462E8C3B1200 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A5FA3AAABC25CD45F2D32646 /* ZERO_CHECK */;
+			targetProxy = 77795E488E3D48C2948914AA /* PBXContainerItemProxy */;
+		};
+		E60AD7579EEF4BE785C0D4CB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A5FA3AAABC25CD45F2D32646 /* ZERO_CHECK */;
+			targetProxy = 470D995FCC45433F82553CAF /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		2BA0EFB9D1C74CE29E07047F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64;
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				ONLY_ACTIVE_ARCH = NO;
+				OTHER_LDFLAGS = ("","$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = ALL_BUILD;
+				SECTORDER_FLAGS = "";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Debug;
+		};
+		306BF95531BF4789A1CDE0A5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64;
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				ONLY_ACTIVE_ARCH = NO;
+				OTHER_LDFLAGS = ("","$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = "clap-juce-extensions-populate";
+				SECTORDER_FLAGS = "";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Debug;
+		};
+		9D181A8A19D74C2986CAAC6A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64;
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				ONLY_ACTIVE_ARCH = NO;
+				OTHER_LDFLAGS = ("","$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = ZERO_CHECK;
+				SECTORDER_FLAGS = "";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Debug;
+		};
+		F80455308BA74B3BB3542CB2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				SDKROOT = "";
+				SYMROOT = "/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-subbuild/build";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		14E5E0BF36C44CD9A46A3F8B /* Build configuration list for PBXAggregateTarget "ALL_BUILD" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2BA0EFB9D1C74CE29E07047F /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		46066B7EF1F84D5DB3EC0FDA /* Build configuration list for PBXAggregateTarget "ZERO_CHECK" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9D181A8A19D74C2986CAAC6A /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B9FB5FF1490141F088C06001 /* Build configuration list for PBXAggregateTarget "clap-juce-extensions-populate" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				306BF95531BF4789A1CDE0A5 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		EA9C8C9EB1E94D6998B5E973 /* Build configuration list for PBXProject "clap-juce-extensions-populate" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F80455308BA74B3BB3542CB2 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 9D4E60399FFB4C4296AC4BF5 /* Project object */;
+}

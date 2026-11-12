@@ -15,6 +15,7 @@
 // All hand-built; the names describe the kind of sound, not any particular unit.
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 // b43: the LFO waves, shared by the Mod FX types and by the Phaser and Lo-Fi engines.
@@ -47,6 +48,9 @@ public:
         float rateHz = 0.5f, depth = 0.5f, feedback = 0.0f, manual = 0.5f, toneHz = 9000.0f, mix = 0.5f;
         float shiftHz = 7.0f;          // type 9: how far the feedback is shifted on each trip round the loop (Hz, + up, - down)
         float pick = 0.0f;             // b43: tremolo only: a harder pick makes the pulse shallower (the amp-style tremolo's Pick Response)
+        int   viVoice = 0;             // b75 vibrato only: 0 clean (as before), 1 VB-2 (BBD vibrato, Rise Time), 2 VB-2 Custom (adds a swept filter)
+        int   flVoice = 0;             // flanger only: 0 clean (as before), 1 Electric Mistress (BBD, swept clock), 2 Electric Mistress Filter Matrix (clock held still), 3 BBD long line (1024 stages, b86), 4 BBD short line (512 stages, b86)
+        float rise = 0.0f;             // b75 vibrato only: Rise Time 0..1 (0 = at once, 1 = about 1.2 s after each pick)
         float fidelity = 1.0f;         // v97: 1 = clean; lower rolls off lows and highs and adds a little saturation (worn tape / cassette)
     };
 
@@ -77,6 +81,8 @@ public:
         }
         stWasIn = false;
         phase = 0.0f;  lamp = 0.0f;  pickEnv = 0.0f;  fLp[0] = fLp[1] = fHp[0] = fHp[1] = 0.0f;
+        emLp[0][0] = emLp[0][1] = emLp[0][2] = emLp[1][0] = emLp[1][1] = emLp[1][2] = 0.0f;
+        viFast = viSlow = 0.0f;  viRamp = 1.0f;  viLp[0] = viLp[1] = viTone[0] = viTone[1] = 0.0f;
         hornRate = drumRate = 0.0f;
         hornPhase = drumPhase = 0.0f;
     }
@@ -127,6 +133,8 @@ public:
 
 private:
     float fLp[2] {}, fHp[2] {};
+    float emLp[2][3] {};  uint32_t emRng = 22222u;                                          // b84: the Electric Mistress voicing's two-pole BBD filter and its hiss
+    float viFast = 0.0f, viSlow = 0.0f, viRamp = 1.0f, viLp[2] {}, viTone[2] {};      // b75: the VB-2 voicing's onset detector, Rise Time ramp and filters
     struct Chan
     {
         std::vector<float> buf, st;
@@ -181,6 +189,7 @@ private:
     // ---- flanger and through-zero flanger
     void flangeStep (const Params& p, float inL, float inR, float& oL, float& oR, bool tz, bool shifted = false)
     {
+        if (p.flVoice > 0 && ! tz && ! shifted) { mistressStep (p, inL, inR, oL, oR); return; }
         if (shifted) { shiftPhase += p.shiftHz / sr; shiftPhase -= std::floor (shiftPhase); }
         const float tc = toneCoef (p.toneHz, sr);
         const float fbk = std::max (-0.92f, std::min (0.92f, p.feedback));
@@ -214,6 +223,46 @@ private:
             }
             else
                 out[k] = (inV[k] + p.mix * wet) / (1.0f + 0.5f * p.mix);
+            c.w = (c.w + 1) & (size - 1);
+        }
+        oL = out[0];  oR = out[1];
+    }
+
+    // ---- b84: Electric Mistress voicing of the flanger. A bucket-brigade line whose CLOCK is swept, so the delay is 1 / clock (it lingers at the long end and
+    //      dives quickly at the short end, unlike the plain delay-line flanger). Range sets the base clock; Filter Matrix holds the clock still (the
+    //      Deluxe sheet sets it to 70 kHz with Range fully clockwise, which is 1024 / (2 x 70 kHz) = 7.3 ms) so the comb stays put and Range
+    //      tunes it. The line has no compander, so it is band-limited (a two-pole low-pass, 5.2 kHz here) and carries a little hiss.
+    //      The 5.2 kHz corner, the sweep ratio (3.3 to 1 at full Depth), the 0.8 ms short end and the hiss level are estimates, not measured from the sheet.
+    void mistressStep (const Params& p, float inL, float inR, float& oL, float& oR)
+    {
+        const float fbk = std::max (-0.93f, std::min (0.93f, p.feedback));
+        const float lf = lfo (phase, p.shape);
+        // b86: voices 3 and 4 are the 1024-stage and the 512-stage versions of one pedal circuit (a bucket-brigade line with a limiter ahead of it, a
+        // three-section post filter and a regeneration path). The two sheets are the same circuit, so the short line has exactly half the delay for the
+        // same clock: 0.35 to 5.0 ms and 0.175 to 2.5 ms. The clock range is not legible on the sheets, so the 0.35 to 5.0 ms span and the 4.2 kHz corner are my estimates.
+        const bool bbdLine = p.flVoice >= 3;
+        const float d0 = bbdLine ? (p.flVoice == 4 ? 0.5f : 1.0f) * 0.00035f * std::pow (14.29f, p.manual) * sr
+                                 : 0.0008f * std::pow (9.125f, p.manual) * sr;         // Mistress: 0.8 ms to 7.3 ms
+        const float dMax = (float) size - 8.0f;
+        const float d = p.flVoice == 2 ? d0 : std::min (dMax, d0 / std::max (0.3f, 1.0f + 0.7f * p.depth * lf));
+        const float tcB = toneCoef (bbdLine ? 4200.0f : 5200.0f, sr), tcT = toneCoef (std::min (p.toneHz, 9000.0f), sr);
+        const float lim = bbdLine ? 1.8f : 1.25f;
+        const float inV[2] = { inL, inR };
+        float out[2];
+        for (int k = 0; k < 2; ++k)
+        {
+            Chan& c = ch[k];
+            c.buf[(size_t) c.w] = std::tanh (lim * (inV[k] + c.fb * fbk)) * (1.0f / lim);
+            float wet = readDelay (c, d);
+            emLp[k][0] += tcB * (wet - emLp[k][0]);
+            emLp[k][1] += tcB * (emLp[k][0] - emLp[k][1]);
+            if (bbdLine) { emLp[k][2] += tcB * (emLp[k][1] - emLp[k][2]);  wet = emLp[k][2]; }          // the third post-filter section
+            else wet = emLp[k][1];
+            emRng = emRng * 1664525u + 1013904223u;
+            wet = wet + 0.0003f * ((float) (emRng >> 9) * (1.0f / 4194304.0f) - 1.0f);
+            c.tone += tcT * (wet - c.tone);
+            c.fb = c.tone;
+            out[k] = (inV[k] + p.mix * c.tone) / (1.0f + 0.5f * p.mix);
             c.w = (c.w + 1) & (size - 1);
         }
         oL = out[0];  oR = out[1];
@@ -297,6 +346,7 @@ private:
     // ---- vibrato
     void vibratoStep (const Params& p, float inL, float inR, float& oL, float& oR)
     {
+        if (p.viVoice > 0) { vb2Step (p, inL, inR, oL, oR); return; }
         const float tc = toneCoef (p.toneHz, sr);
         const float inV[2] = { inL, inR };
         float out[2];
@@ -309,6 +359,42 @@ private:
             float wet = readDelay (c, d);
             c.tone += tc * (wet - c.tone);
             out[k] = inV[k] + p.mix * (c.tone - inV[k]);
+            c.w = (c.w + 1) & (size - 1);
+        }
+        oL = out[0];  oR = out[1];
+    }
+
+    // b75 VB-2W voicing: the Boss VB-2 / VB-2W vibrato. A bucket-brigade line, wet only (the Mix knob is ignored), with the pedal's Rise Time: after each new pick
+    // the vibrato starts at nothing and swells to full depth over the Rise Time (here the Feedback knob, 0 to 1.2 s). A new pick is found by a fast level follower
+    // jumping over a slow one. Boss does not publish the Waza circuit: the delay (3.5 ms centre, up to +/-3.2 ms), the dark top (about 6 kHz) and the Rise Time range are
+    // MY ESTIMATES. Custom (the VB-2W's second mode) also sweeps a low-pass with the same wave, between about 550 Hz and 8 kHz, so the vibrato wobbles in tone as well as pitch.
+    void vb2Step (const Params& p, float inL, float inR, float& oL, float& oR)
+    {
+        const float lvl = std::max (std::abs (inL), std::abs (inR));
+        viFast += (lvl > viFast ? 0.30f : 0.003f) * (lvl - viFast);
+        viSlow += (lvl > viSlow ? 0.0008f : 0.002f) * (lvl - viSlow);
+        if (viFast > 2.2f * viSlow + 0.004f && viFast > 0.01f) viRamp = 0.0f;                  // a new pick: start again from no vibrato
+        else viRamp = p.rise < 0.004f ? 1.0f : std::min (1.0f, viRamp + 1.0f / (p.rise * 1.2f * sr));
+        const float tc = toneCoef (std::min (p.toneHz, 6000.0f), sr);
+        const float inV[2] = { inL, inR };
+        float out[2];
+        for (int k = 0; k < 2; ++k)
+        {
+            Chan& c = ch[k];
+            const float v = lfo (phase + 0.125f * (float) k, p.shape);
+            const float amt = p.depth * viRamp;
+            const float d = 0.0035f * sr * (1.0f + 0.9f * amt * v);
+            c.buf[(size_t) c.w] = std::tanh (1.3f * inV[k]) * (1.0f / 1.3f);
+            float wet = readDelay (c, d);
+            c.tone += tc * (wet - c.tone);
+            wet = c.tone;
+            if (p.viVoice == 2)
+            {
+                const float fc = std::min (0.45f * sr, 2100.0f * std::pow (2.0f, 1.95f * amt * v));
+                viTone[k] += toneCoef (fc, sr) * (wet - viTone[k]);
+                wet = viTone[k];
+            }
+            out[k] = wet;
             c.w = (c.w + 1) & (size - 1);
         }
         oL = out[0];  oR = out[1];

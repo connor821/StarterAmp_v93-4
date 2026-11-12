@@ -1,0 +1,7 @@
+Target dependency graph (3 targets)
+Target 'ALL_BUILD' in project 'clap-juce-extensions-populate'
+➜ Explicit dependency on target 'clap-juce-extensions-populate' in project 'clap-juce-extensions-populate'
+➜ Explicit dependency on target 'ZERO_CHECK' in project 'clap-juce-extensions-populate'
+Target 'clap-juce-extensions-populate' in project 'clap-juce-extensions-populate'
+➜ Explicit dependency on target 'ZERO_CHECK' in project 'clap-juce-extensions-populate'
+Target 'ZERO_CHECK' in project 'clap-juce-extensions-populate' (no dependencies)

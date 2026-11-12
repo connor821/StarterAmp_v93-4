@@ -403,6 +403,7 @@ private:
 
     // all strings
     PolyTuner poly;
+    PolySettleGate settle;                                // b111: readings of a string are held back for 0.6 s after its pluck
     PolyTuner::Result polyRes;
     std::vector<float> polyIn;
     bool  polyShown[PolyTuner::kMaxStrings] {}, polyApprox[PolyTuner::kMaxStrings] {};
@@ -411,6 +412,35 @@ private:
     double polyRate = 0.0;
     int tick = 0, polyEvery = 3, shownCount = 0, shownMode = -1;
     bool polyListening = true;
+};
+
+//==============================================================================
+// Input calibration wizard (b94). Opens over the page like the tuner but does not mute: step 1 you stay quiet (noise floor, hum), step 2 you play
+// your loudest normal part; the processor's InputCalibrator measures both and this panel shows what it found and the Input / Gate / De-Noise
+// settings it suggests. APPLY writes the ticked ones; nothing changes before that.
+//==============================================================================
+class CalibView : public Panel, private juce::Timer
+{
+public:
+    explicit CalibView (StarterAmpProcessor& p);
+    ~CalibView() override { stopTimer(); }
+    void paint (juce::Graphics&) override;
+    void resized() override;
+    void visibilityChanged() override;
+
+private:
+    void timerCallback() override;
+    void refreshButtons();
+    void applyAdvice();
+    float getFloat (const char* id) const;
+    void setFloat (const char* id, float v);
+    static juce::String fmtDb (float v) { return juce::String (v, 1) + " dB"; }
+
+    StarterAmpProcessor& proc;
+    juce::TextButton startBtn { "START" }, applyBtn { "APPLY" }, closeBtn { "CLOSE" };
+    juce::ToggleButton tickIn { "Input level" }, tickGate { "Gate" }, tickHum { "De-Noise (hum)" };
+    int shownPhase = -1, shownRun = -1;
+    InputCalibrator::Result res;
 };
 
 //==============================================================================
@@ -807,13 +837,41 @@ private:
     StarterAmpProcessor& processor;
     juce::TextButton cycleButton, undoButton { "UNDO" }, stopButton { "STOP" }, clearButton { "CLEAR" };
     juce::ToggleButton armButton { "Wait for the first note before recording" }, latchButton { "My footswitch is latching (sends on / off alternately)" };
-    juce::ComboBox barsBox;
+    juce::ComboBox barsBox, modeBox;
     juce::Slider levelSlider;
-    juce::Label barsLabel, levelLabel, note;
+    juce::Label barsLabel, levelLabel, modeLabel, note;
     std::unique_ptr<APVTS::ButtonAttachment> armAttach, latchAttach;
-    std::unique_ptr<APVTS::ComboBoxAttachment> barsAttach;
+    std::unique_ptr<APVTS::ComboBoxAttachment> barsAttach, modeAttach;
     std::unique_ptr<APVTS::SliderAttachment> levelAttach;
     int shownState = -1;
+};
+
+//==============================================================================
+// Modulators window (b107): two modulators (your playing level, an LFO or a random source), each moving up to three knobs.
+//==============================================================================
+class ModSourcePanel : public juce::Component, private juce::Timer
+{
+public:
+    explicit ModSourcePanel (StarterAmpProcessor&);
+    ~ModSourcePanel() override { stopTimer(); }
+    void paint (juce::Graphics&) override;
+    void resized() override;
+
+private:
+    using APVTS = juce::AudioProcessorValueTreeState;
+    void timerCallback() override;
+    StarterAmpProcessor& processor;
+    struct Column
+    {
+        juce::ComboBox source, target[3], div, len;                                  // div, len, steps: the Step sequence (b120)
+        juce::Slider rate, smooth, amount[3], steps[16];
+        juce::Label rateLabel, smoothLabel, title;
+        std::unique_ptr<APVTS::ComboBoxAttachment> sourceAtt, targetAtt[3], divAtt, lenAtt;
+        std::unique_ptr<APVTS::SliderAttachment> rateAtt, smoothAtt, amountAtt[3], stepAtt[16];
+    } col[2];
+    juce::Label note;
+    int shownType[2] { -1, -1 }, shownStep[2] { -1, -1 };
+    float shownValue[2] { 0.0f, 0.0f };
 };
 
 //==============================================================================
@@ -1033,6 +1091,7 @@ private:
     void openBrowserWindow();
     void openToneWindow();
     void openLoopWindow();
+    void openModsWindow();
     void openToneLabWindow();
     void abMenuClicked();
     bool userBusy() const;
@@ -1040,8 +1099,8 @@ private:
     std::unique_ptr<ToolWindow> riffWindow;
     void openRiffWindow();
     juce::TextButton browseButton { "BROWSE" }, abA { "A" }, abB { "B" }, abMenu { "A/B" },
-                     undoButton { "UNDO" }, redoButton { "REDO" }, metroButton { "METRO" }, orderButton { "ORDER" }, loopButton { "LOOP" };
-    std::unique_ptr<ToolWindow> loopWindow, orderWindow, metroWindow, browserWindow, toneWindow, toneLabWindow, libraryWindow, helpWindow;
+                     undoButton { "UNDO" }, redoButton { "REDO" }, metroButton { "METRO" }, orderButton { "ORDER" }, loopButton { "LOOP" }, modsButton { "MODS" };
+    std::unique_ptr<ToolWindow> loopWindow, modsWindow, orderWindow, metroWindow, browserWindow, toneWindow, toneLabWindow, libraryWindow, helpWindow;
     juce::TextButton toneMatchButton { "MATCH..." }, toneLabButton { "TONE LAB..." };
     mutable juce::uint32 lastTextBusy = 0;     // when a text box last had the keyboard (typing a value is a hand edit)
 
@@ -1090,9 +1149,12 @@ private:
     void setupAdvanced (Panel&, const char* key);       // remembers the panel's ADV state with the session
     std::vector<std::pair<Panel*, juce::String>> advancedPanels;
     std::vector<juce::Component*> ampRealismComps;      // Amp A realism menus (hidden for the acoustic model)
-    KnobControl *wowHeelKnob = nullptr, *wowToeKnob = nullptr;
+    KnobControl *wowHeelKnob = nullptr, *wowToeKnob = nullptr, *wowGritKnob = nullptr;
+    KnobControl* octKnob[10] = {};  KnobControl* octGritKnob = nullptr;  juce::Component *octABox = nullptr, *octBBox = nullptr, *octDryFxBox = nullptr;       // b79
+    juce::Component *octTrackBox = nullptr, *octCharBox = nullptr;  KnobControl *octAtkKnob = nullptr, *octDecKnob = nullptr;     // b86: hidden in the analogue-divider mode
     juce::ToggleButton& makeToggle (const char* paramId, const juce::String& text);
     juce::ComboBox& makeCombo (const char* paramId);
+    juce::ComboBox& makeIndexCombo (const char* paramId);      // b101: item id = parameter index + 1, for menus whose item count changes
 
     // Grey-out system (v52): controls that do nothing in the current state are greyed, with the reason in the tooltip.
     // Every knob, switch and menu is registered here by its parameter id.
@@ -1128,6 +1190,7 @@ private:
         Panel* main = nullptr;
         Panel* extra = nullptr;                 // a second panel that goes with the first (shown and hidden with it)
         const char* extraId = nullptr;          // b54: if set, the second panel is only there while this switch parameter is on
+        bool tallWithAdv = false;               // b113: with ADV on the box uses the full page height (when the lane under it is free), so its knobs are not squeezed
         bool extraWithAdv = false;              // b63: the second panel is only there while the main panel's ADV button is on
         int w = 0, wExtra = 0, lanes = 1, lane = -1;
         juce::String onId, name;
@@ -1185,6 +1248,7 @@ private:
     KnobControl* postTimeKnob = nullptr;
     juce::TextButton alignButton { "ALIGN NOW" };
     juce::TextButton libraryButton { "IR LIBRARY" };   // v70
+    juce::TextButton suggestCabButton { "SUGGEST CAB" };   // b70
     juce::TextButton reverbIrButton { "Load reverb IR..." };   // v0.2
     void openLibraryWindow();
     std::unique_ptr<juce::FileChooser> chooser;
@@ -1254,7 +1318,7 @@ private:
     Panel satPanel        { "SATURATOR" };                  // b55
     Panel satBandsPanel   { "SATURATOR BANDS" };                      // b55: Drive and Level for each band
     juce::Label satTypeLbl[4];                                                                  // b63: names for the per-band Type menus
-    juce::TextButton satTab[5] { juce::TextButton ("LEVELS"), juce::TextButton ("TYPE"), juce::TextButton ("MIX"), juce::TextButton ("TONE"), juce::TextButton ("DYN") };   // b63: pages of the bands panel (shown with ADV)
+    juce::TextButton satTab[6] { juce::TextButton ("LEVELS"), juce::TextButton ("TYPE"), juce::TextButton ("MIX"), juce::TextButton ("TONE"), juce::TextButton ("DYN"), juce::TextButton ("FDBK") };   // b63: pages of the bands panel (shown with ADV)
     Panel gatePanel       { "GATE / EXPANDER" };
     Panel shaperPanel     { "TRANSIENT SHAPER" };                    // b53 (shares the Gate's place on the board)
     Panel shaperBandsPanel { "SHAPER BANDS" };                        // b54: the four bands' Attack and Sustain; shown beside the shaper while Multiband is on
@@ -1301,8 +1365,10 @@ private:
     KnobControl* compThumpKnob[3] = { nullptr, nullptr, nullptr };         // b31
     KnobControl* compLlKnob[3] = { nullptr, nullptr, nullptr };            // b62: Crush, Crunch, Darkness (Crush Limiter style)
     juce::Component* compLlRelBox = nullptr;                                // b62: the Crush Limiter release choice
+    KnobControl* compCsKnob = nullptr;                                         // b76: CS-3 Attack
     KnobControl* compOptoKnob[3] = { nullptr, nullptr, nullptr };          // b58: Sustain, Grit, Treble (Opto Sustain style)
     KnobControl* compClassicKnob[3] = { nullptr, nullptr, nullptr };       // b58: Thresh, Attack, Release (hidden in Opto Sustain)
+    int lastCompStyleSeen = -1;                                             // b68 (R17): to notice the user switching Comp to the Dyna style
     KnobControl* compMixKnob = nullptr; KnobControl* compOutKnob = nullptr;    // b58: renamed Blend / Volume in Opto Sustain
     juce::Component* compRatioBox = nullptr; juce::Component* compAutoBox = nullptr; juce::Component* compSatBox = nullptr; juce::Component* compDetBox = nullptr;
     KnobControl* mfFbKnob[4] = { nullptr, nullptr, nullptr, nullptr };     // b29: knobs a type does not use are hidden
@@ -1310,9 +1376,10 @@ private:
     KnobControl* mfToneKnob[4] = { nullptr, nullptr, nullptr, nullptr };
     KnobControl* mfFidKnob[4] = { nullptr, nullptr, nullptr, nullptr };
     juce::Component* mfChModeBox[4] = {}; juce::Component* mfFModeBox[4] = {}; juce::Component* mfFMotionBox[4] = {}; juce::Component* mfFlipBox[4] = {};   // b43
-    KnobControl* mfXKnob[4][10] = {};
+    juce::Component* mfHoldBox[4] = {};   // b105
+    KnobControl* mfXKnob[4][12] = {};
     KnobControl* mfDepthKnob[4] = {};                                     // b62: the Vocoder has no sweep
-    juce::Component* mfLoVoiceBox[4] = {}; juce::Component* mfPhVoiceBox[4] = {}; juce::Component* mfFsModeBox[4] = {}; juce::Component* mfVocBox[4][3] = {};     // b62: Frequency shifter mode; Vocoder carrier, bands, drone note
+    juce::Component* mfFrameBox[4] = {}; juce::Component* mfLoVoiceBox[4] = {}; juce::Component* mfViVoiceBox[4] = {}; juce::Component* mfFlVoiceBox[4] = {}; juce::Component* mfPhVoiceBox[4] = {}; juce::Component* mfPhStereoBox[4] = {}; juce::Component* mfFsModeBox[4] = {}; juce::Component* mfVocBox[4][3] = {};     // b62: Frequency shifter mode; Vocoder carrier, bands, drone note
                                        // b30: Phaser stages / envelope / lag, Lo-Fi noise / dropouts / level
 
     // The NAM tab: one strip per model slot, each with its own loader (0 Amp A, 1 Amp B, 2 pedal before the
@@ -1343,12 +1410,16 @@ private:
     MicView micView       { processorRef.apvts };
     MeterView meterView   { processorRef };
     TunerView tunerView   { processorRef };
+    CalibView calibView   { processorRef };
+    juce::TextButton calibButton { "CALIBRATE INPUT" };
     juce::TextButton tunerButton { "TUNER" };
     juce::Label perfLabel;   // b53: CPU and latency readout in the header
     Panel postDelayPanel  { "DELAY 2" };
     Panel reverbPanel     { "REVERB" };
     Panel reverb2Panel    { "REVERB 2" };
     Panel outputPanel     { "OUTPUT" };
+    Panel repeaterPanel   { "REPEATER" };       // b120
+    Panel tapeStopPanel   { "TAPE STOP" };      // b116: moved from the OUTPUT panel to the TIME page
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (StarterAmpEditor)
 };

@@ -166,6 +166,7 @@ public:
 
             // 1. peaks of its own: the largest group that agree on one offset
             cands.clear();
+            bool fundMasked = false;                                                    // its fundamental peak is there but sits in a lower string's lobe
             for (int h = 1; h <= 8; ++h)
             {
                 const float fh = f0 * (float) h;
@@ -182,7 +183,7 @@ public:
                     bool nearClaimed = false;
                     for (const auto& q : peaks)
                         if (q.claimed && std::abs (q.hz - p.hz) < 3.5f * (float) sr / (float) n) { nearClaimed = true;  break; }
-                    if (nearClaimed) continue;
+                    if (nearClaimed) { if (h == 1) fundMasked = true;  continue; }
                     const float stiff = 0.5f * 1.0e-4f * (float) (h * h);              // the stiff-string sharpening of the upper harmonics
                     cands.push_back ({ 1200.0f * std::log2 (p.hz / fh) - 1731.2f * stiff, p.amp, h });
                 }
@@ -191,6 +192,8 @@ public:
             std::printf ("string %d f0 %.2f: %d candidates\n", s, f0, (int) cands.size());
             for (const auto& cd_ : cands) std::printf ("    h%d  %+.1f c  amp %.5f\n", cd_.h, cd_.cents, cd_.amp);
 #endif
+            bool haveH1 = fundMasked;                                                   // some peak at the target pitch (whether or not it agrees with the rest)
+            for (const auto& c1 : cands) if (c1.h == 1) haveH1 = true;
             if (! cands.empty())
             {
                 float bestW = 0.0f, bestC = 0.0f;
@@ -206,19 +209,42 @@ public:
                     int nh = 0;  for (unsigned t = hm; t; t &= t - 1) ++nh;
                     // a string's own evidence must include its 1st or 2nd harmonic: a group made only of higher partials is usually a lower string's overtones
                     const bool lowest = (hm & 6u) != 0;
-                    const bool ok = lowest && ((nh >= 2 && w > 3.0f * thr) || ((hm & 2u) && a.amp > thr * 6.0f));        // two harmonics, or a strong fundamental
+                    // b93: and the fundamental itself. Without a peak at the target pitch, a set of partials only says "something is ringing with
+                    // a 55 Hz series" - which is also what the A2 and E2 strings of a guitar still in B standard make (110, 165, 220 and 330 Hz), and
+                    // that used to be accepted as A1 "in tune". No fundamental peak now means "not heard" rather than a wrong reading.
+                    const bool fund = haveH1;
+                    const bool ok = lowest && fund && ((nh >= 2 && w > 3.0f * thr) || ((hm & 2u) && a.amp > thr * 6.0f));        // two harmonics, or a strong fundamental
                     if (ok && w > bestW) { bestW = w;  bestC = cs / w; }
                 }
                 if (bestW > 0.0f)
                 {
                     float w = 0.0f, cs = 0.0f;
+                    double sw = 0, sx = 0, sy = 0, sxx = 0, sxy = 0;  int hMin = 99, hMax = 0;
                     for (const auto& b : cands)
                         if (std::abs (b.cents - bestC) <= 6.0f + 0.4f * (float) b.h)
                         {
                             const float wb = b.amp / (0.6f + 0.4f * (float) b.h);
                             w += wb;  cs += wb * b.cents;
+                            const double x = (double) b.h * b.h;
+                            sw += wb;  sx += wb * x;  sy += wb * b.cents;  sxx += wb * x * x;  sxy += wb * x * b.cents;
+                            hMin = std::min (hMin, b.h);  hMax = std::max (hMax, b.h);
                         }
-                    const float c = cs / w;
+                    float c = cs / w;
+                    // b93: a string's own stiffness. The partials sit sharp by 865.6 * B * h^2 cents, and the fixed B used above (1e-4) is wrong for
+                    // thick low strings (a 7 string's low A can be 3 to 4 times that), which put a low string's reading 1 to 4 cents off. With three or more
+                    // harmonics spread over a range, fit that slope (B limited to 0 .. 6e-4) and read the string at its intercept: the fundamental.
+                    if (hMax - hMin >= 3)
+                    {
+                        const double den = sw * sxx - sx * sx;
+                        if (den > 1.0e-12 * sw * sxx)
+                        {
+                            double slope = (sw * sxy - sx * sy) / den;
+                            slope = std::max (-0.0866, std::min (0.4328, slope));
+                            const float plain = c;
+                            c = (float) ((sy - slope * sx) / sw);
+                            c = std::max (plain - 2.5f, std::min (plain + 2.5f, c));                 // never move a reading by more than the stiffness can explain
+                        }
+                    }
                     setFound (out, s, f0, c, w, false);
                     claim (out.hz[s]);
                     done = true;
@@ -460,4 +486,28 @@ public:
     struct FitRec { float f0; double sNoise, lowNoise, sBase, lowBase, d; };
     std::vector<FitRec> fitLog;                                // for tests
     double lastScore = 0, lastBase = 0, lastNoiseE = 0, lastLow = 0, lastBaseLow = 0;       // for tests
+};
+
+// b111: hold-off for the polyphonic tuner's readings. A string read within about 0.4 s of its pluck is 1 to 6 cents sharp on the low strings
+// (the pitch settles after the attack); 0.7 s after, it is within 1 cent. The gate watches each string's level: when it jumps to well above its
+// recent average (a pluck), readings of that string are not trusted for holdSeconds. One gate per string; the tuner view asks it every frame.
+struct PolySettleGate
+{
+    static constexpr int kN = PolyTuner::kMaxStrings;
+    float holdSeconds = 0.6f, jump = 2.5f;
+    float avg[kN] {}, left[kN] {};
+
+    void reset() { for (int i = 0; i < kN; ++i) avg[i] = left[i] = 0.0f; }
+
+    // level: the string's peak strength this frame (0 when not heard); dt: seconds since the last frame. Returns true when the reading may be shown.
+    bool update (int i, float level, float dt)
+    {
+        if (level > jump * avg[i] + 1.0e-5f && left[i] <= 0.0f)
+            left[i] = holdSeconds;                                          // a pluck (or the first time this string is heard)
+        else if (left[i] > 0.0f)
+            left[i] = std::max (0.0f, left[i] - dt);
+        avg[i] += (level - avg[i]) * std::min (1.0f, dt / 0.5f);            // about 0.5 s memory; after the check, so the pluck itself is not averaged in first
+        if (level <= 0.0f) { avg[i] *= 0.5f; }
+        return left[i] <= 0.0f;
+    }
 };

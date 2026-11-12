@@ -24,15 +24,15 @@ public:
         // a recording made at another rate is no use at the new one
         if (std::abs (recordedRate - sampleRate) > 1.0) { length.store (0); recordedRate = sampleRate; }
         // v94: a second prepare at the same rate (hosts do this when settings change) must not throw away a recording or stop a playing riff
-        if (std::abs (preparedRate - sampleRate) > 1.0) { state.store (Idle); pos = 0; }
+        if (std::abs (preparedRate - sampleRate) > 1.0) { state.store (Idle); resetPos.store (true); }
         preparedRate = sampleRate;
     }
 
     // ---- transport (message thread)
-    void record()  { if (busy.load()) return; state.store (Idle); pos = 0; posPub.store (0); length.store (0); recordedRate = sr; state.store (Recording); }
-    void play()    { if (busy.load() || length.load() <= 0) return; state.store (Idle); pos = 0; posPub.store (0); state.store (Playing); }
+    void record()  { if (busy.load()) return; state.store (Idle); resetPos.store (true); posPub.store (0); length.store (0); recordedRate = sr; state.store (Recording); }
+    void play()    { if (busy.load() || length.load() <= 0) return; state.store (Idle); resetPos.store (true); posPub.store (0); state.store (Playing); }
     void stop()    { if (state.load() == Recording) length.store (std::min (posPub.load(), capacity)); state.store (Idle); }
-    void clear()   { state.store (Idle); length.store (0); pos = 0; posPub.store (0); }
+    void clear()   { state.store (Idle); length.store (0); resetPos.store (true); posPub.store (0); }
     int  getState() const { return state.load(); }
     int  getLength() const { return length.load(); }
     double getSeconds() const { return length.load() / std::max (1.0, sr); }
@@ -78,7 +78,7 @@ public:
     bool exportWav (const juce::File& file, juce::String& message)
     {
         if (length.load() <= 0) { message = "There is nothing recorded yet."; return false; }
-        busy.store (true);  stop();
+        busy.store (true);  stop();  waitForAudioBlock();
         const int len = length.load();
         juce::WavAudioFormat wav;
         file.deleteFile();
@@ -104,7 +104,7 @@ public:
         juce::AudioFormatManager fm;  fm.registerBasicFormats();
         std::unique_ptr<juce::AudioFormatReader> r (fm.createReaderFor (file));
         if (r == nullptr || r->lengthInSamples <= 0) { message = "Could not read " + file.getFileName(); return false; }
-        busy.store (true);  stop();
+        busy.store (true);  stop();  waitForAudioBlock();
         const int srcLen = (int) std::min<int64_t> (r->lengthInSamples, (int64_t) (61.0 * r->sampleRate));
         juce::AudioBuffer<float> tmp ((int) std::max<unsigned> (2, r->numChannels), srcLen);
         r->read (&tmp, 0, srcLen, 0, true, true);
@@ -122,7 +122,7 @@ public:
             }
         }
         recordedRate = sr;
-        length.store (dstLen);  pos = 0;
+        length.store (dstLen);  resetPos.store (true);
         busy.store (false);
         message = "Loaded " + file.getFileName() + " (" + juce::String (dstLen / sr, 1) + " s)";
         return dstLen > 0;
@@ -131,10 +131,21 @@ public:
     std::atomic<bool> loop { true };
 
 private:
+    // b102 (audit): `pos` belongs to the audio thread. The message thread asks for a rewind with `resetPos`, which the next block honours before it
+    // touches anything, and Export/Import wait (briefly) for a block that was already running when `busy` went up, so the sample arrays are never read or
+    // written from two threads at once.
     void run (float* L, float* R, int n, float level, bool muteLive, bool di)
     {
+        inBlock.store (true, std::memory_order_seq_cst);
+        if (resetPos.exchange (false)) pos = 0;
         runImpl (L, R, n, level, muteLive, di);
         posPub.store (pos, std::memory_order_relaxed);
+        inBlock.store (false, std::memory_order_seq_cst);
+    }
+    void waitForAudioBlock()
+    {
+        for (int i = 0; i < 200 && inBlock.load(); ++i)      // up to ~200 ms; a block is a few ms at most
+            juce::Thread::sleep (1);
     }
     void runImpl (float* L, float* R, int n, float level, bool muteLive, bool di)
     {
@@ -170,7 +181,7 @@ private:
 
     std::vector<float> data[2];
     std::atomic<int> state { Idle }, length { 0 };
-    std::atomic<bool> busy { false };
+    std::atomic<bool> busy { false }, resetPos { false }, inBlock { false };
     int    pos = 0, capacity = 0;
     std::atomic<int> posPub { 0 };
     double sr = 44100.0, recordedRate = 0.0, preparedRate = 0.0;

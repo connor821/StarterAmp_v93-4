@@ -9,6 +9,49 @@
 #include <juce_core/juce_core.h>
 #include "ModFx.h"
 
+// b120: Bit mangle. Treats each sample as a 16-bit number and corrupts its bits, the way a damaged digital file or a failing converter does.
+// Amount 0 is off. Low amounts flip a few of the low bits (a rough, noisy grain that follows the signal); higher amounts flip higher bits too
+// (harsh, gated distortion) and past the middle also clear the lowest bits (a bit-depth collapse). The set of flipped bits is re-rolled many times a
+// second, so it keeps changing, like rot spreading. The sign bit is only touched at the very top of the range. My own design, not measured on anything.
+class BitMangle
+{
+public:
+    void reset() { mask = 0u;  clearBits = 0;  rng = 0x2545F491u;  hold = 0; }
+
+    void process (float* x, int n, float amount, double sampleRate)
+    {
+        if (amount < 0.001f) { mask = 0u;  return; }
+        const float a = std::min (1.0f, amount);
+        const int reroll = std::max (8, (int) (sampleRate / (12.0 + 180.0 * (double) a)));          // about 12 to 190 changes a second
+        const int topBit = 6 + (int) (8.0f * a) + (a > 0.9f ? 1 : 0);                                // 6 up to 15 (the sign bit) only at the very top
+        const int nFlip = 1 + (int) (3.0f * a);
+        const int clr = a > 0.5f ? (int) ((a - 0.5f) * 2.0f * 9.0f) : 0;                            // up to 9 low bits cleared
+        for (int i = 0; i < n; ++i)
+        {
+            if (--hold <= 0)
+            {
+                hold = reroll / 2 + (int) (nextU() % (unsigned) reroll);
+                mask = 0u;
+                for (int k = 0; k < nFlip; ++k)
+                    mask ^= 1u << (nextU() % (unsigned) (topBit + 1));
+                clearBits = clr;
+            }
+            const float v = std::max (-1.0f, std::min (1.0f, x[i]));
+            int s = (int) std::lround (v * 32767.0f);
+            unsigned u = (unsigned) (s + 32768) & 0xFFFFu;                                          // offset binary, so a flipped bit moves the level, not the sign convention
+            u ^= mask;
+            u &= ~((1u << clearBits) - 1u);
+            const float y = ((float) (int) u - 32768.0f) / 32767.0f;
+            x[i] = x[i] + a * (std::max (-1.0f, std::min (1.0f, y)) - x[i]);                        // the amount also fades it in
+        }
+    }
+
+private:
+    unsigned nextU() { rng ^= rng << 13;  rng ^= rng >> 17;  rng ^= rng << 5;  return rng; }
+    unsigned mask = 0u, rng = 0x2545F491u;
+    int clearBits = 0, hold = 0;
+};
+
 class LoFiWarble
 {
 public:
@@ -24,7 +67,8 @@ public:
         float dropouts;   // 0..1: how often (and how deep) the level dips
         float mix;        // 0..1: dry to wet
         float levelDb;    // output level
-        int   voice = 0;  // b62: 0 = the original warble pedal, 1 = Cassette (tape saturation, no bit crushing, head bump, steeper top roll-off, steady hiss)
+        int   voice = 0;  // b62: 0 = the original warble pedal, 1 = Cassette (tape saturation, no bit crushing, head bump, steeper top roll-off, steady hiss); b105: 2 = Vinyl (a slow wow, soft saturation, surface hiss with ticks and pops)
+        float breath = 0.0f;     // b120: Cassette only: tape noise reduction that does not quite match (the hiss swells and dips with your playing)
     };
 
     void prepare (double sampleRate)
@@ -46,8 +90,8 @@ public:
         randTarget = randSmooth = 0.0f;
         heldSample = 0.0f;  holdCounter = 0.0f;
         lp1 = lp2 = 0.0f;  lpIn1 = lpIn2 = 0.0f;  hpState = 0.0f;  cLp1 = bA = bB = 0.0f;
-        hissLp = 0.0f;  crackle = 0.0f;
-        dropRemaining = dropLen = 0;  dropDepth = 0.0f;
+        hissLp = 0.0f;  crackle = 0.0f;  crackleDecay = 0.985f;
+        dropRemaining = dropLen = 0;  dropDepth = 0.0f;  nrLpE = nrEnvE = nrLpD = nrEnvD = 0.0f;
         lastLevel = 1.0f;
         rng = 0x9E3779B9u;
     }
@@ -57,16 +101,18 @@ public:
         if (buf.empty()) return;
         const float rate = std::max (0.05f, p.rate);
         const bool cass = p.voice == 1;
+        const bool vinyl = p.voice == 2;                 // b105: my own design from the general character of a worn record, not measured on one
+        const bool soft = cass || vinyl;                  // tape / record saturation instead of bit crushing
         // Peak pitch swing (a ratio): up to about 6% (a bit under a semitone) at full Depth. The delay excursion that
         // makes it is capped, so slow rates swing less, like a real worn transport.
         const float swing = 0.06f * p.depth * p.depth;
         const float excursion = std::min (0.018f, swing / (6.2831853f * std::max (rate, 0.3f)));
-        const float driftExc = p.drift * (cass ? 0.0025f : 0.004f), flutterExc = p.drift * (cass ? 0.0012f : 0.0003f);      // cassette: more of the fast flutter, less slow wander
+        const float driftExc = p.drift * (vinyl ? 0.0008f : cass ? 0.0025f : 0.004f), flutterExc = p.drift * (vinyl ? 0.0004f : cass ? 0.0012f : 0.0003f);      // cassette: more of the fast flutter, less slow wander
         const float baseDelay = 0.022f * (float) sr;
         const float dPhase = rate / (float) sr;
 
         // tone: a second-order low-pass from 1.5 kHz to 12 kHz
-        const float fc = std::min ((cass ? 2000.0f * std::pow (4.5f, p.tone) : 1500.0f * std::pow (8.0f, p.tone)), 0.45f * (float) sr);
+        const float fc = std::min ((cass ? 2000.0f * std::pow (4.5f, p.tone) : vinyl ? 3500.0f * std::pow (4.0f, p.tone) : 1500.0f * std::pow (8.0f, p.tone)), 0.45f * (float) sr);
         const float k = std::tan (3.14159265f * fc / (float) sr);
         const float q = 0.7071f, norm = 1.0f / (1.0f + k / q + k * k);
         const float b0 = k * k * norm, b1 = 2.0f * b0, a1 = 2.0f * (k * k - 1.0f) * norm, a2 = (1.0f - k / q + k * k) * norm;
@@ -83,10 +129,17 @@ public:
         const float mix = p.mix;
         const float randCoef = 1.0f - std::exp (-rate * 3.0f / (float) sr);
         const float driftCoef = 1.0f - std::exp (-0.6f * 6.2831853f / (float) sr);
-        const float hpCoef = 1.0f - std::exp (-(cass ? 35.0f : 60.0f) * 6.2831853f / (float) sr);
+        const float hpCoef = 1.0f - std::exp (-(cass ? 35.0f : vinyl ? 40.0f : 60.0f) * 6.2831853f / (float) sr);
         const float cLp = 1.0f - std::exp (-6.2831853f * fc / (float) sr);                      // cassette: one more pole on the top
         const float bumpA = 1.0f - std::exp (-6.2831853f * 130.0f / (float) sr), bumpB = 1.0f - std::exp (-6.2831853f * 45.0f / (float) sr);    // cassette: the head bump
         const float hissCoef = 1.0f - std::exp (-6000.0f * 6.2831853f / (float) sr);
+        // b120: the tape noise reduction (a Dolby-style compander, my own design): before the tape the quiet highs are boosted, after it they are
+        // cut back by what the decoder thinks it sees; the two never match exactly, so the hiss and the top end swell and dip with your playing.
+        const bool nr = cass && p.breath > 0.001f;
+        const float nrSplit = 1.0f - std::exp (-6.2831853f * 2200.0f / (float) sr);
+        const float nrAtk = 1.0f - std::exp (-1.0f / (0.0008f * (float) sr)), nrRel = 1.0f - std::exp (-1.0f / (0.060f * (float) sr));
+        const float nrG = 1.0f + 3.0f * p.breath;                                        // up to +12 dB on quiet highs
+        auto nrGain = [nrG] (float env) { return 1.0f + (nrG - 1.0f) / (1.0f + env * env * 2500.0f); };       // knee around -34 dBFS of high-band level
 
         for (int i = 0; i < n; ++i)
         {
@@ -123,8 +176,15 @@ public:
             float wet = y0 + 0.5f * f * (y1 - ym1 + f * (2.0f * ym1 - 5.0f * y0 + 4.0f * y1 - y2 + f * (3.0f * (y0 - y1) + y2 - ym1)));
             w = (w + 1) & (size - 1);
 
+            if (nr)
+            {
+                nrLpE += nrSplit * (wet - nrLpE);
+                const float hf = wet - nrLpE, ah = std::fabs (hf);
+                nrEnvE += (ah > nrEnvE ? nrAtk : nrRel) * (ah - nrEnvE);
+                wet = nrLpE + hf * nrGain (nrEnvE);
+            }
             // ---- worn-out tone: soft clip, then crush
-            if (p.dirt > 0.001f && cass)
+            if (p.dirt > 0.001f && soft)
             {
                 // tape saturation: a soft, slightly asymmetric squash with no quantising
                 const float gc = 1.0f + 5.0f * p.dirt * p.dirt;
@@ -155,9 +215,25 @@ public:
             {
                 hissLp += hissCoef * (nextRandom() - hissLp);
                 wet += hissGain * hissLp * 4.0f;
-                if (! cass && std::fabs (nextRandom()) < crackleRate * 0.5f) crackle = (nextRandom() > 0.0f ? 1.0f : -1.0f) * (0.05f + 0.25f * std::fabs (nextRandom())) * p.noise;
-                wet += crackle;
-                crackle *= 0.985f;
+                if (vinyl)
+                {
+                    // surface noise: ticks (short, small) with the odd pop (louder, longer); more of both as Noise rises
+                    if (std::fabs (nextRandom()) < (4.0f + 60.0f * p.noise * p.noise) / (float) sr)
+                    {
+                        const bool pop = std::fabs (nextRandom()) < 0.12f;
+                        const float r = std::fabs (nextRandom());
+                        crackle = (nextRandom() > 0.0f ? 1.0f : -1.0f) * (pop ? 0.25f + 0.5f * r : 0.03f + 0.2f * r * r) * (0.4f + 0.6f * p.noise);
+                        crackleDecay = std::exp (-1.0f / ((pop ? 0.0012f : 0.00025f) * (float) sr));
+                    }
+                    wet += crackle;
+                    crackle *= crackleDecay;
+                }
+                else
+                {
+                    if (! cass && std::fabs (nextRandom()) < crackleRate * 0.5f) crackle = (nextRandom() > 0.0f ? 1.0f : -1.0f) * (0.05f + 0.25f * std::fabs (nextRandom())) * p.noise;
+                    wet += crackle;
+                    crackle *= 0.985f;
+                }
             }
 
             // ---- dropouts: smooth dips in level
@@ -177,6 +253,14 @@ public:
                 }
             }
 
+            if (nr)
+            {
+                nrLpD += nrSplit * (wet - nrLpD);
+                const float hfOut = (wet - nrLpD) / nrGain (nrEnvD);
+                const float ao = std::fabs (hfOut);
+                nrEnvD += (ao > nrEnvD ? nrAtk : nrRel) * (ao - nrEnvD);
+                wet = nrLpD + hfOut;
+            }
             x[i] = level * (in + mix * (wet - in));
         }
     }
@@ -192,7 +276,7 @@ private:
     double sr = 48000.0, phase = 0.0, flutterPhase = 0.0;
     int size = 1, w = 0, dropRemaining = 0, dropLen = 0;
     float driftLp = 0, driftLp2 = 0, randTarget = 0, randSmooth = 0, heldSample = 0, holdCounter = 0;
-    float cLp1 = 0, bA = 0, bB = 0;
-    float lp1 = 0, lp2 = 0, lpIn1 = 0, lpIn2 = 0, hpState = 0, hissLp = 0, crackle = 0, dropDepth = 0, lastLevel = 1.0f;
+    float cLp1 = 0, bA = 0, bB = 0, nrLpE = 0, nrEnvE = 0, nrLpD = 0, nrEnvD = 0;
+    float lp1 = 0, lp2 = 0, lpIn1 = 0, lpIn2 = 0, hpState = 0, hissLp = 0, crackle = 0, crackleDecay = 0.985f, dropDepth = 0, lastLevel = 1.0f;
     uint32_t rng = 0x9E3779B9u;
 };

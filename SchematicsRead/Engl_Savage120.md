@@ -64,3 +64,8 @@ Eight relays (RE1 to RE10, 12 V from a 7824 and BC237B transistors) selected by 
 
 ## 6. Uncertain or illegible
 - Tone-stack caps and slope resistors; whether V4A and V4B are channel 1 or shared; the exact values of the electrolytic bypasses on V3A, V4A, V4B; the cathode measuring resistors; the zener type at V8; the bias voltage; the screen voltage in the two supply notes (335 V and 395 V (?) appear near different lines).
+
+## b90 addendum: what the rough/smooth relay switches (re-read from the sheet you re-sent; hand-drawn scan, low resolution)
+- The footswitch contact "CR2/Lead R/S" (labelled ROUGH / SMOOTH) drives relay RE10. RE10A is drawn beside the lead channel's tone stack, next to a variable resistor labelled **HI BALANCE**.
+- As far as I can read it, closing RE10A puts the Hi Balance trimmer between the stack's input (the V3A coupling-capacitor output) and its output (the V3B grid line), so some signal goes around the Treble / Bass / Middle stack. Open, the signal goes through the stack alone. Which state is Rough and which is Smooth is not marked on the sheet; the label and the circuit suggest Rough = the bypass in (more highs and mids, a shallower scoop) and Smooth = the stack alone (a deeper scoop, less top).
+- **The trimmer's value is not printed**, so the size of the difference cannot be calculated from the sheet. Wreck Stack Smooth is therefore left as the hand-tuned delta it was (bass +0.5, low mid +0.5, high mid -1.5, treble -1.5, presence -1.5 dB, voice 5.2 kHz): it points the way the circuit suggests, and its size is an ESTIMATE. A manual or a capture of the real switch would let it be fitted.

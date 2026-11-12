@@ -2,6 +2,7 @@
 // Power section, supply and output transformer behaviour derived from circuit values (v83).
 // Nothing here runs a circuit. The responses were solved offline (see MODELED_GEAR.md) and stored as small tables.
 #include <cmath>
+#include <cstdlib>
 #include <algorithm>
 #include "PowerSectionTable.h"
 #include "Adaa.h"
@@ -23,8 +24,8 @@ namespace PowerSection
     // Which table row each amp model uses (-1 = none: acoustic, solid-state and digital models)
     inline int familyForModel (int m)
     {
-        static const int fam[41] = { 0, 3, 1, 2, 2, -1, 1, 4, 2, 3, -1, 2, 3, 2, -1, 1, 4, 2, 2, 2, 2, 2, -1, 1, 2, 1, 2, 2, 3, -1, 0, 0, -1, 3,   1, 2, 0, 0, 1, 3, 1 };   // v0.1: 21 Hi-Wat Headroom (heavy feedback, so the tight family), 22 Console DI (no power section)   // v95: 16 to 20 are the five new amps (estimates, see MODELED_GEAR.md)   // v90: Marque Dream moved from the light-feedback family to the British-lead one (Mark-series feedback network read, see MODELED_GEAR.md)
-        return (m >= 0 && m < 41) ? fam[m] : -1;      // b66: 34 Tweedle Dum (27k feedback, 5k Presence: the 50 W family), 35 Marque One (the Mark-series network), 36 Cedar Grand and 37 Cedar Ten (American combo), 38 Brit Forty-Five (27k / 5k: 50 W family), 39 Tweedle Mini (no feedback), 40 Jubilant (50 W family)
+        static const int fam[46] = { 0, 3, 1, 2, 2, -1, 1, 4, 2, 3, -1, 2, 3, 2, -1, 1, 4, 2, 2, 2, 2, 2, -1, 1, 2, 1, 2, 2, 3, -1, 0, 0, -1, 3,   1, 2, 0, 0, 1, 3, 1, 2, 0, 2, 3, 1 };   // v0.1: 21 Hi-Wat Headroom (heavy feedback, so the tight family), 22 Console DI (no power section)   // v95: 16 to 20 are the five new amps (estimates, see MODELED_GEAR.md)   // v90: Marque Dream moved from the light-feedback family to the British-lead one (Mark-series feedback network read, see MODELED_GEAR.md)
+        return (m >= 0 && m < 46) ? fam[m] : -1;      // b66: 34 Tweedle Dum (27k feedback, 5k Presence: the 50 W family), 35 Marque One (the Mark-series network), 36 Cedar Grand and 37 Cedar Ten (American combo), 38 Brit Forty-Five (27k / 5k: 50 W family), 39 Tweedle Mini (no feedback), 40 Jubilant (50 W family)
     }
 
     // Presence knob 0..1 interpolated between the five table steps
@@ -277,13 +278,21 @@ namespace PowerSection
     struct SupplyInfo { float bplus, ipk, rs, tauSlow, otSat; };
     inline bool supplyFor (int model, SupplyInfo& s)
     {
+#ifdef STARTERAMP_TUNE
+        if (const char* e = std::getenv ("SUPPLY"))      // test builds only: "model,bplus,ipk,rs,tauSlow,otSat" replaces that amp's supply
+        {
+            float t[6] = { -1, 0, 0, 0, 0, 0 };  const char* q = e;
+            for (int i = 0; i < 6 && *q != 0; ++i) { char* end = nullptr; t[i] = std::strtof (q, &end); q = (*end == ',') ? end + 1 : end; if (end == q && *end == 0) break; }
+            if ((int) t[0] == model) { s = { t[1], t[2], t[3], t[4], t[5] }; return true; }
+        }
+#endif
         switch (model)
         {
-            case 0:  s = { 480.0f, 0.45f,  60.0f, 0.044f, 0.15f }; return true;     // American combo, silicon rectifier, 2.2k x 20 uF
+            case 0:  s = { 460.0f, 0.45f,  60.0f, 0.044f, 0.15f }; return true;     // b68 (R9): 460 V from the AB763 sheet (was 480 V); rendered against 405 V (AA270) and 480 V: no audible difference in tone or harmonics, 405 V is 0.3 to 0.5 dB quieter     // American combo, silicon rectifier, 2.2k x 20 uF
             case 1:  s = { 330.0f, 0.22f, 150.0f, 0.70f,  0.35f }; return true;     // chime combo, bridge rectifier, 22k x 32 uF
             case 6:  s = { 480.0f, 0.50f,  80.0f, 0.50f,  0.25f }; return true;     // 100 W 1959-style: four EL34s, silicon bridge, 10k x 50 uF dropping stage (read, 1970 schematic); B+ and peak current estimated
-            case 2: case 15:
-                     s = { 420.0f, 0.30f, 100.0f, 0.50f,  0.25f }; return true;     // 50 W British: 10k x 50 uF
+            case 2:  s = { 420.0f, 0.30f, 100.0f, 0.50f,  0.25f }; return true;     // 50 W British: 10k x 50 uF
+            case 15: s = { 468.0f, 0.50f,  80.0f, 0.50f,  0.25f }; return true;     // b68 (R2): Master Cranker read as the 100 W version: 468 V at the plates through the 10k / 1 W dropper x 50 uF; peak current and source resistance estimated like the other four-EL34 amps
             case 3:  s = { 495.0f, 0.40f,  90.0f, 0.40f,  0.15f }; return true;     // 100 W lead (SLO-100): 497 V plates, 495 V screens, 2 x 200 uF reservoir, choke, then 10k x 40 uF (read); peak current and source resistance estimated
             case 4:  s = { 460.0f, 0.50f,  80.0f, 0.081f, 0.15f }; return true;     // 100 W dual-rectifier amp: 2 x 220 uF reservoir, choke, 2.7k x 30 uF (read); source resistance between silicon and tube rectifier is my estimate
             case 8: case 13:
@@ -293,6 +302,11 @@ namespace PowerSection
             case 11: s = { 448.0f, 0.35f,  60.0f, 0.185f, 0.20f }; return true;     // Mark-series: silicon bridge, 220 uF reservoir, choke, 5.6k x 30 uF (read); peak current and transformer saturation are my estimates
             case 12: s = { 500.0f, 0.50f, 110.0f, 0.60f,  0.30f }; return true;
             case 16: s = { 470.0f, 0.50f,  85.0f, 0.30f,  0.18f }; return true;     // v95 Harmonic Haze (4 x EL34 or 6L6, solid-state rectifier; the schematic shows a B1 rail but no values; all numbers estimated)
+            case 45: s = { 520.0f, 0.50f, 70.0f, 0.40f, 0.20f }; return true;     // b84 Ironside (a 1969 4 x EL34 100 W head: silicon bridge of eight diodes, about 600 V unloaded per the sheet, 22k and 2.7k dropping resistors into 33 uF pairs; the loaded 520 V, peak current and source resistance are my estimates)
+            case 44: s = { 350.0f, 0.26f, 120.0f, 0.55f, 0.30f }; return true;     // b80 Kindle (the idealized low / mid gain amp): between the Chime Thirty's soft supply (330 V, 150 ohm, 0.7 s) and Ember's firmer one, so it sags and compresses like a class-A amp but keeps the weight; designed, not read
+            case 43: s = { 448.0f, 0.35f,  60.0f, 0.185f, 0.20f }; return true;     // b73 Ember (the idealized lead amp): the Mark-series supply Marque Dream uses (weight and sag); designed, not read from a sheet
+            case 42: s = { 460.0f, 0.45f,  60.0f, 0.044f, 0.15f }; return true;     // b70 Prism (the idealized clean amp): the American combo supply Twin Sparkle uses (silicon rectifier, stiff), so the headroom stays high; designed, not read from a sheet
+            case 41: s = { 490.0f, 0.55f,  60.0f, 0.12f,  0.12f }; return true;     // b69 Clarion (the idealized high-gain amp): a stiff supply, so little sag and a tight low end; designed, not read from a sheet
             case 17: s = { 470.0f, 0.50f,  85.0f, 0.35f,  0.20f }; return true;     // v95 Diesel Fuel (4 x KT77, 100 W; service manual gives bias only; estimated)
             case 18: s = { 545.0f, 0.60f,  70.0f, 0.25f,  0.15f }; return true;     // v95 Wreck Stack (read: 545 V plates, 335 V screens, 2 x 220 uF reservoirs, 150k and 330k dropping resistors; peak current and source resistance estimated)
             case 19: s = { 450.0f, 0.50f,  80.0f, 0.20f,  0.15f }; return true;     // v95 Power Brawl (100 W, 4 x 6L6GC; b18: plate supply read from the schematic, 440 V on / 460 V standby printed, 470R screen resistors, 220 uF reservoir; peak current and source resistance still estimated)
@@ -313,6 +327,34 @@ namespace PowerSection
             case 38: s = { 420.0f, 0.28f, 140.0f, 0.20f, 0.30f }; return true;     // b66 Brit Forty-Five (JTM45: two KT66, GZ34 rectifier); estimated
             case 39: s = { 330.0f, 0.06f, 300.0f, 0.05f, 0.40f }; return true;     // b66 Tweedle Mini (5F1-style: one 6V6, 5Y3 rectifier, about 325 V; a 5 W supply is soft and sags early)
             case 40: s = { 470.0f, 0.45f,  85.0f, 0.30f, 0.20f }; return true;     // b66 Jubilant (100 W silver-jubilee-style head: silicon rectifier); estimated     // b14 Brit Eighteen: 18 W EL84 combo, rectifier tube; estimated (no schematic read)
+            default: return false;
+        }
+    }
+
+    // b68: per-voicing power-section settings. A voicing can have its own feedback row (family), a feedback shift (the amp's Feel setting moved by
+    // 'feelShift' rows, and below Loose the loop gain is halved again) and its own supply. Entries are read from the schematic of the revision each voicing
+    // is built on; a voicing with no entry uses its amp's settings above.
+    struct VoicingPs { int family = -1; int feelShift = 0; float fbMul = 1.0f; bool hasSupply = false; SupplyInfo supply { 0, 0, 0, 0, 0 }; };
+    inline bool voicingPsFor (int model, int voicing, VoicingPs& o)
+    {
+        o = VoicingPs();
+        auto sup = [&] (float b, float ip, float rs, float tau, float ot) { o.hasSupply = true; o.supply = { b, ip, rs, tau, ot }; };
+        switch (model)
+        {
+            case 30:        // Cedar Spring (Deluxe Reverb family): 820 ohm into 47 ohm on every Deluxe Reverb sheet (-25 dB, not the Twin's -19 dB), tube rectifier (GZ34 / 5U4GB), +415 to 420 V
+                if (voicing < 0 || voicing > 4) return false;
+                o.feelShift = -1;  sup (420.0f, 0.20f, 150.0f, 0.15f, 0.30f);  return true;
+            case 36:        // Cedar Grand
+                if (voicing == 1) { o.family = 2;  sup (440.0f, 0.34f, 100.0f, 0.12f, 0.25f);  return true; }      // Brownface: Vibroverb 6G16, 10K feedback into the 4.7k / 6.8k bus (a much larger fraction than the blackface 820 / 47 ohm; the closest solved row is the 39k British lead family), GZ34, +440 V printed
+                o.feelShift = -1;  return true;                                                                     // Big Spring, Cranked, Bright: Vibroverb AB763, 820 ohm into 47 ohm (-25 dB); supply is the amp's (GZ34, +460 V)
+            case 34:        // Tweedle Dum
+                if (voicing == 2) { o.family = 1;  o.feelShift = 1;  sup (428.0f, 0.30f, 70.0f, 0.08f, 0.25f);  return true; }   // 6G6-B: 56k feedback into 4.7k (between the 100k and 39k families), silicon diodes, +428 V, 2 x 20 uF then a choke
+                if (voicing == 3) { o.family = 1;  o.feelShift = 1;  sup (425.0f, 0.30f, 70.0f, 0.10f, 0.25f);  return true; }   // AB165: 47k and 0.1 uF, no presence control, silicon diodes, +425 V, two 70 uF in series
+                o.family = 2;  sup (432.0f, 0.30f, 130.0f, 0.16f, 0.30f);  return true;                              // 5F6-A: 27k feedback with a 5k presence pot (about 3.7 times the 100k family's feedback: the 39k British lead row is the closest), GZ34, +432 V printed
+            case 45:        // Ironside (b84): 100k feedback into a 3.3k presence pot on the sheet, a larger fraction than the Plexi-style amp's (my estimate: 1.4 times the loop gain); the Fifty voicing is the 50 W two-EL34 head on about 470 V
+                o.fbMul = 1.4f;  if (voicing == 3) sup (470.0f, 0.30f, 110.0f, 0.35f, 0.25f);  return true;
+            case 38:        // Brit Forty-Five (JTM45 trem chassis): 27K feedback with a 5K presence pot like the 5F6-A, GZ34, plates +430 V, 20 H choke; the Plexi-style amp keeps the 100k feedback and the silicon bridge
+                o.family = 2;  sup (430.0f, 0.28f, 140.0f, 0.20f, 0.30f);  return true;
             default: return false;
         }
     }

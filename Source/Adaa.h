@@ -77,7 +77,7 @@ namespace Adaa
         inline double F2 (double u) const
         {
             const double p = (u - x0) * inv;
-            if (p <= 0.0)                { const double* k = c.data();                              const double t = u - x0;   return k[4] + t * (k[0] + 0.5 * k[1] * t); }
+            if (! (p > 0.0))             { const double* k = c.data();                              const double t = u - x0;   return k[4] + t * (k[0] + 0.5 * k[1] * t); }
             if (p >= (double) (n - 1))   { const double* k = c.data() + (size_t) (n - 1) * 5;       const double t = u - xEnd; return k[4] + t * (k[0] + 0.5 * k[1] * t); }
             const int i = (int) p;
             const double* k = c.data() + (size_t) i * 5;
@@ -87,7 +87,7 @@ namespace Adaa
         inline double F1 (double u) const
         {
             const double p = (u - x0) * inv;
-            if (p <= 0.0)                { const double* k = c.data();                              return k[0] + k[1] * (u - x0); }
+            if (! (p > 0.0))             { const double* k = c.data();                              return k[0] + k[1] * (u - x0); }
             if (p >= (double) (n - 1))   { const double* k = c.data() + (size_t) (n - 1) * 5;       return k[0] + k[1] * (u - xEnd); }
             const int i = (int) p;
             const double* k = c.data() + (size_t) i * 5;
@@ -97,7 +97,7 @@ namespace Adaa
         inline double f (double u) const
         {
             const double p = (u - x0) * inv;
-            if (p <= 0.0)                return c[1];
+            if (! (p > 0.0))             return c[1];
             if (p >= (double) (n - 1))   return c[(size_t) (n - 1) * 5 + 1];
             const int i = (int) p;
             const double* k = c.data() + (size_t) i * 5;
@@ -272,7 +272,7 @@ namespace Adaa
         const double u0 = StageCurves::kU0, du = StageCurves::kDu;
         const int N = StageCurves::kN;
         double p = (u - u0) / du;
-        if (p <= 0.0)                return (double) c.y[0] * (u - u0);
+        if (! (p > 0.0))             return (double) c.y[0] * (u - u0);   // b95: written so a NaN takes this branch instead of indexing the table with (int) NaN
         if (p >= (double) (N - 1))   return c.F[(size_t) (N - 1)] + (double) c.y[N - 1] * (u - (u0 + du * (double) (N - 1)));
         const int i = (int) p;
         const double t = p - (double) i, y0 = c.y[i], y1 = c.y[i + 1];
@@ -283,7 +283,7 @@ namespace Adaa
         const double u0 = StageCurves::kU0, du = StageCurves::kDu;
         const int N = StageCurves::kN;
         double p = (u - u0) / du;
-        if (p <= 0.0) return c.y[0];
+        if (! (p > 0.0)) return c.y[0];   // b95: NaN-safe
         if (p >= (double) (N - 1)) return c.y[N - 1];
         const int i = (int) p;
         const double t = p - (double) i;
@@ -295,7 +295,7 @@ namespace Adaa
         const double u0 = StageCurves::kU0, du = StageCurves::kDu;
         const int N = StageCurves::kN;
         const double p = (u - u0) / du;
-        if (p <= 0.0)                { const double t = u - u0;  return 0.5 * (double) c.y[0] * t * t; }
+        if (! (p > 0.0))             { const double t = u - u0;  return 0.5 * (double) c.y[0] * t * t; }   // b95: NaN-safe
         if (p >= (double) (N - 1))   { const double t = u - (u0 + du * (double) (N - 1));  return c.G[(size_t) (N - 1)] + t * (c.F[(size_t) (N - 1)] + 0.5 * (double) c.y[N - 1] * t); }
         const int i = (int) p;
         const double t = (p - (double) i) * du, y0 = c.y[i], y1 = c.y[i + 1];

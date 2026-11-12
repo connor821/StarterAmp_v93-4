@@ -38,7 +38,8 @@ What `regress` checks: a fixed synthetic plucked-note signal through every amp a
 and the eight octave bands (63 Hz to 8 kHz, relative to 1 kHz) within 0.6 dB of golden.txt. When you retune an amp on purpose, the matching rows
 fail; check that only those rows moved, then update the file.
 
-Not covered: allocations on the audio thread (the separate `rt` harness did this in earlier builds; not in this folder yet), race conditions between the
-audio and message threads (needs ThreadSanitizer), IR and NAM loading under audio, real host behaviour, listening.
+Allocations on the audio thread are covered for the main paths by `b91` (it counts calls to operator new while processing; b102 adds the NAM
+two-model pedal-slot toggle). Not covered: race conditions between the audio and message threads (needs ThreadSanitizer, which has not been run),
+the full parameter-by-parameter allocation matrix, IR and NAM loading under audio, real host behaviour, listening.
 
 Tools: `tools/fitcapture.cpp` ranks the amps against a capture (see tools/README.md); it is not part of the CMake build yet.

@@ -11,3 +11,8 @@ Notes
 - The beta is not code-signed, so Windows shows a "protected your PC" warning (instructions are in README.txt).
 - This builds 64-bit Windows only. AU is Mac only.
 - The first Windows build has never been run by me; expect that it may need one or two fixes.
+
+
+## CLAP and AAX (b94)
+- **CLAP** is built by default now, next to the VST3 and the Standalone, using the open clap-juce-extensions project (fetched from GitHub the first time you configure, pinned to one commit). Switch it off with `-DSTARTERAMP_BUILD_CLAP=OFF`. The file is in the `Release/CLAP` folder of the build's artefacts. It has been compiled and checked for its entry point on Linux only; the Windows and Mac builds of it have not been run yet.
+- **AAX (Pro Tools)** needs Avid's AAX SDK, which is free but must be downloaded from Avid's developer site after you register and accept their licence (it cannot be included here). Unpack it and configure with `-DSTARTERAMP_AAX_SDK_PATH=<folder>` on Windows or macOS; the AAX format is then added. Pro Tools only loads release AAX plug-ins that are signed through PACE (iLok), which needs an account with Avid's developer programme; a developer build of Pro Tools loads unsigned ones. Nothing about AAX has been compiled or run, because there is no SDK here.

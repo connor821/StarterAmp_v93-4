@@ -14,7 +14,7 @@
 
 namespace ToneStack
 {
-    struct Values { double R1, R2, R3, R4, C1, C2, C3, Rsrc, Rload; bool bassAudio, trebleAudio; double Rn = 0.0; };   // Rn > 0: Dumble-style wiring: the bass pot's bottom goes to ground through Rn, and the mid pot is only a resistor from the C3 node to ground
+    struct Values { double R1, R2, R3, R4, C1, C2, C3, Rsrc, Rload; bool bassAudio, trebleAudio; double Rn = 0.0; double Rtail = 0.0; bool midRheo = false; };   // midRheo: the mid pot is a rheostat (its wiper tied to its top): only the lower part m*R3 (plus Rtail) hangs from the node to ground, as on the Roland JC-120   // Rn > 0: Dumble-style wiring: the bass pot's bottom goes to ground through Rn, and the mid pot is only a resistor from the C3 node to ground
 
     // 0 American combo, 1 British 50 W master-volume lead, 2 British lead 100 W, 3 American lead, 4 chime (class A), 5 and 6 high-gain two-channel stack (680 pF and 500 pF treble caps)
     inline Values valuesFor (int type)
@@ -33,6 +33,7 @@ namespace ToneStack
             case 10: return { 250e3, 1.0e6, 25e3, 56e3, 270e-12, 22e-9, 22e-9, 1.0e3, 1.0e6, false, false };   // Sunn Model T style (1973 sheet, read b58): 250k treble, 1M bass, 25k mid (all linear), 56k slope, 270 pF, 2 x 0.022 uF; driven by a cathode follower, into the 1M volume pot
             case 11: return { 250e3, 250e3, 10e3, 100e3, 1000e-12, 0.1e-6, 0.047e-6, 44e3, 1.0e6, true, true };   // Mesa Mark IV style (b58 sheets): the American-combo values with the 250 pF treble cap and the switched 750 pF bright cap both in (1000 pF); source about 44k (V1a plate load 150k with the tube's plate resistance)
             case 12: return { 250e3, 250e3, 10e3, 100e3, 150e-12, 0.082e-6, 0.047e-6, 12e3, 580e3, true, false };   // b64 Roland JC-120 style (1983 service notes, channel 2): 250k linear treble, 250k audio bass, 10k mid, 100k slope, 150 pF, 0.082 uF, 0.047 uF, driven from a 12k drain load and loaded by the next stage's bias network (about 580k); the notch sits near 520 Hz and the insertion loss is about 22 dB (the makeup gain takes it out)
+            case 13: return { 50e3, 100e3, 5e3, 18e3, 1.5e-9, 0.47e-6, 0.15e-6, 150.0, 100e3, true, false, 0.0, 100.0, true };   // b68 Roland JC-120 1979 AP-113/AP-114 style (service sheet read b64): 50k treble, 100k bass, 5k mid + 100 ohm tail, 18k slope, 1.5 nF / 0.47 uF / 0.15 uF; low impedance throughout
             default: return { 1.0e6, 1.0e6, 10e3, 56e3, 50e-12, 22e-9, 22e-9, 5e3, 1.0e6, true, true };
         }
     }
@@ -51,7 +52,7 @@ namespace ToneStack
         const double eps = 1.0;                                  // ohms: keeps pots at their ends from short-circuiting the nodes
         const double r1a = std::max (eps, (1.0 - t) * v.R1), r1b = std::max (eps, t * v.R1);
         const double r2 = std::max (eps, b * v.R2);
-        const double r3a = std::max (eps, (1.0 - m) * v.R3), r3b = std::max (eps, m * v.R3);
+        const double r3a = v.midRheo ? eps : std::max (eps, (1.0 - m) * v.R3), r3b = std::max (eps, m * v.R3);
         const double s = w0 * sigma;
         enum { X, T, S, M, N, W, O, NN };
         double A[NN][NN + 1] = {};
@@ -71,7 +72,7 @@ namespace ToneStack
         stamp (O, M, 1.0 / r1b);
         stamp (M, N, 1.0 / r2);
         if (v.Rn > 0.0) stamp (N, -1, 1.0 / v.Rn); else stamp (N, W, 1.0 / r3a);
-        stamp (W, -1, 1.0 / r3b);
+        stamp (W, -1, 1.0 / (r3b + v.Rtail));          // Rtail: a fixed resistor under the mid pot (Roland JC-120 1979: 100 ohm)
         stamp (O, -1, 1.0 / v.Rload);
         // Gaussian elimination with the determinant
         double d = 1.0;

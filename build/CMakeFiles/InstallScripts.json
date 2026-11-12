@@ -1,0 +1,14 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/connor/Downloads/StarterAmp_v0.1 22/build/cmake_install.cmake",
+		"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/juce-build/cmake_install.cmake",
+		"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/juce-build/modules/cmake_install.cmake",
+		"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/juce-build/extras/Build/cmake_install.cmake",
+		"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/juce-build/extras/Build/juceaide/cmake_install.cmake",
+		"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-build/cmake_install.cmake",
+		"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-build/clapjuceext_clap/cmake_install.cmake",
+		"/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/clap-juce-extensions-build/clapjuceext_claphelpers/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

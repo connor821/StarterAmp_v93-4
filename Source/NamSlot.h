@@ -28,7 +28,7 @@ struct NamSlot
     std::vector<float> delayBuf;                       // power of two; used to line things up in time
     std::vector<float> dryBuf, wetA, wetB, dline[2];
     int   delayPos = 0, dpos[2] { 0, 0 };
-    bool  dualWas = false;
+    bool  dualWas = false, rewarming = false;
 
     void prepare (int maxBlock)
     {
@@ -40,7 +40,7 @@ struct NamSlot
         wetB.assign (wetA.size(), 0.0f);
         lastIn = lastOut = lastMix = 1.0f;
         wasActive = false;
-        dualWas = false;
+        dualWas = false;  rewarming = false;
     }
 
     // Audio thread: pick up a model that was installed since the last block (a pointer swap, no allocation).
@@ -52,6 +52,7 @@ struct NamSlot
             for (int k = 0; k < kPlayers; ++k)
                 std::swap (cur[k], inbox[k]);
             inboxFresh = false;
+            rewarming = false;      // b102: a different model arrived (it was settled when it was built)
         }
     }
 
@@ -90,9 +91,19 @@ struct NamSlot
         float* dryL = dryBuf.data();
         float* dryR = dryBuf.data() + n;
         const bool stereo = r != nullptr;
-        const bool useDual = stereo && st.dual && cur[1] != nullptr;
-        if (useDual && ! dualWas)
-            cur[1]->reset();
+        // b102: switching Dual on used to call cur[1]->reset() here, on the audio thread. That allocated two vectors and settled the network with up to 24,000 samples of
+        // silence in one block (a CPU spike, and a dropout risk on a large model). Now a second player that has already been used is cleared (no allocation) and settled
+        // a few hundred samples per block while the mono-sum path keeps playing; Dual takes over when it is ready. A player that has not been used since it was built
+        // was settled when it was built and needs nothing.
+        const bool wantDual = stereo && st.dual && cur[1] != nullptr;
+        bool useDual = false;
+        if (wantDual)
+        {
+            if (! dualWas && ! rewarming && cur[1]->isStale()) { cur[1]->beginRewarm();  rewarming = true; }
+            if (rewarming && cur[1]->rewarmStep (1024)) rewarming = false;
+            useDual = ! rewarming;
+        }
+        else rewarming = false;
         dualWas = useDual;
 
         std::copy (l, l + n, dryL);

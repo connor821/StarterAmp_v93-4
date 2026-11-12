@@ -43,11 +43,11 @@ namespace
             { "ringTrack", "Makes the carrier follow the note you play, so the ring-mod tones move with your melody instead of staying fixed. While tracking, Freq becomes a ratio to your note: 330 Hz = the same pitch (an octave-up, synth-like tone); other values give inharmonic, bell-like or clangorous tones. 0 = fixed Freq. Works best on single notes." },
             { "ringWobble", "Moves the carrier up and down by up to an octave, at the Speed rate. 0 = steady." },
             { "fuzzOn", "Fuzz pedal on/off. It sits before the compressor, overdrive and amp." },
-            { "fuzzStyle", "Wall (thick, sustained wall of sound), Tight (tight, aggressive, mid-forward), Gated (old, replaced by Factory), Buzzsaw (a heavy-metal pedal circuit: two gain stages, clipper, and a Low / High tone section with scooped mids), Face (round, two-transistor, cleans up with the guitar's volume), Bender (raspy, two or three transistors) Factory (gated, with Comp, that can squeal), Nuke (a wave-shaper fuzz: Gain drives the signal through a curve you morph with Shape, with optional bit and sample-rate reduction from Crush) Crusher (a bit-crusher: Bits, Rate, Gain and Tone), Power Chip (a cranked power-amp chip into a passive Low / High network: Gain is how hard you hit it, Low and High shape it, and Mix is the clean blend) or Doom (an octave-up in front of a rat-type distortion, then a clean boost: Gain is the distortion, Tone the filter, Octave how much octave, Boost the clean boost after it; the Diodes menu in ADV picks the clipping diodes), Distortion + Reverb (a distortion and a reverb together: switchable order, three reverb programs, Hold), Metal Pedal (a tight, modern distortion: Cut tightens the lows before the gain, then a five-band EQ after it, a boost and a noise gate; an approximation from descriptions of real pedals, not a schematic). Face, Bender and Factory have a Germanium / silicon switch. Hand-built approximations, not circuit models." },
+            { "fuzzStyle", "Wall (thick, sustained wall of sound), Tight (tight, aggressive, mid-forward), Gated (old, replaced by Factory), Buzzsaw (a heavy-metal pedal circuit: two gain stages, clipper, and a Low / High tone section with scooped mids), Face (round, two-transistor, cleans up with the guitar's volume), Bender (raspy, two or three transistors) Factory (gated, with Comp, that can squeal), Nuke (a wave-shaper fuzz: Gain drives the signal through a curve you morph with Shape, with optional bit and sample-rate reduction from Crush) Crusher (a bit-crusher: Bits, Rate, Gain and Tone), Power Chip (a cranked power-amp chip into a passive Low / High network: Gain is how hard you hit it, Low and High shape it, and Mix is the clean blend) or Doom (an octave-up in front of a rat-type distortion, then a clean boost: Gain is the distortion, Tone the filter, Octave how much octave, Boost the clean boost after it; the Diodes menu in ADV picks the clipping diodes), Distortion + Reverb (a distortion and a reverb together: switchable order, three reverb programs, Hold), Metal Pedal (a tight, modern distortion: Cut tightens the lows before the gain, then a five-band EQ after it, a boost and a noise gate; an approximation from descriptions of real pedals, not a schematic), Arc (a gas-discharge fuzz: the signal strikes an arc only above a voltage set by Gate, so quiet notes pinch and then gate out, loud ones become a flat, crackling square; Stab sets how restless it is, Comp keeps notes above the strike voltage, Octave Up adds the overtone; a model from descriptions of such pedals, not measured on one). Face, Bender and Factory have a Germanium / silicon switch. Hand-built approximations, not circuit models." },
             { "fuzzGain", "Amount of fuzz. Wall: sustain. Tight: distortion. Gated: drive. Buzzsaw: distortion. Face and Bender: the fuzz amount (the Face's Fuzz knob, the Bender's Attack). Factory: drive." },
             { "fuzzTone", "0 = dark, 1 = bright (the same direction for all styles). Buzzsaw has no Tone knob (it has Low and High). On Wall it is the Muff tone control (a scooped middle). On Face, Bender and Factory it is a top-end roll-off." },
             { "fuzzLevel", "Output level of the fuzz pedal (dB). Fuzz can be loud, so turn this down if the amp is overloaded." },
-            { "fuzzGate", "Gated and Factory styles. Higher = the stage is starved, so notes cut off and sputter as they die away." },
+            { "fuzzGate", "Gated, Factory and Arc styles. Higher = the stage is starved, so notes cut off and sputter as they die away. In Arc it is the strike voltage: low, the arc lights on almost anything; high, only strong notes light it, and quiet ones are pinched and then gated out." },
             { "perfMode", "Normal uses the quality menus as you set them. Low Latency turns off oversampling and shortens the transpose window for the least delay and CPU. High Quality uses 4x oversampling, the smooth transpose window and a longer limiter look-ahead, for the cleanest sound at the highest CPU." },
             { "limOn", "Final limiter on/off. It sits after the Output level and stops the signal going over the ceiling, to avoid clipping. With look-ahead it adds 1 ms of delay (2 ms in High Quality, none in Low Latency), which is reported to your DAW." },
             { "limCeil", "The highest level the limiter lets through (dB). It limits sample peaks, not true peaks, so leave a little headroom (-1 dB is a safe start)." },
@@ -69,7 +69,7 @@ namespace
             { "fuzzActSpeed", "Feral style. How fast the bias wobble runs (about 0.1 to 15 Hz)." },
             { "fuzzStarve", "Face, Bender and Feral styles. A weak, dying battery (in Feral it is the resting bias): less headroom, a gap at the zero crossing, and a gated, sputtering, spitty sound. 0 is a fresh battery." },
             { "fuzzInput", "Face, Bender and Factory styles. The volume knob on your guitar: turn it down and the fuzz cleans up, the way a fuzz pedal reacts to your guitar. 1 is full." },
-            { "fuzzComp", "Factory style only. Compression ahead of the fuzz: higher squashes the input, so quiet notes get louder and the sound sustains more." },
+            { "fuzzComp", "Factory and Arc styles. Compression ahead of the fuzz: higher squashes the input, so quiet notes get louder and the sound sustains more. In Arc it keeps a decaying note above the strike voltage, so it rings on at a high Gate setting." },
             { "fuzzShape", "Nuke: moves through five wave-shaping curves (soft, sine-fold, odd-harmonic, staircase, asymmetric fold), blending neighbours." },
             { "fuzzCrush", "Nuke: bit depth and sample rate reduced together, from clean (0) to crushed (1)." },
             { "fuzzBits", "Crusher: bit depth, from 16 (clean) down to 1 (a harsh square-ish buzz)." },
@@ -85,10 +85,10 @@ namespace
             { "fuzzHiss", "Transistor hiss in front of the fuzz. It gets louder as you turn the fuzz up. 0 is silent." },
             { "fuzzSub", "Octave down: an octave-down square wave (the old flip-flop divider trick) blended in front of the fuzz, so the fuzz growls an octave below your note. It follows your playing level. Works on every fuzz style. Best on single notes on the neck pickup; it tracks poorly on chords and the highest notes, and glitches a little, which is part of the sound. 0 = off." },
             { "fuzzOctave", "Octave up: a full-wave rectifier in front of the fuzz, a sputtering, ringing octave-up fuzz. The amount is how much octave is blended in (and how far your plain note ducks); it works the same way as Oct down. Works best on single notes, high on the neck. 0 = off. Old sessions with the switch on load at 10." },
-            { "fuzzStab", "Gated and Factory styles. 1 = stable; lower = more feedback, giving squeals and howls as notes decay." },
+            { "fuzzStab", "Gated, Factory and Arc styles. 1 = stable; lower = more feedback, giving squeals and howls as notes decay. In Arc, lower means a more restless arc: the strike point jitters, the arc flickers out and back, and more sparks crackle." },
             { "compOn", "Compressor on/off. It sits after the noise and fuzz pedals and before the amp." },
             { "compThresh", "Level (dB) above which the compressor works. Lower = more compression." },
-            { "compRatio", "How hard it squeezes: 1:1 (saturation only) up to 20:1 and Limit (a hard limiter). Every style except Dyna follows it (Bus caps it at 4:1)." },
+            { "compRatio", "How hard it squeezes: 1:1 (saturation only) up to 20:1 and Limit (a hard limiter). Every style except Squash follows it (Bus caps it at 4:1)." },
             { "compAttack", "How fast it reacts (0.05-50 ms). Short catches the pick attack; longer lets it through." },
             { "compRelease", "How fast the gain recovers (50 ms-3.5 s)." },
             { "compOutput", "Makeup gain (dB) to bring the level back up after compressing." },
@@ -97,6 +97,7 @@ namespace
             { "compSat", "Gentle saturation that grows with compression: tube-like (even harmonics), tape-like (odd harmonics), both, Transformer (low end only), or one of the four voiced for the compressor styles: FET stage, Opto tube stage, Mu iron + tube, Diode. Below those, the 16 shared curves of the Multiband Saturator, driven by the gain reduction in the same way." },
             { "compStyle", "The kind of compressor. Standard is the original. Thump adds Bloom, Smack and Clarity. FET is fast and punchy, Opto is smooth and slow to let go, Variable-mu is gentle glue, Sustainer is a pedal-style squeeze that lets the pick through and holds notes, Bus is light glue for chords. Opto Sustain is an optical sustain pedal with its own knobs: Sustain, Blend, Grit, Treble and Volume. Crush Limiter is a crushing, pumping podium limiter with Crush, Crunch, Darkness, a Slow / Fast release, Mix and Volume." },
             { "compSustain", "Opto Sustain style: how hard it squeezes. Up lowers the threshold, so quieter and quieter notes are brought up to the same level and the note holds up as it dies away. Quiet sounds below the threshold are also brought up, noise included." },
+            { "compCsAttack", "Sustainer style: the Attack knob of the 1980s sustainer pedal. In the service notes it is the resistor that recharges the envelope capacitor, so it sets how fast the gain comes back (0.10 s at the left to 1.28 s at the right); I also let it slow the detector's attack a little (3 to 15 ms), as the pedal's name for the knob suggests. My reading, not a published spec." },
             { "compCrush", "Crush Limiter style: how much signal goes to the limiter's gain-reduction circuit. Up squeezes harder and lifts quiet notes and every note's tail (noise too, by up to 36 dB). The loudness stays about the same. Near the top the circuit saturates and lets go very slowly (up to about 20 seconds)." },
             { "compCrunch", "Crush Limiter style: gain after the limiter into the output stage. Up adds more and more distortion; the level rises less than the gain does. 0 = clean." },
             { "compDark", "Crush Limiter style: a low-pass filter after the distortion, from open (0) down to about 1.2 kHz (1). It tames the fizz Crunch makes." },
@@ -109,13 +110,16 @@ namespace
             { "wahOn", "Wah pedal on/off. It sits after the compressor and before the phaser, chorus, overdrive and amp." },
             { "wahMode", "Manual: you set the Position (automate it from your DAW). Auto: Envelope: playing harder opens the wah. Auto: LFO: it sweeps by itself. Envelope Filter: a Q-Tron-style filter that the playing level pushes up or down (set Direction and Shape; Resonance is the peak, Sensitivity the input, Decay the fast / slow, Heel and Toe the range)." },
             { "blendLevelA", "Triple Blend: how much of the warm 15-inch combo you hear (dB)." },
-            { "blendLevelB", "Triple Blend: how much of the smooth, Dumble-style lead amp you hear (dB)." },
+            { "blendLevelB", "Triple Blend: how much of the smooth, boutique-style lead amp you hear (dB)." },
             { "blendLevelC", "Triple Blend: how much of the open, clean-headroom head you hear (dB)." },
             { "jadeDist", "Jade Chorus only: the Distortion channel, a gain stage into a pair of silicon diodes after the tone controls. 0 = off (the clean channel, untouched). Turn it up for harder, tighter, more fuzzy clipping. Circuit-derived from the service notes; not fitted to a recording." },
             { "wahEnvDir", "Envelope Filter: Up opens the filter as you play harder (the classic funk sweep); Down closes it." },
             { "wahEnvShape", "Envelope Filter: Band-pass is the vocal quack, Low-pass is rounder and bassier, High-pass is thin and edgy." },
             { "wahPos", "Filter position, 0 = heel (low, bassy) to 1 = toe (high, trebly). In Envelope mode it's the resting position; in LFO mode it's the centre of the sweep." },
-            { "wahVoice", "Generic is a plain band-pass wah set by the Heel, Toe and Resonance knobs. Classic circuit follows the published analyses of a classic wah: the peak is 450 Hz to 1.6 kHz, narrow and loud (about +18 dB, Q near 9) at the heel, wide and quieter (about +1 dB, Q near 2.5) at the toe. Its Heel, Toe and Resonance knobs scale that circuit (the middle of their range is the real pedal)." },
+            { "wahVoice", "Voicing. Generic: a plain band-pass wah. Classic circuit: see below. The other voicings are the classic circuit with their own sweep, Q, peak and pot law: Wide range (the Range selector, up to 15 dB), Vintage narrow (410 Hz to 2.2 kHz), Optical (a smoother, pot-less sweep), Optical, Contour (optical with a Contour mid lift), Low sweep (230 Hz to 1.35 kHz, +19 dB) and Optical with fuzz (optical wah with a fuzz in front). Published numbers: the wide-range ranges, the vintage narrow sweep, the low-sweep range; the rest are my estimates. Generic is a plain band-pass wah set by the Heel, Toe and Resonance knobs. Classic circuit follows the published analyses of a classic wah: the peak is 450 Hz to 1.6 kHz, narrow and loud (about +18 dB, Q near 9) at the heel, wide and quieter (about +1 dB, Q near 2.5) at the toe. Its Heel, Toe and Resonance knobs scale that circuit (the middle of their range is the real pedal)." },
+            { "wahRange", "The Range selector of the wide-range wah voicing: six positions that move the whole sweep, from a wide high one (1: heel 440 Hz, toe about 1.85 kHz) to a low, dark one (6: heel 250 Hz). The heel values and toe windows are from that wah's manual; the toe is set at the middle of each window here, and the Toe knob moves it. Works with every voicing except Generic; Voicing's own keeps the voicing's sweep." },
+            { "wahBoost", "A level boost for the wah, as on the wide-range wah (its Boost runs 0.1 to 17 dB). Works with every voicing." },
+            { "wahFuzz", "Optical-with-fuzz voicing only: how much fuzz sits in front of the wah. The fuzz is a plain asymmetric clipper of my own, placed before the wah (my assumption; the maker\'s page does not say)." },
             { "wahHeel", "Lowest centre frequency of the wah sweep." },
             { "wahToe", "Highest centre frequency of the wah sweep." },
             { "wahQ", "Resonance: how sharp and vocal the wah peak is. Higher = more nasal and pointed." },
@@ -135,7 +139,7 @@ namespace
             { "phaserLag", "Delays the feedback by up to 10 ms. Needs Feedback away from zero. Short values soften and slow the resonant peaks; longer ones add a comb-like, flanger-ish edge. 0 is the plain phaser." },
             { "phaserEnv", "How much your playing level also moves the sweep (envelope follower)." },
             { "chorusOn", "Chorus on/off. It sits after the phaser, before the overdrive and amp." },
-            { "chorusMode", "Chorus voicing. I, II and I+II are the classic modes (I+II is a fast, vibrato-like shimmer). Dimension, Tri-chorus, Ensemble and Detune are the wider, slower voicings. The two Small Clone entries are a single dark delay line (Depth switch low or high)." },
+            { "chorusMode", "Chorus voicing. I, II and I+II are the classic modes (I+II is a fast, vibrato-like shimmer). Dimension, Tri-chorus, Ensemble and Detune are the wider, slower voicings. The two single-line entries (low and high depth) are one dark delay line. The 1980s single-line chorus, the two-line chorus and the two-line vibrato are estimated voicings. The seven Stereo entries make a wide stereo sound from a mono guitar (after the cab; before the amp they sum to mono): Spatial and Vintage are fitted to captures of a rack chorus, the other five are my own variations." },
             { "chorusMix", "Wet/dry blend of the chorus." },
             { "chorusRate", "Multiplies the speed of the mode's built-in sweep." },
             { "chorusDepth", "Multiplies how far the mode's sweep moves the pitch." },
@@ -182,27 +186,29 @@ namespace
             { "fuzz2On", "Fuzz 2 on/off. A second, separate copy of the fuzz block. It is its own pedal on the pedalboard (BOARD button): by default it sits right after Fuzz 1 (stacked); run a cable from the same jack into it to put it beside Fuzz 1 instead." },
             { "od2On", "Drive 2 on/off. A second, separate copy of the drive block. By default it stacks after Drive 1; on the pedalboard (BOARD button) run a cable from the same jack into it to put it beside Drive 1." },
             { "odOn", "Overdrive pedal on/off. It sits before the amp and pushes its first stage." },
-            { "odStyle", "Transparent (a Centaur-type blend drive), Tight (a modern metal-style boost with a gate), Open (a dynamic, amp-like overdrive with a range switch), Screamer (a mid-hump drive with clipping, voicing, Bass and Mid controls), Distortion (a hard-clipped distortion with a clipping choice), Tube Driver (a full-range, warm, creamy tube-style drive), Op-Amp Distortion or Stack Drive, Blues Driver, Natural Overdrive (a Nobels ODR-1 type with an ODR-1 Plus and an ODR-S voicing), Preamp Distortion (a 741 op-amp stage into an asymmetric diode clipper, after the DOD 250), or Metal Zone (a four-stage, high-gain distortion with a three-band equaliser and a sweepable mid, after the Boss MT-2). All except Open and Tube Driver are circuit models from published component values; where the analyses leave values out the numbers are my estimates (see MODELED_GEAR)." },
-            { "odClip", "Screamer and Distortion (and Tight in Circuit mode): what clips the signal. 'None' (circuit mode only) lets the op-amp run into its own supply limits instead of diodes. Silicon is the classic sound; LED has more headroom (louder, more open); Germanium clips early and soft; Asymmetric clips the two halves differently, which adds even harmonics and a more amp-like feel." },
-            { "odVoice", "Screamer: Classic is the familiar mid hump and gain, Mild is leaner with less gain and no hump, Open is brighter with more gain and a looser low end. Tube Driver: Classic is the standard tube drive; Mild is the Hex voicing (thick lows, soft knee, dark top); Open is the Hex voicing with more gain." },
-            { "odBass", "Screamer only: how much low end goes into the clipper. Low = tight and mid-focused (the classic sound); high = fuller and thicker." },
-            { "odMid", "Screamer only: cuts or boosts the mid hump before the clipper. Centre = the voicing's own hump." },
-            { "odMidFreq", "Screamer only: where the mid control works, from about 350 Hz (honky, vocal) up to about 2 kHz (nasal, cutting)." },
-            { "odNob", "Natural Overdrive only. ODR-1 is the natural overdrive: a very high-gain op-amp stage with soft diode clipping in its feedback, then a second hard clip, then the Spectrum tilt from a dark to a bright voice. ODR-1 Plus adds the Boost switch: about 9 to 10 dB more gain into the same clippers. ODR-S swaps in germanium shunt clipping and a three-band Hi / Mid / Lo equaliser (Tone is Hi; Lo and Mid are behind ADV)." },
+            { "odStyle", "Transparent (a blend drive), Tight (a modern metal-style boost with a gate), Open (a dynamic, amp-like overdrive with a range switch), Mid Hump (a mid-hump drive with clipping, voicing, Bass and Mid controls), Distortion (a hard-clipped distortion with a clipping choice), Tube-style Drive (a full-range, warm, creamy tube-style drive), Op-Amp Distortion or Stack Drive, Blues Drive, Natural Drive (a 1990s natural-overdrive type with a Plus and a Special voicing), Preamp Distortion (a 741 op-amp stage into an asymmetric diode clipper, after a classic 1970s op-amp distortion pedal), or Metal Distortion (a four-stage, high-gain distortion with a three-band equaliser and a sweepable mid, after a well-known metal pedal). All except Open and Tube-style Drive are circuit models from published component values; where the analyses leave values out the numbers are my estimates (see MODELED_GEAR)." },
+            { "odClip", "Mid Hump and Distortion (and Tight in Circuit mode): what clips the signal. 'None' (circuit mode only) lets the op-amp run into its own supply limits instead of diodes. Silicon is the classic sound; LED has more headroom (louder, more open); Germanium clips early and soft; Asymmetric clips the two halves differently, which adds even harmonics and a more amp-like feel." },
+            { "odVoice", "Mid Hump: Classic is the familiar mid hump and gain, Mild is leaner with less gain and no hump, Open is brighter with more gain and a looser low end. Tube-style Drive: Classic is the standard tube drive; Mild is the Hex voicing (thick lows, soft knee, dark top); Open is the Hex voicing with more gain." },
+            { "odBass", "Mid Hump only: how much low end goes into the clipper. Low = tight and mid-focused (the classic sound); high = fuller and thicker." },
+            { "odMid", "Mid Hump only: cuts or boosts the mid hump before the clipper. Centre = the voicing's own hump." },
+            { "odMidFreq", "Mid Hump only: where the mid control works, from about 350 Hz (honky, vocal) up to about 2 kHz (nasal, cutting)." },
+            { "odMz", "Metal Distortion only. Standard is the original pedal as built (from its service notes). Custom is the reissue\'s second mode as I understand its maker\'s description: the Dist knob reaches about twice the gain, the low end is tighter (higher low-cut corners) and the Middle band is broader. The maker does not publish the reissue circuit, so Custom is my estimate, not a reading." },
+            { "od2Mz", "Metal Distortion only. Standard is the original pedal as built (from its service notes). Custom is the reissue\'s second mode as I understand its maker\'s description: the Dist knob reaches about twice the gain, the low end is tighter (higher low-cut corners) and the Middle band is broader. The maker does not publish the reissue circuit, so Custom is my estimate, not a reading." },
+            { "odNob", "Natural Drive only. Stock is the natural drive: a very high-gain op-amp stage with soft diode clipping in its feedback, then a second hard clip, then the Spectrum tilt from a dark to a bright voice. Plus adds the Boost switch: about 9 to 10 dB more gain into the same clippers. Special swaps in germanium shunt clipping and a three-band Hi / Mid / Lo equaliser (Tone is Hi; Lo and Mid are behind ADV)." },
             { "odMidMod", "Distortion only: Scoop is the stock sound (a mid dip, scooped and fizzy), Flat leaves the mids alone, Boost adds a mid hump for a thicker, more lead-like tone." },
             { "odRange", "Open style only. High: more gain and a fuller, more compressed drive. Low: lighter, with more headroom and a clearer, more dynamic feel." },
-            { "odGain", "Amount of drive. Transparent and Screamer blend a clean path with the gain path; Tight and Distortion send almost everything through the gain path." },
+            { "odGain", "Amount of drive. Transparent and Mid Hump blend a clean path with the gain path; Tight and Distortion send almost everything through the gain path." },
             { "odTone", "Treble control after the clipper (darker to brighter). On the Distortion it tilts the highs around 1.2 kHz." },
-            { "odEdge", "Transparent, Screamer and Distortion styles: extra treble fed into the clipper for more bite (shown as Bright on the Screamer and Distortion)." },
+            { "odEdge", "Transparent, Mid Hump and Distortion styles: extra treble fed into the clipper for more bite (shown as Bright on the Mid Hump and Distortion)." },
             { "odAttack", "Tight style: positions 1-6. Higher tightens the low end more and adds more bite around 750 Hz." },
             { "odGate", "Tight style: a noise gate ahead of the gain, for chopped palm mutes. 0 = off. Too high cuts quiet notes." },
             { "odVolume", "Output level of the overdrive (dB). A boost into the amp can be much louder than the amp alone." },
             { "odGrip", "Transparent style: tightens and brightens the voicing, from nothing (0) to a lot (10). Hand-tuned: the low cut ahead of the clipper moves from 120 Hz up to 400 Hz and the Edge shelf starts lower (3 kHz down to 1.2 kHz) with up to 4 dB extra. Circuit Mode: up to a -6 dB cut around 330 Hz and +3 dB above 1.2 kHz (the old Grip switch was about half of this, so old sessions with Grip on now load at 10 and sound tighter than before)." },
             { "odMix", "Blends the drive with your unprocessed input (before the drive's Volume). 1 = all drive. Lower keeps your clean attack and low end under the drive." },
-            { "odCircuit", "Transparent, Tight, Open, Screamer and Distortion: off = the original hand-tuned voicings (default). On = the circuit models (the real resistor, capacitor and diode values, solved sample by sample). Tighten works in both modes (a different recipe in each); the Clipping menu on Tight only works in circuit mode. The other pedals are always circuit models." },
+            { "odCircuit", "Transparent, Tight, Open, Mid Hump and Distortion: off = the original hand-tuned voicings (default). On = the circuit models (the real resistor, capacitor and diode values, solved sample by sample). Tighten works in both modes (a different recipe in each); the Clipping menu on Tight only works in circuit mode. The other pedals are always circuit models." },
             { "ampMode", "Amp mode. Hybrid (default) mixes the circuit-derived and classic shaping. Classic is the original voicing. Circuit-derived uses clipping curves from tube-stage simulations and works the power section, supply droop and preamp corners out from the circuit values." },
             { "ampBMode", "Amp B mode: Classic (the original voicing), or Circuit-derived (clipping curves and power section worked out from the circuit)." },
-            { "ampModel", "Which amp. The menu is sorted into folders by gain level: Clean, Low / mid gain and High gain (Acoustic is at the top). Amps: Twin Sparkle (sparkly), Chime Thirty (class-A), Brown Eye (tight), Slow Burn (smooth), Modern Maul (scooped), Club Crunch (crunch), Bumble Lead (smooth, singing), 5555 Block (raw to modern), Tweedle Dee (spongy breakup), Jade Chorus (solid-state), Marque Dream (tight, mid-hump), Citrus Doom (thick, loose), Revved Up (a modern boutique high-gain amp), Digital Dread (a modern digital-style amp for extreme styles), Master Cranker (80s hard rock), Harmonic Haze (rich, mid-focused), Diesel Fuel (tight, cutting), Wreck Stack (huge, very tight), Power Brawl (punchy 6L6), Stolen Fire (growl, flexible), Hi-Wat Headroom (tight, clean to edge), Console DI (class-A channel, no amp), Plex Appeal (a Plexi-style 100 W head with stock and modded voicings), Matt's Amp (a thick, dark, doom-friendly 70s British head, with a mixed voicing), Marmalade (a modern 50 W British-style head: thick, mid-forward crunch), Eclipse (a modern 100 W extreme-metal head with a high and a low input), Marque Five (a three-channel head), Dual Thirty (a two-channel 30 W EL84 combo), Solid Metal (a solid-state / hybrid 90s metal amp with Hybrid and JFET voicings), Cedar Spring (a family of blackface-style combos that break up early), Triple Blend (three amps in parallel in one amp), Jazz Box (dark jazz clean), Brit Eighteen (18 W EL84 combo), Tweedle Dum (a tweed bass amp: push-pull, a little feedback), Marque One (the original single-channel Mark), Cedar Grand (a 15-inch 6L6 reverb combo), Cedar Ten (a 4x10 combo with a gain channel), Brit Forty-Five (the KT66 45 W head), Tweedle Mini (a 5 W single-ended tweed), Jubilant (a silver-jubilee-style head with cascaded clipping), or Acoustic (piezo to acoustic)." },
+            { "ampModel", "Which amp. The menu is sorted into folders by gain level: Clean, Low / mid gain and High gain (Acoustic is at the top). Amps: Twin Sparkle (sparkly), Chime Thirty (class-A), Brown Eye (tight), Slow Burn (smooth), Modern Maul (scooped), Club Crunch (crunch), Bumble Lead (smooth, singing), 5555 Block (raw to modern), Tweedle Dee (spongy breakup), Jade Chorus (solid-state), Marque Dream (tight, mid-hump), Citrus Doom (thick, loose), Revved Up (a modern boutique high-gain amp), Digital Dread (a modern digital-style amp for extreme styles), Master Cranker (80s hard rock), Harmonic Haze (rich, mid-focused), Diesel Fuel (tight, cutting), Wreck Stack (huge, very tight), Power Brawl (punchy 6L6), Stolen Fire (growl, flexible), Hi-Wat Headroom (tight, clean to edge), Console DI (class-A channel, no amp), Plex Appeal (a early-British-style 100 W head with stock and modded voicings), Matt's Amp (a thick, dark, doom-friendly 70s British head, with a mixed voicing), Marmalade (a modern 50 W British-style head: thick, mid-forward crunch), Eclipse (a modern 100 W extreme-metal head with a high and a low input), Marque Five (a three-channel head), Dual Thirty (a two-channel 30 W EL84 combo), Solid Metal (a solid-state / hybrid 90s metal amp with Hybrid and JFET voicings), Cedar Spring (a family of blackface-style combos that break up early), Triple Blend (three amps in parallel in one amp), Jazz Box (dark jazz clean), Brit Eighteen (18 W EL84 combo), Tweedle Dum (a tweed bass amp: push-pull, a little feedback), Marque One (the original single-channel Mark), Cedar Grand (a 15-inch 6L6 reverb combo), Cedar Ten (a 4x10 combo with a gain channel), Brit Forty-Five (the KT66 45 W head), Tweedle Mini (a 5 W single-ended tweed), Jubilant (a silver-jubilee-style head with cascaded clipping), Clarion (an idealized high-gain amp of our own design: tight, clear, bright without fizz), Prism (an idealized clean amp: glassy and full range), Ember (an idealized lead amp: weight and smoothness with bite, edge of breakup to extreme), Kindle (an idealized low / mid gain amp: chime with weight, clean to light lead), Ironside (a raw 1969 British 100 W head), or Acoustic (piezo to acoustic)." },
             { "ampBright", "Bright switch: a treble lift that fades out as the Gain goes up (like the bright switch on a vintage amp). Most noticeable at low gain." },
             { "ampBias", "Power-tube bias. Negative: hotter, with more bite and a tighter feel. Positive: colder, with a looser, crossover-style sound and more gap in the attack. 0 is the amp's own." },
             { "ampPower", "Power-amp drive: pushes the output stage into saturation for more squash and sizzle. 0 is off." },
@@ -243,11 +249,24 @@ namespace
             { "mfANoise", "Lo-Fi warble type only: tape hiss." },
             { "mfADrops", "Lo-Fi warble type only: dropouts, short drops in level like a worn tape." },
             { "mfALevel", "Lo-Fi warble type only: the output level of the effect, to match the loudness of the dry signal." },
-            { "mfAChMode", "Chorus type only: the voicing. I and II are the classic modes (I + II is a fast, vibrato-like shimmer). Dimension, Tri-chorus, Ensemble and Detune are the wider, slower voicings. The two Small Clone entries are a single dark delay line (Depth switch low or high)." },
+            { "mfAFrame", "Digital damage only: the size of the analysis frame, which is also how late the whole slot makes the sound. Long is the original (about 21 ms), Medium about 11 ms, Short about 5 ms. Shorter frames follow what you play more closely but the codec holes, freezes and smearing get coarser and more metallic. Switching clears the effect for a moment." },
+            { "mfBFrame", "Digital damage only: the size of the analysis frame, which is also how late the whole slot makes the sound. Long is the original (about 21 ms), Medium about 11 ms, Short about 5 ms. Shorter frames follow what you play more closely but the codec holes, freezes and smearing get coarser and more metallic. Switching clears the effect for a moment." },
+            { "mfCFrame", "Digital damage only: the size of the analysis frame, which is also how late the whole slot makes the sound. Long is the original (about 21 ms), Medium about 11 ms, Short about 5 ms. Shorter frames follow what you play more closely but the codec holes, freezes and smearing get coarser and more metallic. Switching clears the effect for a moment." },
+            { "mfDFrame", "Digital damage only: the size of the analysis frame, which is also how late the whole slot makes the sound. Long is the original (about 21 ms), Medium about 11 ms, Short about 5 ms. Shorter frames follow what you play more closely but the codec holes, freezes and smearing get coarser and more metallic. Switching clears the effect for a moment." },
+            { "mfABreath", "Lo-Fi, Cassette voicing only: tape noise reduction that does not quite match, the way a cassette deck's does. The quiet highs are boosted before the tape and cut back after it, so the hiss and the top end swell and dip with your playing instead of sitting steady. 0 is off. It also darkens and softens the sound a little." },
+            { "mfABitMangle", "Lo-Fi and Digital damage: corrupts the bits of every sample, like a damaged file or a failing converter. Low settings are a rough, noisy grain that follows your playing; higher settings flip higher bits (harsh, gated distortion) and past the middle the lowest bits are wiped out as well. The damage pattern changes many times a second. 0 is off. It follows Mix." },
+            { "mfBBreath", "Lo-Fi, Cassette voicing only: tape noise reduction that does not quite match, the way a cassette deck's does. The quiet highs are boosted before the tape and cut back after it, so the hiss and the top end swell and dip with your playing instead of sitting steady. 0 is off. It also darkens and softens the sound a little." },
+            { "mfBBitMangle", "Lo-Fi and Digital damage: corrupts the bits of every sample, like a damaged file or a failing converter. Low settings are a rough, noisy grain that follows your playing; higher settings flip higher bits (harsh, gated distortion) and past the middle the lowest bits are wiped out as well. The damage pattern changes many times a second. 0 is off. It follows Mix." },
+            { "mfCBreath", "Lo-Fi, Cassette voicing only: tape noise reduction that does not quite match, the way a cassette deck's does. The quiet highs are boosted before the tape and cut back after it, so the hiss and the top end swell and dip with your playing instead of sitting steady. 0 is off. It also darkens and softens the sound a little." },
+            { "mfCBitMangle", "Lo-Fi and Digital damage: corrupts the bits of every sample, like a damaged file or a failing converter. Low settings are a rough, noisy grain that follows your playing; higher settings flip higher bits (harsh, gated distortion) and past the middle the lowest bits are wiped out as well. The damage pattern changes many times a second. 0 is off. It follows Mix." },
+            { "mfDBreath", "Lo-Fi, Cassette voicing only: tape noise reduction that does not quite match, the way a cassette deck's does. The quiet highs are boosted before the tape and cut back after it, so the hiss and the top end swell and dip with your playing instead of sitting steady. 0 is off. It also darkens and softens the sound a little." },
+            { "mfDBitMangle", "Lo-Fi and Digital damage: corrupts the bits of every sample, like a damaged file or a failing converter. Low settings are a rough, noisy grain that follows your playing; higher settings flip higher bits (harsh, gated distortion) and past the middle the lowest bits are wiped out as well. The damage pattern changes many times a second. 0 is off. It follows Mix." },
+            { "mfAChMode", "Chorus type only: the voicing. I and II are the classic modes (I + II is a fast, vibrato-like shimmer). Dimension, Tri-chorus, Ensemble and Detune are the wider, slower voicings. The two single-line entries (low and high depth) are one dark delay line. The 1980s single-line chorus, the two-line chorus and the two-line vibrato are estimated voicings. The seven Stereo entries make a wide stereo sound from a mono guitar (after the cab; before the amp they sum to mono): Spatial and Vintage are fitted to captures of a rack chorus, the other five are my own variations." },
             { "mfAFMode", "Filter (all modes) only: low-pass, high-pass, band-pass, notch, Formant (vowel shapes) or Resonator (tuned ringing)." },
             { "mfAFMotion", "Filter (all modes) only: what moves the frequency: nothing (Manual), an LFO, your playing level (Envelope), or random steps. Depth sets how far; Rate the speed of the LFO and steps." },
             { "mfAVowel", "Filter (all modes) in Formant mode: morphs A - E - I - O - U." },
             { "mfAFlip", "Filter (all modes) only: flips the sweep direction (it was a negative Depth on the old Filter pedal)." },
+            { "mfAHold", "Sustain hold type only. On: captures the note or chord you just played and holds it (a loop without the pick attack). Switch it on again to add another layer. Off: the layers die away by Tail. The knobs: Layers (how many layers can pile up), Rise (how fast a layer swells in), Tail (how long it lingers after Hold goes off), Tone, Mix (the middle is the level you played it at)." },
             { "mfAPick", "Tremolo type only: Pick Response. A harder pick squeezes the pulse shallower, so soft notes throb more than hard ones (the amp-style tremolo)." },
             { "mfBStages", "Phaser type only: the number of all-pass stages (2 to 12). More stages = more notches and a deeper, richer sweep; 4 is the classic." },
             { "mfBEnv", "Phaser type only: how much your playing level pushes the sweep (it opens as you play harder)." },
@@ -255,11 +274,12 @@ namespace
             { "mfBNoise", "Lo-Fi warble type only: tape hiss." },
             { "mfBDrops", "Lo-Fi warble type only: dropouts, short drops in level like a worn tape." },
             { "mfBLevel", "Lo-Fi warble type only: the output level of the effect, to match the loudness of the dry signal." },
-            { "mfBChMode", "Chorus type only: the voicing. I and II are the classic modes (I + II is a fast, vibrato-like shimmer). Dimension, Tri-chorus, Ensemble and Detune are the wider, slower voicings. The two Small Clone entries are a single dark delay line (Depth switch low or high)." },
+            { "mfBChMode", "Chorus type only: the voicing. I and II are the classic modes (I + II is a fast, vibrato-like shimmer). Dimension, Tri-chorus, Ensemble and Detune are the wider, slower voicings. The two single-line entries (low and high depth) are one dark delay line. The 1980s single-line chorus, the two-line chorus and the two-line vibrato are estimated voicings. The seven Stereo entries make a wide stereo sound from a mono guitar (after the cab; before the amp they sum to mono): Spatial and Vintage are fitted to captures of a rack chorus, the other five are my own variations." },
             { "mfBFMode", "Filter (all modes) only: low-pass, high-pass, band-pass, notch, Formant (vowel shapes) or Resonator (tuned ringing)." },
             { "mfBFMotion", "Filter (all modes) only: what moves the frequency: nothing (Manual), an LFO, your playing level (Envelope), or random steps. Depth sets how far; Rate the speed of the LFO and steps." },
             { "mfBVowel", "Filter (all modes) in Formant mode: morphs A - E - I - O - U." },
             { "mfBFlip", "Filter (all modes) only: flips the sweep direction (it was a negative Depth on the old Filter pedal)." },
+            { "mfBHold", "Sustain hold type only. On: captures the note or chord you just played and holds it (a loop without the pick attack). Switch it on again to add another layer. Off: the layers die away by Tail. The knobs: Layers (how many layers can pile up), Rise (how fast a layer swells in), Tail (how long it lingers after Hold goes off), Tone, Mix (the middle is the level you played it at)." },
             { "mfBPick", "Tremolo type only: Pick Response. A harder pick squeezes the pulse shallower, so soft notes throb more than hard ones (the amp-style tremolo)." },
             { "mfCStages", "Phaser type only: the number of all-pass stages (2 to 12). More stages = more notches and a deeper, richer sweep; 4 is the classic." },
             { "mfCEnv", "Phaser type only: how much your playing level pushes the sweep (it opens as you play harder)." },
@@ -267,11 +287,12 @@ namespace
             { "mfCNoise", "Lo-Fi warble type only: tape hiss." },
             { "mfCDrops", "Lo-Fi warble type only: dropouts, short drops in level like a worn tape." },
             { "mfCLevel", "Lo-Fi warble type only: the output level of the effect, to match the loudness of the dry signal." },
-            { "mfCChMode", "Chorus type only: the voicing. I and II are the classic modes (I + II is a fast, vibrato-like shimmer). Dimension, Tri-chorus, Ensemble and Detune are the wider, slower voicings. The two Small Clone entries are a single dark delay line (Depth switch low or high)." },
+            { "mfCChMode", "Chorus type only: the voicing. I and II are the classic modes (I + II is a fast, vibrato-like shimmer). Dimension, Tri-chorus, Ensemble and Detune are the wider, slower voicings. The two single-line entries (low and high depth) are one dark delay line. The 1980s single-line chorus, the two-line chorus and the two-line vibrato are estimated voicings. The seven Stereo entries make a wide stereo sound from a mono guitar (after the cab; before the amp they sum to mono): Spatial and Vintage are fitted to captures of a rack chorus, the other five are my own variations." },
             { "mfCFMode", "Filter (all modes) only: low-pass, high-pass, band-pass, notch, Formant (vowel shapes) or Resonator (tuned ringing)." },
             { "mfCFMotion", "Filter (all modes) only: what moves the frequency: nothing (Manual), an LFO, your playing level (Envelope), or random steps. Depth sets how far; Rate the speed of the LFO and steps." },
             { "mfCVowel", "Filter (all modes) in Formant mode: morphs A - E - I - O - U." },
             { "mfCFlip", "Filter (all modes) only: flips the sweep direction (it was a negative Depth on the old Filter pedal)." },
+            { "mfCHold", "Sustain hold type only. On: captures the note or chord you just played and holds it (a loop without the pick attack). Switch it on again to add another layer. Off: the layers die away by Tail. The knobs: Layers (how many layers can pile up), Rise (how fast a layer swells in), Tail (how long it lingers after Hold goes off), Tone, Mix (the middle is the level you played it at)." },
             { "mfCPick", "Tremolo type only: Pick Response. A harder pick squeezes the pulse shallower, so soft notes throb more than hard ones (the amp-style tremolo)." },
             { "mfDStages", "Phaser type only: the number of all-pass stages (2 to 12). More stages = more notches and a deeper, richer sweep; 4 is the classic." },
             { "mfDEnv", "Phaser type only: how much your playing level pushes the sweep (it opens as you play harder)." },
@@ -279,11 +300,12 @@ namespace
             { "mfDNoise", "Lo-Fi warble type only: tape hiss." },
             { "mfDDrops", "Lo-Fi warble type only: dropouts, short drops in level like a worn tape." },
             { "mfDLevel", "Lo-Fi warble type only: the output level of the effect, to match the loudness of the dry signal." },
-            { "mfDChMode", "Chorus type only: the voicing. I and II are the classic modes (I + II is a fast, vibrato-like shimmer). Dimension, Tri-chorus, Ensemble and Detune are the wider, slower voicings. The two Small Clone entries are a single dark delay line (Depth switch low or high)." },
+            { "mfDChMode", "Chorus type only: the voicing. I and II are the classic modes (I + II is a fast, vibrato-like shimmer). Dimension, Tri-chorus, Ensemble and Detune are the wider, slower voicings. The two single-line entries (low and high depth) are one dark delay line. The 1980s single-line chorus, the two-line chorus and the two-line vibrato are estimated voicings. The seven Stereo entries make a wide stereo sound from a mono guitar (after the cab; before the amp they sum to mono): Spatial and Vintage are fitted to captures of a rack chorus, the other five are my own variations." },
             { "mfDFMode", "Filter (all modes) only: low-pass, high-pass, band-pass, notch, Formant (vowel shapes) or Resonator (tuned ringing)." },
             { "mfDFMotion", "Filter (all modes) only: what moves the frequency: nothing (Manual), an LFO, your playing level (Envelope), or random steps. Depth sets how far; Rate the speed of the LFO and steps." },
             { "mfDVowel", "Filter (all modes) in Formant mode: morphs A - E - I - O - U." },
             { "mfDFlip", "Filter (all modes) only: flips the sweep direction (it was a negative Depth on the old Filter pedal)." },
+            { "mfDHold", "Sustain hold type only. On: captures the note or chord you just played and holds it (a loop without the pick attack). Switch it on again to add another layer. Off: the layers die away by Tail. The knobs: Layers (how many layers can pile up), Rise (how fast a layer swells in), Tail (how long it lingers after Hold goes off), Tone, Mix (the middle is the level you played it at)." },
             { "mfDPick", "Tremolo type only: Pick Response. A harder pick squeezes the pulse shallower, so soft notes throb more than hard ones (the amp-style tremolo)." },
             { "mfAShift", "How far every partial moves, in Hz (positive = up, negative = down; fine control near zero, up to 2 kHz either way). In the Shifted-feedback flanger it is the shift of each trip round the feedback loop; in the Frequency shifter it is the shift itself, or the carrier frequency in Ring mode. Rate and Depth swing it by up to two octaves." },
             { "mfAFsMode", "Frequency shifter only. Shift (single sideband): every partial moves up or down by Shift Hz. Ring modulator: multiplies by a tone at the Shift frequency, giving sum and difference tones (bell-like, metallic). Spread: the left side is shifted up and the right side down (mono: both together)." },
@@ -313,16 +335,28 @@ namespace
             { "mfDVocNote", "Vocoder with the Drone carrier: the pitch of the drone." },
             { "mfDVocSib", "Vocoder only: adds hiss that follows the highest part of the voice, so s, t and f sounds come through." },
             { "mfDVocResp", "Vocoder only: how fast the bands react. Low = smooth and blurry, high = crisp and percussive." },
-            { "mfALoVoice", "Lo-Fi warble only. Warble is the original crushed, wobbly pedal. Cassette is a worn tape deck: soft tape saturation instead of bit crushing, a low head bump, a steeper top roll-off, more fast flutter and steady hiss without crackle." },
-            { "mfBLoVoice", "Lo-Fi warble only. Warble is the original crushed, wobbly pedal. Cassette is a worn tape deck: soft tape saturation instead of bit crushing, a low head bump, a steeper top roll-off, more fast flutter and steady hiss without crackle." },
-            { "mfCLoVoice", "Lo-Fi warble only. Warble is the original crushed, wobbly pedal. Cassette is a worn tape deck: soft tape saturation instead of bit crushing, a low head bump, a steeper top roll-off, more fast flutter and steady hiss without crackle." },
-            { "mfDLoVoice", "Lo-Fi warble only. Warble is the original crushed, wobbly pedal. Cassette is a worn tape deck: soft tape saturation instead of bit crushing, a low head bump, a steeper top roll-off, more fast flutter and steady hiss without crackle." },
-            { "mfAPhVoice", "Phaser only. Four-stage JFET is the classic orange-box sweep (the JFET all-pass chain, Manual sets the centre). Small Stone is four non-inverting OTA all-pass stages swept around 700 Hz (Manual is ignored; Rate, Depth, Mix and Envelope work as usual): a softer, rounder sweep. Small Stone, Color on adds the Color switch's feedback, which puts resonant peaks between the notches. Uni-Vibe is four all-pass stages with different capacitors (15 nF, 220 nF, 470 pF, 4.7 nF) swept by one lamp, so they do not move in lockstep: Mix 0.5 is Chorus, Mix 1 is Vibrato; Depth is the Intensity knob and the lamp lags a little behind the LFO (Manual and Feedback are ignored)." },
-            { "mfBPhVoice", "Phaser only. Four-stage JFET is the classic orange-box sweep (the JFET all-pass chain, Manual sets the centre). Small Stone is four non-inverting OTA all-pass stages swept around 700 Hz (Manual is ignored; Rate, Depth, Mix and Envelope work as usual): a softer, rounder sweep. Small Stone, Color on adds the Color switch's feedback, which puts resonant peaks between the notches. Uni-Vibe is four all-pass stages with different capacitors (15 nF, 220 nF, 470 pF, 4.7 nF) swept by one lamp, so they do not move in lockstep: Mix 0.5 is Chorus, Mix 1 is Vibrato; Depth is the Intensity knob and the lamp lags a little behind the LFO (Manual and Feedback are ignored)." },
-            { "mfCPhVoice", "Phaser only. Four-stage JFET is the classic orange-box sweep (the JFET all-pass chain, Manual sets the centre). Small Stone is four non-inverting OTA all-pass stages swept around 700 Hz (Manual is ignored; Rate, Depth, Mix and Envelope work as usual): a softer, rounder sweep. Small Stone, Color on adds the Color switch's feedback, which puts resonant peaks between the notches. Uni-Vibe is four all-pass stages with different capacitors (15 nF, 220 nF, 470 pF, 4.7 nF) swept by one lamp, so they do not move in lockstep: Mix 0.5 is Chorus, Mix 1 is Vibrato; Depth is the Intensity knob and the lamp lags a little behind the LFO (Manual and Feedback are ignored)." },
-            { "mfDPhVoice", "Phaser only. Four-stage JFET is the classic orange-box sweep (the JFET all-pass chain, Manual sets the centre). Small Stone is four non-inverting OTA all-pass stages swept around 700 Hz (Manual is ignored; Rate, Depth, Mix and Envelope work as usual): a softer, rounder sweep. Small Stone, Color on adds the Color switch's feedback, which puts resonant peaks between the notches. Uni-Vibe is four all-pass stages with different capacitors (15 nF, 220 nF, 470 pF, 4.7 nF) swept by one lamp, so they do not move in lockstep: Mix 0.5 is Chorus, Mix 1 is Vibrato; Depth is the Intensity knob and the lamp lags a little behind the LFO (Manual and Feedback are ignored)." },
+            { "mfAFlVoice", "Flanger only. Clean is the original delay-line flanger. Swept-clock BBD flanger is a bucket-brigade flanger: the delay is set by a swept clock, so it lingers at the long end and dives at the short end, the wet path is band-limited to about 5 kHz and carries a little hiss. Manual is Range (0.8 to 7.3 ms), Feedback is the regeneration (the pedal's own feedback knob; Colour in some builds), Rate and Depth work as usual. Fixed comb holds the clock still: no sweep, and Manual tunes the fixed comb. The 5 kHz corner, the 3.3 to 1 sweep ratio and the hiss are my estimates; the 7.3 ms end follows from the 70 kHz fixed-comb clock on the build sheet. The two BBD line voicings are one pedal circuit with a 1024-stage and a 512-stage line: a limiter in front, a three-section filter after the line (about 4 kHz) and regeneration; the short line has exactly half the delay for the same clock, so it sweeps an octave higher (Manual is Range: 0.35 to 5.0 ms long, 0.175 to 2.5 ms short). The range and the corner are my estimates, because the clock range is not legible on the sheets." },
+            { "mfAViVoice", "Vibrato only. Clean is the original swept delay. Rise-time vibrato is a bucket-brigade vibrato in the style of a 1980s pedal: wet only (Mix is ignored), a darker top end, and a Rise Time (the Feedback knob, 0 to about 1.2 s): after each new pick the vibrato starts at nothing and swells in. Rise-time vibrato, swept filter also sweeps a low-pass filter with the same wave, so the tone wobbles as well as the pitch. The maker does not publish the reissue circuits; the delay, filter and Rise Time figures are my estimates." },
+            { "mfALoVoice", "Lo-Fi warble only. Warble is the original crushed, wobbly pedal. Cassette is a worn tape deck: soft tape saturation instead of bit crushing, a low head bump, a steeper top roll-off, more fast flutter and steady hiss without crackle. Vinyl is a worn record: the Rate knob is the slow once-per-turn wow (try 0.5 Hz), soft saturation instead of bit crushing, a narrower top end and a steady surface hiss with ticks and the odd pop that grow with Noise. Vinyl is my own design from the general character of a worn record, not measured on one." },
+            { "mfBFlVoice", "Flanger only. Clean is the original delay-line flanger. Swept-clock BBD flanger is a bucket-brigade flanger: the delay is set by a swept clock, so it lingers at the long end and dives at the short end, the wet path is band-limited to about 5 kHz and carries a little hiss. Manual is Range (0.8 to 7.3 ms), Feedback is the regeneration (the pedal's own feedback knob; Colour in some builds), Rate and Depth work as usual. Fixed comb holds the clock still: no sweep, and Manual tunes the fixed comb. The 5 kHz corner, the 3.3 to 1 sweep ratio and the hiss are my estimates; the 7.3 ms end follows from the 70 kHz fixed-comb clock on the build sheet. The two BBD line voicings are one pedal circuit with a 1024-stage and a 512-stage line: a limiter in front, a three-section filter after the line (about 4 kHz) and regeneration; the short line has exactly half the delay for the same clock, so it sweeps an octave higher (Manual is Range: 0.35 to 5.0 ms long, 0.175 to 2.5 ms short). The range and the corner are my estimates, because the clock range is not legible on the sheets." },
+            { "mfBViVoice", "Vibrato only. Clean is the original swept delay. Rise-time vibrato is a bucket-brigade vibrato in the style of a 1980s pedal: wet only (Mix is ignored), a darker top end, and a Rise Time (the Feedback knob, 0 to about 1.2 s): after each new pick the vibrato starts at nothing and swells in. Rise-time vibrato, swept filter also sweeps a low-pass filter with the same wave, so the tone wobbles as well as the pitch. The maker does not publish the reissue circuits; the delay, filter and Rise Time figures are my estimates." },
+            { "mfBLoVoice", "Lo-Fi warble only. Warble is the original crushed, wobbly pedal. Cassette is a worn tape deck: soft tape saturation instead of bit crushing, a low head bump, a steeper top roll-off, more fast flutter and steady hiss without crackle. Vinyl is a worn record: the Rate knob is the slow once-per-turn wow (try 0.5 Hz), soft saturation instead of bit crushing, a narrower top end and a steady surface hiss with ticks and the odd pop that grow with Noise. Vinyl is my own design from the general character of a worn record, not measured on one." },
+            { "mfCFlVoice", "Flanger only. Clean is the original delay-line flanger. Swept-clock BBD flanger is a bucket-brigade flanger: the delay is set by a swept clock, so it lingers at the long end and dives at the short end, the wet path is band-limited to about 5 kHz and carries a little hiss. Manual is Range (0.8 to 7.3 ms), Feedback is the regeneration (the pedal's own feedback knob; Colour in some builds), Rate and Depth work as usual. Fixed comb holds the clock still: no sweep, and Manual tunes the fixed comb. The 5 kHz corner, the 3.3 to 1 sweep ratio and the hiss are my estimates; the 7.3 ms end follows from the 70 kHz fixed-comb clock on the build sheet. The two BBD line voicings are one pedal circuit with a 1024-stage and a 512-stage line: a limiter in front, a three-section filter after the line (about 4 kHz) and regeneration; the short line has exactly half the delay for the same clock, so it sweeps an octave higher (Manual is Range: 0.35 to 5.0 ms long, 0.175 to 2.5 ms short). The range and the corner are my estimates, because the clock range is not legible on the sheets." },
+            { "mfCViVoice", "Vibrato only. Clean is the original swept delay. Rise-time vibrato is a bucket-brigade vibrato in the style of a 1980s pedal: wet only (Mix is ignored), a darker top end, and a Rise Time (the Feedback knob, 0 to about 1.2 s): after each new pick the vibrato starts at nothing and swells in. Rise-time vibrato, swept filter also sweeps a low-pass filter with the same wave, so the tone wobbles as well as the pitch. The maker does not publish the reissue circuits; the delay, filter and Rise Time figures are my estimates." },
+            { "mfCLoVoice", "Lo-Fi warble only. Warble is the original crushed, wobbly pedal. Cassette is a worn tape deck: soft tape saturation instead of bit crushing, a low head bump, a steeper top roll-off, more fast flutter and steady hiss without crackle. Vinyl is a worn record: the Rate knob is the slow once-per-turn wow (try 0.5 Hz), soft saturation instead of bit crushing, a narrower top end and a steady surface hiss with ticks and the odd pop that grow with Noise. Vinyl is my own design from the general character of a worn record, not measured on one." },
+            { "mfDFlVoice", "Flanger only. Clean is the original delay-line flanger. Swept-clock BBD flanger is a bucket-brigade flanger: the delay is set by a swept clock, so it lingers at the long end and dives at the short end, the wet path is band-limited to about 5 kHz and carries a little hiss. Manual is Range (0.8 to 7.3 ms), Feedback is the regeneration (the pedal's own feedback knob; Colour in some builds), Rate and Depth work as usual. Fixed comb holds the clock still: no sweep, and Manual tunes the fixed comb. The 5 kHz corner, the 3.3 to 1 sweep ratio and the hiss are my estimates; the 7.3 ms end follows from the 70 kHz fixed-comb clock on the build sheet. The two BBD line voicings are one pedal circuit with a 1024-stage and a 512-stage line: a limiter in front, a three-section filter after the line (about 4 kHz) and regeneration; the short line has exactly half the delay for the same clock, so it sweeps an octave higher (Manual is Range: 0.35 to 5.0 ms long, 0.175 to 2.5 ms short). The range and the corner are my estimates, because the clock range is not legible on the sheets." },
+            { "mfDViVoice", "Vibrato only. Clean is the original swept delay. Rise-time vibrato is a bucket-brigade vibrato in the style of a 1980s pedal: wet only (Mix is ignored), a darker top end, and a Rise Time (the Feedback knob, 0 to about 1.2 s): after each new pick the vibrato starts at nothing and swells in. Rise-time vibrato, swept filter also sweeps a low-pass filter with the same wave, so the tone wobbles as well as the pitch. The maker does not publish the reissue circuits; the delay, filter and Rise Time figures are my estimates." },
+            { "mfDLoVoice", "Lo-Fi warble only. Warble is the original crushed, wobbly pedal. Cassette is a worn tape deck: soft tape saturation instead of bit crushing, a low head bump, a steeper top roll-off, more fast flutter and steady hiss without crackle. Vinyl is a worn record: the Rate knob is the slow once-per-turn wow (try 0.5 Hz), soft saturation instead of bit crushing, a narrower top end and a steady surface hiss with ticks and the odd pop that grow with Noise. Vinyl is my own design from the general character of a worn record, not measured on one." },
+            { "mfAPhStereo", "Phaser only. Mono is the phaser as before. The Stereo settings give each side its own sweep: the right side runs a quarter of a cycle behind the left, or half a cycle behind (opposite: when one side sweeps up the other sweeps down), so a mono guitar becomes a wide, moving phase. The stereo only appears after the cab; before the amp and in the amp loop the signal is one channel, so you hear the left side only. Own design, not matched to any unit." },
+            { "mfAPhVoice", "Phaser only. Four-stage JFET is the classic four-stage sweep (the JFET all-pass chain, Manual sets the centre). OTA is four non-inverting OTA all-pass stages swept around 700 Hz (Manual is ignored; Rate, Depth, Mix and Envelope work as usual): a softer, rounder sweep. OTA, Color on adds the Color switch's feedback, which puts resonant peaks between the notches. Lamp vibe is four all-pass stages with different capacitors (15 nF, 220 nF, 470 pF, 4.7 nF) swept by one lamp, so they do not move in lockstep: Mix 0.5 is Chorus, Mix 1 is Vibrato; Depth is the Intensity knob and the lamp lags a little behind the LFO (Manual and Feedback are ignored)." },
+            { "mfBPhStereo", "Phaser only. Mono is the phaser as before. The Stereo settings give each side its own sweep: the right side runs a quarter of a cycle behind the left, or half a cycle behind (opposite: when one side sweeps up the other sweeps down), so a mono guitar becomes a wide, moving phase. The stereo only appears after the cab; before the amp and in the amp loop the signal is one channel, so you hear the left side only. Own design, not matched to any unit." },
+            { "mfBPhVoice", "Phaser only. Four-stage JFET is the classic four-stage sweep (the JFET all-pass chain, Manual sets the centre). OTA is four non-inverting OTA all-pass stages swept around 700 Hz (Manual is ignored; Rate, Depth, Mix and Envelope work as usual): a softer, rounder sweep. OTA, Color on adds the Color switch's feedback, which puts resonant peaks between the notches. Lamp vibe is four all-pass stages with different capacitors (15 nF, 220 nF, 470 pF, 4.7 nF) swept by one lamp, so they do not move in lockstep: Mix 0.5 is Chorus, Mix 1 is Vibrato; Depth is the Intensity knob and the lamp lags a little behind the LFO (Manual and Feedback are ignored)." },
+            { "mfCPhStereo", "Phaser only. Mono is the phaser as before. The Stereo settings give each side its own sweep: the right side runs a quarter of a cycle behind the left, or half a cycle behind (opposite: when one side sweeps up the other sweeps down), so a mono guitar becomes a wide, moving phase. The stereo only appears after the cab; before the amp and in the amp loop the signal is one channel, so you hear the left side only. Own design, not matched to any unit." },
+            { "mfCPhVoice", "Phaser only. Four-stage JFET is the classic four-stage sweep (the JFET all-pass chain, Manual sets the centre). OTA is four non-inverting OTA all-pass stages swept around 700 Hz (Manual is ignored; Rate, Depth, Mix and Envelope work as usual): a softer, rounder sweep. OTA, Color on adds the Color switch's feedback, which puts resonant peaks between the notches. Lamp vibe is four all-pass stages with different capacitors (15 nF, 220 nF, 470 pF, 4.7 nF) swept by one lamp, so they do not move in lockstep: Mix 0.5 is Chorus, Mix 1 is Vibrato; Depth is the Intensity knob and the lamp lags a little behind the LFO (Manual and Feedback are ignored)." },
+            { "mfDPhStereo", "Phaser only. Mono is the phaser as before. The Stereo settings give each side its own sweep: the right side runs a quarter of a cycle behind the left, or half a cycle behind (opposite: when one side sweeps up the other sweeps down), so a mono guitar becomes a wide, moving phase. The stereo only appears after the cab; before the amp and in the amp loop the signal is one channel, so you hear the left side only. Own design, not matched to any unit." },
+            { "mfDPhVoice", "Phaser only. Four-stage JFET is the classic four-stage sweep (the JFET all-pass chain, Manual sets the centre). OTA is four non-inverting OTA all-pass stages swept around 700 Hz (Manual is ignored; Rate, Depth, Mix and Envelope work as usual): a softer, rounder sweep. OTA, Color on adds the Color switch's feedback, which puts resonant peaks between the notches. Lamp vibe is four all-pass stages with different capacitors (15 nF, 220 nF, 470 pF, 4.7 nF) swept by one lamp, so they do not move in lockstep: Mix 0.5 is Chorus, Mix 1 is Vibrato; Depth is the Intensity knob and the lamp lags a little behind the LFO (Manual and Feedback are ignored)." },
             { "mfAOn", "Switches Mod FX A on." },
-            { "mfAType", "The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono), Harmonic tremolo (lows and highs pulse in opposite directions), Wobble (a loosely held tremolo-arm vibrato), Tremolo (with Bias and Pick Response), Shifted-feedback flanger, Pitch modulation (a pitch-shifted voice swung by the LFO), Stutter (rhythmic, tempo-synced repeats), Chorus (a bucket-brigade chorus; the Mode menu picks the voicing), Phaser (Manual is the centre frequency), Lo-Fi warble (tape / cassette wobble and dirt), the filter sweeps (low-pass, band-pass, notch, vowel), Auto-wah (a band-pass that follows your playing), the Slicer (a step gate) or Filter (all modes): the whole old Filter pedal, the Frequency shifter / ring mod (every partial moves by the same Hz) or the Vocoder (a voice or your playing shapes a synth, noise or drone). The old stand-alone Chorus, Phaser, Lo-Fi and Filter pedals are these types now." },
+            { "mfAType", "The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono), Harmonic tremolo (lows and highs pulse in opposite directions), Wobble (a loosely held tremolo-arm vibrato), Tremolo (with Bias and Pick Response), Shifted-feedback flanger, Pitch modulation (a pitch-shifted voice swung by the LFO), Stutter (rhythmic, tempo-synced repeats), Chorus (a bucket-brigade chorus; the Mode menu picks the voicing), Phaser (Manual is the centre frequency), Lo-Fi warble (tape / cassette wobble and dirt), the filter sweeps (low-pass, band-pass, notch, vowel), Auto-wah (a band-pass that follows your playing), the Slicer (a step gate) or Filter (all modes): the whole old Filter pedal, the Frequency shifter / ring mod (every partial moves by the same Hz), the Vocoder (a voice or your playing shapes a synth, noise or drone) or Digital damage (codec-style holes, lost packets and a spectral freeze). The old stand-alone Chorus, Phaser, Lo-Fi and Filter pedals are these types now." },
             { "mfAPos", "Before the amp: the effect hits the amp's input (and its gain). After the cab: it is applied to the finished sound, in stereo." },
             { "mfAShape", "The LFO wave: Sine, Triangle, Soft square, Ramp up, Ramp down, Square or a slow wandering Random. Ramps and random make odd, tape-like or warped-record movement. Optical and Bias are for the Tremolo type (Optical elsewhere acts as Random). The Phaser and Lo-Fi use all of them; the Filter (all modes) has its own Motion menu." },
             { "mfAFidelity", "1 is clean. Lower rolls off the lows and highs and adds a little saturation, like a worn tape or cassette. Chorus: lower adds hiss (0 = the old Hiss at full). (The Lo-Fi warble has its own Noise and Dropouts knobs.)" },
@@ -334,7 +368,7 @@ namespace
             { "mfATone", "Rolls off the top end of the effect (not the dry signal). Vocoder: the top of the frequency range it analyses." },
             { "mfAMix", "Dry to wet. Vibrato and Uni-V sound like a pure vibrato at 100%; lower values blend in the dry signal for a flanger/chorus-like character." },
             { "mfBOn", "Switches Mod FX B on." },
-            { "mfBType", "The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono), Harmonic tremolo (lows and highs pulse in opposite directions), Wobble (a loosely held tremolo-arm vibrato), Tremolo (with Bias and Pick Response), Shifted-feedback flanger, Pitch modulation (a pitch-shifted voice swung by the LFO), Stutter (rhythmic, tempo-synced repeats), Chorus (a bucket-brigade chorus; the Mode menu picks the voicing), Phaser (Manual is the centre frequency), Lo-Fi warble (tape / cassette wobble and dirt), the filter sweeps (low-pass, band-pass, notch, vowel), Auto-wah (a band-pass that follows your playing), the Slicer (a step gate) or Filter (all modes): the whole old Filter pedal, the Frequency shifter / ring mod (every partial moves by the same Hz) or the Vocoder (a voice or your playing shapes a synth, noise or drone). The old stand-alone Chorus, Phaser, Lo-Fi and Filter pedals are these types now." },
+            { "mfBType", "The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono), Harmonic tremolo (lows and highs pulse in opposite directions), Wobble (a loosely held tremolo-arm vibrato), Tremolo (with Bias and Pick Response), Shifted-feedback flanger, Pitch modulation (a pitch-shifted voice swung by the LFO), Stutter (rhythmic, tempo-synced repeats), Chorus (a bucket-brigade chorus; the Mode menu picks the voicing), Phaser (Manual is the centre frequency), Lo-Fi warble (tape / cassette wobble and dirt), the filter sweeps (low-pass, band-pass, notch, vowel), Auto-wah (a band-pass that follows your playing), the Slicer (a step gate) or Filter (all modes): the whole old Filter pedal, the Frequency shifter / ring mod (every partial moves by the same Hz), the Vocoder (a voice or your playing shapes a synth, noise or drone) or Digital damage (codec-style holes, lost packets and a spectral freeze). The old stand-alone Chorus, Phaser, Lo-Fi and Filter pedals are these types now." },
             { "mfBPos", "Before the amp: the effect hits the amp's input (and its gain). After the cab: it is applied to the finished sound, in stereo." },
             { "mfBShape", "The LFO wave: Sine, Triangle, Soft square, Ramp up, Ramp down, Square or a slow wandering Random. Ramps and random make odd, tape-like or warped-record movement. Optical and Bias are for the Tremolo type (Optical elsewhere acts as Random). The Phaser and Lo-Fi use all of them; the Filter (all modes) has its own Motion menu." },
             { "mfBFidelity", "1 is clean. Lower rolls off the lows and highs and adds a little saturation, like a worn tape or cassette. Chorus: lower adds hiss (0 = the old Hiss at full). (The Lo-Fi warble has its own Noise and Dropouts knobs.)" },
@@ -346,7 +380,7 @@ namespace
             { "mfBTone", "Rolls off the top end of the effect (not the dry signal). Vocoder: the top of the frequency range it analyses." },
             { "mfBMix", "Dry to wet. Vibrato and Uni-V sound like a pure vibrato at 100%; lower values blend in the dry signal for a flanger/chorus-like character." },
             { "mfCOn", "Switches Mod FX C on." },
-            { "mfCType", "The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono), Harmonic tremolo (lows and highs pulse in opposite directions), Wobble (a loosely held tremolo-arm vibrato), Tremolo (with Bias and Pick Response), Shifted-feedback flanger, Pitch modulation (a pitch-shifted voice swung by the LFO), Stutter (rhythmic, tempo-synced repeats), Chorus (a bucket-brigade chorus; the Mode menu picks the voicing), Phaser (Manual is the centre frequency), Lo-Fi warble (tape / cassette wobble and dirt), the filter sweeps (low-pass, band-pass, notch, vowel), Auto-wah (a band-pass that follows your playing), the Slicer (a step gate) or Filter (all modes): the whole old Filter pedal, the Frequency shifter / ring mod (every partial moves by the same Hz) or the Vocoder (a voice or your playing shapes a synth, noise or drone). The old stand-alone Chorus, Phaser, Lo-Fi and Filter pedals are these types now." },
+            { "mfCType", "The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono), Harmonic tremolo (lows and highs pulse in opposite directions), Wobble (a loosely held tremolo-arm vibrato), Tremolo (with Bias and Pick Response), Shifted-feedback flanger, Pitch modulation (a pitch-shifted voice swung by the LFO), Stutter (rhythmic, tempo-synced repeats), Chorus (a bucket-brigade chorus; the Mode menu picks the voicing), Phaser (Manual is the centre frequency), Lo-Fi warble (tape / cassette wobble and dirt), the filter sweeps (low-pass, band-pass, notch, vowel), Auto-wah (a band-pass that follows your playing), the Slicer (a step gate) or Filter (all modes): the whole old Filter pedal, the Frequency shifter / ring mod (every partial moves by the same Hz), the Vocoder (a voice or your playing shapes a synth, noise or drone) or Digital damage (codec-style holes, lost packets and a spectral freeze). The old stand-alone Chorus, Phaser, Lo-Fi and Filter pedals are these types now." },
             { "mfCPos", "Before the amp: the effect hits the amp's input (and its gain). After the cab: it is applied to the finished sound, in stereo." },
             { "mfCShape", "The LFO wave: Sine, Triangle, Soft square, Ramp up, Ramp down, Square or a slow wandering Random. Ramps and random make odd, tape-like or warped-record movement. Optical and Bias are for the Tremolo type (Optical elsewhere acts as Random). The Phaser and Lo-Fi use all of them; the Filter (all modes) has its own Motion menu." },
             { "mfCFidelity", "1 is clean. Lower rolls off the lows and highs and adds a little saturation, like a worn tape or cassette. Chorus: lower adds hiss (0 = the old Hiss at full). (The Lo-Fi warble has its own Noise and Dropouts knobs.)" },
@@ -358,7 +392,7 @@ namespace
             { "mfCTone", "Rolls off the top end of the effect (not the dry signal). Vocoder: the top of the frequency range it analyses." },
             { "mfCMix", "Dry to wet. Vibrato and Uni-V sound like a pure vibrato at 100%; lower values blend in the dry signal for a flanger/chorus-like character." },
             { "mfDOn", "Switches Mod FX D on." },
-            { "mfDType", "The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono), Harmonic tremolo (lows and highs pulse in opposite directions), Wobble (a loosely held tremolo-arm vibrato), Tremolo (with Bias and Pick Response), Shifted-feedback flanger, Pitch modulation (a pitch-shifted voice swung by the LFO), Stutter (rhythmic, tempo-synced repeats), Chorus (a bucket-brigade chorus; the Mode menu picks the voicing), Phaser (Manual is the centre frequency), Lo-Fi warble (tape / cassette wobble and dirt), the filter sweeps (low-pass, band-pass, notch, vowel), Auto-wah (a band-pass that follows your playing), the Slicer (a step gate) or Filter (all modes): the whole old Filter pedal, the Frequency shifter / ring mod (every partial moves by the same Hz) or the Vocoder (a voice or your playing shapes a synth, noise or drone). The old stand-alone Chorus, Phaser, Lo-Fi and Filter pedals are these types now." },
+            { "mfDType", "The effect: Flanger, Through-zero flanger (the dry signal is delayed 4 ms too, which adds that fixed delay), Vibrato (pitch wobble only), Uni-V (a throbbing phase-vibrato), Rotary (a rotating horn and drum), Auto-pan (a tremolo if the signal is mono), Harmonic tremolo (lows and highs pulse in opposite directions), Wobble (a loosely held tremolo-arm vibrato), Tremolo (with Bias and Pick Response), Shifted-feedback flanger, Pitch modulation (a pitch-shifted voice swung by the LFO), Stutter (rhythmic, tempo-synced repeats), Chorus (a bucket-brigade chorus; the Mode menu picks the voicing), Phaser (Manual is the centre frequency), Lo-Fi warble (tape / cassette wobble and dirt), the filter sweeps (low-pass, band-pass, notch, vowel), Auto-wah (a band-pass that follows your playing), the Slicer (a step gate) or Filter (all modes): the whole old Filter pedal, the Frequency shifter / ring mod (every partial moves by the same Hz), the Vocoder (a voice or your playing shapes a synth, noise or drone) or Digital damage (codec-style holes, lost packets and a spectral freeze). The old stand-alone Chorus, Phaser, Lo-Fi and Filter pedals are these types now." },
             { "mfDPos", "Before the amp: the effect hits the amp's input (and its gain). After the cab: it is applied to the finished sound, in stereo." },
             { "mfDShape", "The LFO wave: Sine, Triangle, Soft square, Ramp up, Ramp down, Square or a slow wandering Random. Ramps and random make odd, tape-like or warped-record movement. Optical and Bias are for the Tremolo type (Optical elsewhere acts as Random). The Phaser and Lo-Fi use all of them; the Filter (all modes) has its own Motion menu." },
             { "mfDFidelity", "1 is clean. Lower rolls off the lows and highs and adds a little saturation, like a worn tape or cassette. Chorus: lower adds hiss (0 = the old Hiss at full). (The Lo-Fi warble has its own Noise and Dropouts knobs.)" },
@@ -412,10 +446,10 @@ namespace
             { "postDelayPitch", "Pitch-shifts the repeats: every time a repeat goes round the loop it is moved by this many semitones, so the echoes climb (or fall) in steps: +12 gives repeats an octave higher each time, +7 a rising fifth. The first repeat is not shifted. The loop's tone filter keeps climbing repeats from running away, but keep Feedback moderate. 0 = off. Delay times under about 60 ms are only partly corrected for the shifter's own delay." },
             { "postDelayPitchFine", "A fine pitch amount for the repeats in cents (100 cents = a semitone), on top of Repeat Pitch. Small amounts give a detuned, chorused wash." },
             { "postDelayPitchMix", "How much of each repeat that goes round the loop is shifted. 1 = all of it, so every repeat is further from the original. Lower: the repeats also keep coming round unshifted, so you hear the original echo plus a shifted ghost." },
-            { "hmOn", "Switches the harmonizer on: two extra voices that follow the note you play. It adds a little delay (shown to your DAW)." },
+            { "hmOn", "Switches the harmonizer on: up to four extra voices that follow the note you play. It adds a little delay (shown to your DAW)." },
             { "hmPos", "Before the amp: the harmony is mono and goes through the amp's gain with your playing. After the cab: the harmony is added to the finished sound, in stereo, with a pan for each voice." },
-            { "hmMode", "Interval: each voice is a fixed number of semitones away. Scale: each voice is a number of steps up or down the scale you choose, so the harmony stays in key (it listens to the note you are playing)." },
-            { "hmTrack", "Single note: tracks one note at a time (fast, about 14 ms), best for leads and single-note lines. Chords: follows several notes at once and moves each by its own amount (about 90 ms of delay). Chords (fast): the same with less delay (about 45 ms), but it cannot tell low notes apart as well, so it suits upper-string voicings." },
+            { "hmMode", "Interval: each voice is a fixed number of semitones away. Scale: each voice is a number of steps up or down the scale you choose, so the harmony stays in key (it listens to the note you are playing). MIDI: the voices sing the notes you hold on a MIDI keyboard, so you choose the chord and your guitar supplies the voice." },
+            { "hmTrack", "Single note: tracks one note at a time (fast, about 6 ms with Transpose Mode on Fast), best for leads and single-note lines. Chords: follows several notes at once and moves each by its own amount (about 90 ms of delay). Chords (fast): the same with less delay (about 45 ms), but it cannot tell low notes apart as well, so it suits upper-string voicings." },
             { "hmKey", "The key of the song, for Scale mode." },
             { "hmScale", "The scale the harmony stays in, for Scale mode." },
             { "hmAInt", "Voice A, in Interval mode: how far from your note, in semitones (7 = a fifth up, -12 = an octave down)." },
@@ -424,6 +458,19 @@ namespace
             { "hmBDeg", "Voice B, in Scale mode: how many scale steps from your note." },
             { "hmALvl", "How loud voice A is. 0 = off." },
             { "hmBLvl", "How loud voice B is. 0 = off." },
+            { "hmCInt", "Voice C, in Interval mode: how far from your note, in semitones." },
+            { "hmDInt", "Voice D, in Interval mode: how far from your note, in semitones." },
+            { "hmCDeg", "Voice C, in Scale mode: how many scale steps from your note." },
+            { "hmDDeg", "Voice D, in Scale mode: how many scale steps from your note." },
+            { "hmCLvl", "How loud voice C is. 0 = off." },
+            { "hmDLvl", "How loud voice D is. 0 = off." },
+            { "hmCPan", "Where voice C sits in the stereo picture (only after the cab; before the amp everything is mono)." },
+            { "hmDPan", "Where voice D sits in the stereo picture (only after the cab; before the amp everything is mono)." },
+            { "hmArp", "Instead of singing the voices together, plays them one at a time in a pattern, in time with the tempo. Voices whose Level is above 0 take part (in MIDI mode, one for each key held)." },
+            { "hmArpPattern", "The order the voices are played in: up, down, up and then back down, or at random." },
+            { "hmArpRate", "How fast the pattern steps, as a fraction of a beat. It follows your DAW's tempo, or the tempo in the Standalone settings." },
+            { "hmArpGate", "How much of each step the note sounds. Low = short and spiky, high = joined up." },
+            { "hmArpLevel", "How loud the arpeggio is. The voice Levels only decide which voices take part." },
             { "hmAPan", "Where voice A sits in the stereo picture (only after the cab; before the amp everything is mono)." },
             { "hmBPan", "Where voice B sits in the stereo picture (only after the cab; before the amp everything is mono)." },
             { "hmDry", "The level of your own playing next to the harmony." },
@@ -440,6 +487,7 @@ namespace
             { "reverbIrReverse", "IR Reverb only: plays the response backwards, so the tail swells up and stops." },
             { "reverbIrStretch", "IR Reverb only: stretches the response in time (and pitch of the tail). Below 1 is shorter and brighter, above 1 is longer and darker." },
             { "reverbReturn", "Spring types only: the electronics around the spring tank, each read from one amp's reverb circuit. Generic: as before. Sparkle: thin and bright with a sizzle near 4 kHz. Chime: very bright (the return is cut below 1.6 kHz). Tight: two cascaded stages, steeper bass cut, and the send is thinned too. Full: almost no bass cut, so the tail keeps its body. Clean: a flat, solid-state return and a driver that does not clip. Tilt: a treble-tilted op-amp return, bright and a little hollow." },
+            { "reverbSpringFb", "Spring (tank) only: sends the spring's own sound back into its driver, through a soft clip. Low: the ring lasts longer and gets more metallic. High: a very long, metallic ring (tens of seconds) that still dies away. Off at 0." },
             { "reverbDrive", "Spring type only: pushes the spring's driver. Low is clean; higher thins the lows and adds the soft, lopsided clip that makes a hit spring splash and drip. Off at 0." },
             { "reverbDrag", "Pulls the tail's pitch. In the middle (as voiced) nothing happens. Move it and the tail glides up (right) or down (left), by up to 2 octaves, then settles; turn it while the tail rings for the swirling pitch bends. The Steps menu rounds the destination to musical steps. Applies to every type except Classic." },
             { "reverbWDrive", "Dirties the send before it enters the reverb, so the whole tail is gritty (the dry sound is untouched). 0 = off." },
@@ -451,6 +499,10 @@ namespace
             { "reverbTremRate", "Speed of the wet tremolo." },
             { "reverbEchoTime", "ModEcho type: the time between echoes, in ms. The Mod knob sets how much the echoes wobble." },
             { "reverbEchoFb", "ModEcho type: how many repeats the echo makes. The repeats go into the reverb too." },
+            { "reverbBassDecay", "How long the bass lasts compared with the rest of the tail. 1 = the same. Below 1 the lows die away first, which clears mud from a long reverb; above 1 they hang on and the tail gets bigger. Works on every reverb except Classic, Spring (tank) and IR Reverb. Own implementation of a bass-multiplier idea." },
+            { "reverbCross", "Where the bass band starts for Bass Decay (80 to 1700 Hz). Only matters when Bass Decay is not 1." },
+            { "reverbGateShape", "Nonlinear only. Fade: the tail is held, then dies away over about a seventh of a second (as before). Chop: it is cut off in about 1.5 ms, the abrupt stop of the 80s gated programs. Reverse swell: after each hit the tail builds up over the whole hold time and is then chopped at its loudest. Decay sets the hold time in all three. The trigger level is fixed at about -34 dBFS." },
+            { "reverbClock", "Vintage digital grit. The tail is written back through a slower, coarser converter that builds up around the tail: Hall 78 is a 24 kHz, 14-bit machine (soft top end, a faint grain in the decay); Dirty is 12 kHz, 10-bit and saturated; Lo-Fi is 6 kHz, 8-bit. Clean = off. Works on every delay-line reverb; try it with Studio 78." },
             { "reverbMangle", "Mangled type: how much the reverb is torn up and fed back into itself (squashed, crushed, growling). Higher = rougher and more ringing." },
             { "reverbTremShape", "Sine and Triangle: smooth pulsing. Square (soft): on-off with rounded edges. Pan: the tail swings between left and right." },
             { "reverbGravity", "Black Hole type only: how the tail behaves after you stop playing. Linear: it just decays. Surge: it dips and swells back up. Reverse: it drops away and swells slowly back in." },
@@ -460,6 +512,7 @@ namespace
             { "reverbSymphPitch", "The pitch of the Symphony layer (the extra voice in the tail, next to the shimmer): octave up, octave down, fifth up or two octaves up." },
             { "granScale", "Snaps the random grain pitches to a scale (instead of any pitch). It works from Pitch Rand of 1 st or more: Pitch Rand sets how far up and down the grains can go. Free = no snapping." },
             { "granShape", "The fade of each grain. Smooth: even fade in and out. Swell: slow fade in, quick end (grains swell). Pluck: sharp start, long decay. Flat: almost no fade (percussive)." },
+            { "granRecall", "How often a grain reaches far back into the memory instead of the last few seconds. The cloud keeps the last 30 seconds you played, so at the top old phrases come back among the new ones. Turn Freeze on to stop recording and drift through what is held. 0 = off." },
             { "granScan", "Slowly sweeps the point the grains are taken from, back and forth through the last 1.2 seconds, so the texture keeps evolving. 0 = off." },
             { "granTone", "Rolls off the highs of the cloud. Fully up = no filtering." },
             { "tpRange", "Which guitar this is. The Transpose, Octaver and Pitch pedal all use it. 6-string is the default and sounds as before. 7-string and 8-string tune the pitch shifters to follow the lower strings (down to a low B, or a low F#) and add a little delay for it; use them only if you play those instruments." },
@@ -499,12 +552,19 @@ namespace
             { "ampBReso", "Amp B resonance: low-end thump around 100 Hz. 0 is off." },
             { "ampBSagAmt", "How far Amp B's power supply droops under loud notes. 0.5 is the amp's own, 0 is stiff, 1 is double." },
             { "ampBTube", "Amp B preamp tube: 12AX7 (high gain), 12AT7 (medium) or 12AY7 (low gain)." },
-            { "wowOn", "Pitch pedal on/off. While on it adds a small processing delay (about 14 to 27 ms, set by the Transpose quality menu), which is reported to your DAW." },
+            { "wowOn", "Pitch pedal on/off. While on it adds a small processing delay (about 6 ms, or 14 ms on Smooth, set by the Transpose quality menu; more with the Chords and Character choices), which is reported to your DAW." },
             { "wowMode", "What the pedal does. Octave up / Two octaves up / Octave down / Two octaves down: the pedal sweeps from your normal pitch (Position 0) to that shift (Position 1). Dive bomb: a falling pitch drop (Position 0 = none, 1 = deepest). Bend: -12 to +12 semitones (centre = no shift). Custom: you set the heel and toe shifts." },
+            { "wowChar", "How clean or how bad the pedal sounds. Clean is the shifter you had, in the Tracking mode you pick below. Grainy Sweep: a crude two-tap sweep (32 ms), a lower sample rate, 13 to 9 bit and a dark top, with the pitch moving in steps, after the grainy early digital pitch pedals. Glitchy: a 64 ms sweep with random wrong-pitch jumps, dropouts and slurs. Abrasive: a 16 ms sweep, driven hard, rectified and crushed to 10 to 5 bit with no filtering, buzzy and harsh. Noisy: hiss that follows your playing and a slow pitch drift. The first four splice at a matching point most of the time (less often at high Grit), so they sound like shifted notes, not a ring modulator. Warble: a soft shifter that makes shifted notes swell and fade at a few hertz (the slow wobble of a simple software shifter, from 110 to 380 ms windows); since b118 the shift itself is quick (about 6 ms behind your playing) and the wobble is added separately; it adds no delay to the host, so the shifted copy trails the dry one by up to half the window. These are my own designs from the general character of those pedals, not measured from any unit. Each adds a delay (8 to 32 ms) that is reported to your host." },
+            { "wowGrit", "How bad the Character gets, for Grainy Sweep, Glitchy, Abrasive and Noisy: lower sample rate and bit depth, a darker top, more hiss, more frequent glitches, a coarser pedal. 0 = a mild version, 1 = ruined. For Warble it sets the window instead: 0 = slow, deep wobble (a 380 ms window), 1 = quick, shallow wobble (110 ms). It no longer changes the lag." },
+            { "wowForm", "What happens to the tone of the shifted note. Follows the pitch: the way a plain shifter works, so an octave up sounds small and bright and an octave down sounds big and dull. Stays natural: the tone (the formants) is moved back so the note keeps the size and character of your guitar and only the pitch changes. Adds 1024 samples (about 21 ms at 48 kHz) of delay, which is reported to your host. My own design, not measured from any unit." },
+            { "wowFormShift", "Moves the tone (the formants) of the shifted note up or down on its own, in semitones, without changing the pitch. Up sounds smaller and brighter, down sounds bigger and darker. Works with either Tone setting. Adds the same 1024 samples of delay as Stays natural." },
+            { "wowLowKeep", "Keeps the notes below this frequency out of the shifter and plays them dry, so the low strings stay solid while the high strings shift. 0 = off (everything is shifted). Try 80 to 150 Hz to keep an open low string clean." },
+            { "wowTrack", "How the pedal follows what you play. Single note: the fast delay-line shifter (about 6 to 14 ms of delay), best for single notes and leads; chords sound rough. Chords: a phase-vocoder shifter that moves every note of a chord by the same amount, with a long window (about 90 ms of delay at 48 kHz) for cleaner low notes and 7 or 8 strings. Chords (fast): the same shifter with the short window (about 45 ms), a bit rougher in the lows but quicker. The dry signal is delayed to match, and the delay is reported to the host." },
             { "wowPos", "The pedal position (0 = heel, 1 = toe). Automate it from your DAW, or from a controller mapped to this knob, to play the pedal." },
             { "wowHeel", "Custom mode: the pitch shift (semitones) when the pedal is at the heel." },
             { "wowToe", "Custom mode: the pitch shift (semitones) when the pedal is at the toe." },
             { "wowGlide", "How quickly the pitch follows the pedal position (ms). Short is snappy; long gives a smooth slide." },
+            { "wowDryNow", "Instant dry. Off: the dry guitar is delayed to line up with the shifted sound, so the whole signal arrives late by the amount the Character needs (up to 32 ms for Glitchy) and the host is told. On: the dry guitar is not delayed and no latency is reported, so you hear what you play at once and the shifted sound trails it by that delay. It only matters when Mix is below 1; at Mix 1 it just removes the added latency. Shifted notes are at a different pitch from the dry, so there is little comb filtering either way." },
             { "wowMix", "Wet/dry mix. 1 = only the shifted sound (like a real pedal); lower blends in the dry guitar for harmony effects." },
             { "synOn", "Guitar synth on/off. It listens to one note at a time (no chords), works out its pitch and plays a synth on it, mixed with your own sound. It trails your pick by about 9 ms on the high strings and up to about 35 ms on the lowest, because it needs a couple of cycles of the note to know what it is. Play single notes, and keep the input clean: the neck pickup and a clean, quiet signal track best. It sits before the octaver and pitch pedal." },
             { "synWave1", "The wave of the first oscillator: Saw (bright and buzzy), Square (hollow), Pulse (thin and nasal), Triangle (soft) or Sine (pure)." },
@@ -525,7 +585,22 @@ namespace
             { "synTouch", "How much your picking dynamics control the synth's volume. 0 is a flat organ-like level, 1 is fully touch-sensitive." },
             { "synGlide", "Slides between notes instead of jumping. 0 is off." },
             { "synSens", "How quiet a note can be and still start the synth. Raise it if soft notes do not trigger; lower it if noise or buzz does." },
-            { "octOn", "Octaver on/off. Two shifted voices blended with the dry guitar. While on it adds a small processing delay, which is reported to your DAW." },
+            { "octOn", "Octaver on/off. Shifted voices blended with the dry guitar. While on it adds a processing delay (about 6 to 14 ms, or 8 to 85 ms with the Tracking and Character choices), which is reported to your DAW." },
+            { "octMode", "Which voices there are. Two voices: Voice A and Voice B, each one of four intervals (the original octaver). The first Bank: sliders for two octaves down, one octave down, one octave up and two octaves up, all at once, like a classic polyphonic octave pedal. The second Bank adds the fifth, the twelfth (octave and fifth), the seventeenth (two octaves and a third) and three octaves up, like its bigger sibling. I know those pedals from their public descriptions only, so this takes their ideas, not their sound. The fourth choice, Analogue divider, is a different kind of octaver: a flip-flop that halves the frequency of the note you play (one octave down, and a second flip-flop for two octaves down), so it is monophonic and has no delay. Play single notes on the neck pickup; chords make it jump, like the old pedals. Only the -2 and -1 octave levels, Dry and Tone apply." },
+            { "octM2", "Level of the voice two octaves down." }, { "octM1", "Level of the voice one octave down." },
+            { "octP1", "Level of the voice one octave up." }, { "octP2", "Level of the voice two octaves up." },
+            { "octP7", "Level of the voice a fifth up (the interval of the fifth-up slider on pedals of this kind)." },
+            { "octP19", "Level of the voice an octave and a fifth up (a twelfth)." },
+            { "octP28", "Level of the voice two octaves and a major third up (a seventeenth)." },
+            { "octP36", "Level of the voice three octaves up. The delay-line shifter turns very rough this far up; Chords tracking is cleaner." },
+            { "octAttack", "How slowly the shifted voices fade in after each new note you pick (0 = instant, up to about 1.5 s). Like the Attack control and the fade-in side of the Envelope on polyphonic octave pedals. A note you hold does not retrigger it." },
+            { "octDecay", "How quickly the shifted voices die away after each new note (0 = they hold as long as you play, up to a short bloom of about 0.15 s). Like the decay side of the Envelope on polyphonic octave pedals." },
+            { "octRes", "Resonance of the Tone low-pass. 0 = the original gentle one-pole filter; above that it is a two-pole filter with a peak at the cutoff (Q up to about 6), like the Q button on such pedals." },
+            { "octDetune", "Moves the voices an octave or more up by up to 50 cents either way, for a chorused, shimmering top. Like the Detune slider on such pedals (which I know only from descriptions; mine goes both ways)." },
+            { "octDryFx", "Whether the dry guitar goes through the Tone filter and the Attack and Decay, like the Dry FX button on such pedals. Untouched leaves it alone." },
+            { "octTrack", "How the octaver follows what you play. Single note: the delay-line shifter, lowest delay, one per voice. Chords: the spectral shifter, which moves every note of a chord by the same amount, with a long window (about 85 ms) for cleaner lows. Chords (fast): the short window (about 43 ms). The dry guitar is delayed to match." },
+            { "octChar", "How clean or how bad the shifted voices sound: the same Grainy Sweep, Glitchy, Abrasive, Noisy and Warble characters as the pitch pedal. They are my own designs, not measured from any unit. Clean uses Tracking above." },
+            { "octGrit", "How bad the Character gets. No effect on Clean." },
             { "octA", "Pitch of voice A: two octaves down, one octave down, one octave up, or two octaves up." },
             { "octALvl", "Level of voice A." },
             { "octB", "Pitch of voice B: two octaves down, one octave down, one octave up, or two octaves up." },
@@ -546,7 +621,7 @@ namespace
             { "cabMotionRate", "How fast the Motion changes: low is a slow drift, high is livelier." },
             { "cabDynMode", "Tight (modern): quick and controlled. Vintage (spongy): slower, softer and more compressed." },
             { "ampQuality", "Oversampling for the amp's distortion. Best (4x) sounds smoothest but uses the most CPU and adds the most delay. Balanced (2x) is about half the CPU. Lowest latency has no added delay and the least CPU, but high-gain settings can sound slightly fizzier." },
-            { "ampVoicing", "The amp's voicing, with four positions per amp (Cedar Spring has a fifth, Boost; Slow Burn has Clean (the SLO-100's clean channel); Marque Dream has IV Lead, Citrus Doom has Model T, and Matt's Amp has Clean 100 and Tight Voice as fifth and sixth; the fourth was added in v63: Clean Studio, Chime Thirty Jangle, Hot-Rod Mid push, Slow Burn Sustain, Modern Maul Chunk, Club Crunch Bright, Bumble Lead Blues, 5555 Block Buzz, Tweedle Dee Gritty, Jade Chorus Shimmer, Marque Dream Singing, Citrus Doom Fuzz, Revved Up Polished, Digital Dread Bottom, Master Cranker Boosted, Harmonic Haze Boost, Diesel Fuel Open, Wreck Stack Smooth, Power Brawl Bottom, Stolen Fire Brilliant, Hi-Wat Headroom Open, Console DI Air, Plex Appeal Modded + Jumped, Matt's Amp Mix, Marmalade Sharp, Eclipse Hi Pulled / Hi Pushed / Lo Pushed / Lo Pulled). Clean: Sparkly, Edge push (a small old amp turned up) or Boutique (fuller mids, more compression). Chime Thirty: Chime, Treble boost or Normal (a darker, rounder, thicker channel without the top boost). Hot-Rod: Tight, Heavy (deep but controlled lows, more gain, forward upper mids) or Brown (a thicker, saggier, mid-rich crunch). Slow Burn: Smooth, Lead or Crunch (a low-gain channel). Modern Maul: Scooped, Clarity or Vintage (spongy, looser, fatter lows). Club Crunch: Crunch, Pushed or Jumped (both channels linked: fatter, hotter, more sag). Bumble Lead: Jazz, Rock or Lead (the boosted lead mode). 5555 Block: Raw, Modern or Crunch (a low-gain rhythm channel). Tweedle Dee: Soft, Cranked or Four-ten (a 4x10-style voicing with more headroom and bigger lows). Jade Chorus: Glass, Warm or Funk (tight, percussive and scooped). Marque Dream: Rhythm, Lead or Vintage (an early-style sound with lower gain and thick creamy mids). Citrus Doom: Stoner, Wall or Bass stack (massive low mids, a cleaner top, a grind only when pushed). Revved Up: Tight (the main high-gain channel), Lead (more gain, mid hump, sustain) or Crunch (an open, lower-gain channel). Digital Dread: Thall (very high gain, almost no sag, a deep cut around 350 Hz and an open top), Industrial (harsh, gritty, fizzy upper mids), Cavern (huge, slow, dark, for drop tunings) or Bottom (a tight, very low-pitched chug with a scooped 500 Hz and a lifted 2 kHz). Master Cranker: Stock (the classic 80s master-volume sound), Modded (an extra gain stage: tighter, smoother, more saturated) or Cranked (master wide open: loose, saggy, loud). Harmonic Haze: Lead, Crunch or Clean. Diesel Fuel: Lead, High gain or Crunch. Wreck Stack: Lead, Crunch or Clean. Power Brawl: Scooped lead, Mid-boosted lead or Crunch. Stolen Fire: Lead, Sludge or Clean. Plex Appeal: Stock (bright input, volumes up), Jumped (both inputs linked), Modded (cascade stage, smaller bright cap, diode clipper, softer feedback) or Modded + Jumped. Matt's Amp: Graphic (early 70s, dark and saggy), Heavy (bass-cut input, doomy), Bright (modern, more top) or Mix (its gain stages into a Marshall-style stack). Does nothing in Acoustic mode." },
+            { "ampVoicing", "The amp's voicing, with four positions per amp (Cedar Spring has a fifth, Boost; Slow Burn has Clean (the 100 W head's clean channel); Solid Metal has Hybrid + JFET; 5555 Block has Vitriol and Clarion has Cascade as its fifth; Marque Dream has Late Lead, Citrus Doom has Bass Stack 200, and Matt's Amp has Clean 100 and Tight Voice as fifth and sixth; the fourth was added in v63: Clean Studio, Chime Thirty Jangle, Hot-Rod Mid push, Slow Burn Sustain, Modern Maul Chunk, Club Crunch Bright, Bumble Lead Blues, 5555 Block Buzz, Tweedle Dee Gritty, Jade Chorus Shimmer, Marque Dream Singing, Citrus Doom Fuzz, Revved Up Polished, Digital Dread Bottom, Master Cranker Boosted, Harmonic Haze Boost, Diesel Fuel Open, Wreck Stack Smooth, Power Brawl Bottom, Stolen Fire Brilliant, Hi-Wat Headroom Open, Console DI Air, Plex Appeal Modded + Jumped, Matt's Amp Mix, Marmalade Sharp, Eclipse Hi Pulled / Hi Pushed / Lo Pushed / Lo Pulled). Clean: Sparkly, Edge push (a small old amp turned up) or Boutique (fuller mids, more compression). Chime Thirty: Chime, Treble boost or Normal (a darker, rounder, thicker channel without the top boost). Hot-Rod: Tight, Heavy (deep but controlled lows, more gain, forward upper mids) or Brown (a thicker, saggier, mid-rich crunch). Slow Burn: Smooth, Lead or Crunch (a low-gain channel). Modern Maul: Scooped, Clarity or Vintage (spongy, looser, fatter lows). Club Crunch: Crunch, Pushed or Jumped (both channels linked: fatter, hotter, more sag). Bumble Lead: Jazz, Rock or Lead (the boosted lead mode). 5555 Block: Raw, Modern (since b88 toned toward captures of a modern high-gain amp, eased back halfway in b89: a fuller low end and a more open top than before, measured, not listened to), Crunch (a low-gain rhythm channel), Buzz or Vitriol (fitted to a captured head's whole Gain 1 to 10 range: almost clean at the bottom of the Gain knob, fully saturated by the middle, full low end and open top). Tweedle Dee: Soft, Cranked or Four-ten (a 4x10-style voicing with more headroom and bigger lows). Jade Chorus: Glass, Warm or Funk (tight, percussive and scooped). Marque Dream: Rhythm, Lead or Vintage (an early-style sound with lower gain and thick creamy mids). Citrus Doom: Stoner, Wall or Bass stack (massive low mids, a cleaner top, a grind only when pushed). Revved Up: Tight (the main high-gain channel), Lead (more gain, mid hump, sustain) or Crunch (an open, lower-gain channel). Digital Dread: Thall (very high gain, almost no sag, a deep cut around 350 Hz and an open top), Industrial (harsh, gritty, fizzy upper mids), Cavern (huge, slow, dark, for drop tunings) or Bottom (a tight, very low-pitched chug with a scooped 500 Hz and a lifted 2 kHz). Master Cranker: Stock (the classic 80s master-volume sound), Modded (an extra gain stage: tighter, smoother, more saturated) or Cranked (master wide open: loose, saggy, loud). Harmonic Haze: Lead, Crunch or Clean. Diesel Fuel: Lead, High gain or Crunch. Wreck Stack: Lead, Crunch or Clean. Power Brawl: Scooped lead, Mid-boosted lead or Crunch. Stolen Fire: Lead, Sludge or Clean. Plex Appeal: Stock (bright input, volumes up), Jumped (both inputs linked), Modded (cascade stage, smaller bright cap, diode clipper, softer feedback) or Modded + Jumped. Matt's Amp: Graphic (early 70s, dark and saggy), Heavy (bass-cut input, doomy), Bright (modern, more top) or Mix (its gain stages into a British-style stack). Does nothing in Acoustic mode." },
             { "ampTune", "Focus: tightens the low end and trims bass and gain so low-tuned guitars stay clear. Turn it up as your tuning gets lower (about 1 per semitone below E standard). Only the high-gain amps use it (Brown Eye, Slow Burn, Modern Maul, 5555 Block, Marque Dream, Citrus Doom, Revved Up, Digital Dread, Master Cranker, Harmonic Haze, Diesel Fuel, Wreck Stack, Power Brawl, Stolen Fire, Matt's Amp, Marmalade, Eclipse, Marque Five and Solid Metal)." },
             { "ampGain", "Amount of preamp gain for the chosen amp. Since v39 the top of the knob (above about 55%) adds extra gain on top of the old range, most on the high-gain amps, for heavier modern metal and djent saturation; the lower part is unchanged." },
             { "bass", "Bass control (dB), added to the amp's own voicing." },
@@ -555,7 +630,7 @@ namespace
             { "treble", "Treble control (dB)." },
             { "presence", "Power-amp presence: adds treble after the clipping, like a real amp's presence knob. On Chime Thirty and Dual Thirty this knob is Cut instead: a treble roll-off after the preamp, off at 0, as voiced at the default, and 8 dB darker at 1." },
             { "acBody", "The size and shape of the acoustic guitar body being imitated: Dreadnought, Jumbo (bigger, lower), Parlor / OM (smaller, more midrange) or Nylon classical (softer top)." },
-            { "acBodyAmt", "How strongly the body resonances are applied. 0 = just the piezo signal." },
+            { "acBodyAmt", "How much of the guitar body is added: 0 = just the piezo signal (thin lows, dull top); 1 = full body with a big low end and a bright, open top (about 14 dB more lows and 9 to 13 dB more highs than 0). Middle = about half." },
             { "acFix", "Corrects the pickup. Piezo: removes the nasal 'quack' (about 2.3 kHz) and glassy edge (about 4.8 kHz) and fills in the hollow low mids. Magnetic: cuts the boxy low mids, lifts the air above 3 kHz and brings back some pick attack. Electric: cuts the pickup peak (about 2.8 kHz) and the low-mid mud, and lifts the air above 4 kHz." },
             { "acPickup", "The pickup being corrected. Piezo (under-saddle): thin, quacky and glassy. Magnetic (soundhole): dark and boomy, with no top-plate sound and little air. Electric guitar (solid body): use this to make an electric sound like an acoustic: pick the Body (Nylon classical for a classical sound), raise Pickup Fix and Air. With a magnetic or electric pickup raise Body for a more woody sound." },
             { "acAir", "String and pick detail the magnetic and electric pickups do not hear: it adds a little sparkle and snap to the top end. Not used with the piezo setting." },
@@ -568,7 +643,7 @@ namespace
             { "cabOn", "Cab section on/off. Off = only the amp's own low-pass. (Not used in Acoustic mode.)" },
             { "blk_cabCbn", "The cabinet shape used by this block's built-in model, in folders by speaker count: 1x (1x12, 1x10, 1x15, 1x8), 2x (2x12, 2x10), 4x (4x12 and 4x10) Oversized ported cabs (deeper, tighter lows and cleaner low mids, for downtuned playing) and No cabinet (the speaker alone: no box resonance and no cabinet low cut). Open backs lose bass; closed cabs add thump near 100 Hz." },
             { "cabRoom", "How much room is added to the built-in cab models. The type is chosen in the menu above." },
-            { "cabRoomType", "Original: a short, dark ambience (as in earlier versions). Studio room, Large studio room and Living room are modelled from room-microphone recordings: a longer tail, more bass than treble, a dark top. Each has its own decay time." },
+            { "cabRoomType", "Original: a short, dark ambience (as in earlier versions). Studio room, Large studio room and Living room are modelled from room-microphone recordings: a longer tail, more bass than treble, a dark top. Each has its own decay time. The three Big rooms are longer (about 0.4 to 0.6 s): full is bass-leaning and open, bass-heavy is open on top, lean has less bass and a darker top." },
             { "cabMeasured", "On (default for new sessions): the mic position and distance controls follow what recordings show, which is a smaller change than the earlier setting. Off: the earlier, stronger behaviour. Sessions saved before v71 open with this off, so they sound the same." },
     { "cabAutoAlign", "Automatically align the cab blocks (time and polarity) whenever a block changes with two or more blocks on: loading an IR, switching between the built-in model and a file, changing the built-in model or its settings, or switching a block on or off. It overwrites the Delay and Invert controls each time, so turn it off to set them by hand." },
             { "cabSpread", "Pushes the cab blocks apart in the stereo field (A left, B right, C a little left, D a little right) on top of each block's Pan. Needs two or more blocks." },
@@ -581,7 +656,7 @@ namespace
             { "cabType", "Fallback cab filter used when no cab block has an IR." },
             { "blk_cabOn", "Turns this cab block on or off. Up to four blocks play together." },
             { "blk_cabSrc", "Built-in model: the plugin builds the cab from speaker, mic and position. IR file: load your own WAV or AIFF impulse response." },
-            { "blk_cabSpk", "Speaker for the built-in model, in folders. Realistic: hand-built speaker models by cab type (1x12, 2x12, 4x12, 4x12 oversized), plus Classic (older styles): five speakers fitted to close-mic recordings of older rock and metal cabs. Idealized: four smooth speakers of our own, as starting points. Mix ready: speakers fitted to the measured frequency response of mixed (already EQ'd) cab recordings: 4x12 and compact cabs. Mix-ready speakers are closest to their recordings with the Flat mic and the 4x12 Closed cabinet. The folders say what each is typically used for; any speaker works with any cabinet." },
+            { "blk_cabSpk", "Speaker for the built-in model, in folders. Realistic: hand-built speaker models by cab type (1x12, 2x12, 4x12, 4x12 oversized), plus Classic (older styles): five speakers fitted to close-mic recordings of older rock and metal cabs. Idealized: five smooth speakers of our own, as starting points (Ideal Defined is the one made for the idealized amps). Mix ready: speakers fitted to the measured frequency response of mixed (already EQ'd) cab recordings: 4x12 and compact cabs. Mix-ready speakers are closest to their recordings with the Flat mic and the 4x12 Closed cabinet. The folders say what each is typically used for; any speaker works with any cabinet." },
             { "blk_cabMic", "Mic for the built-in model: six general mics, six aimed at heavier playing (Dynamic Aggressive, Dynamic Punch, Dynamic Scoop, Ribbon Dark, Condenser Warm, and a dynamic + ribbon blend), or Flat for no mic colouring." },
             { "blk_cabPos", "Mic position: 0 = centre of the speaker's dust cap (bright, direct), 1 = the cone's edge (darker, warmer). Past 1 (up to 1.6) is beyond the edge, darker still; below 0 (down to -0.4) is the centre of the cap angled in, brighter than 0." },
             { "blk_cabDist", "Mic distance (inches): close = more bass (proximity effect), far = a little less top and a later arrival." },
@@ -675,6 +750,14 @@ namespace
             { "msDyn4", "Band 4 dynamics (drive follows the level)." },
             { "msLoCut", "Low Cut (Hz): a high-pass on the saturator's output, to keep the added lows from getting muddy. 20 Hz is off." },
             { "msHiCut", "High Cut (Hz): a low-pass on the saturator's output, to take the fizz off the added highs. 20 kHz is off." },
+            { "msEasy", "Easy mode: one Amount knob and a Focus knob set how hard every band is driven, so you don't have to set four Drives. The four Drive knobs are not used while it is on (Level, Mix, Tone and the rest still are)." },
+            { "msAmount", "Easy mode: how much saturation, from none to a lot. 0.4 with Focus in the middle is the same as every band at 12 dB." },
+            { "msFocus", "Easy mode: where the saturation goes. In the middle every band gets the same. Towards -1 the lows are driven harder and the highs stay clean; towards +1 the highs are driven harder and the lows stay clean (at +1 the lowest band is not driven at all)." },
+            { "msFb1", "Band 1 (lows) feedback: the band's own sound goes back into it a pitch-period later, which makes it ring and sound metallic. 0 is off. It cannot run away." },
+            { "msFb2", "Band 2 feedback: the band's own sound goes back into it a pitch-period later, which makes it ring and sound metallic. 0 is off." },
+            { "msFb3", "Band 3 feedback: the band's own sound goes back into it a pitch-period later, which makes it ring and sound metallic. 0 is off." },
+            { "msFb4", "Band 4 (highs) feedback: the band's own sound goes back into it a pitch-period later, which makes it ring and sound metallic. 0 is off." },
+            { "msFbPitch", "Feedback pitch: where the ring sits. In the middle it follows each band's centre; the knob moves it up or down by up to an octave, for all bands together. Only matters while a band has Feedback." },
             { "msAuto", "Auto level: keeps the saturator's output loudness close to its input's, whatever the drive, mix and curve." },
             { "msX1", "Split 1 (Hz): where the lowest band ends. The three splits are kept in order." },
             { "msX2", "Split 2 (Hz): the middle split between the two halves of the spectrum." },
@@ -714,7 +797,7 @@ namespace
             { "tsFocus", "High-pass on what the shaper listens to (the sound itself is not filtered). Raise it if low notes make the shaper pump, or to make it follow the pick rather than the low string's body. (Single band only: with Multiband on, each band listens to its own range.)" },
             { "tsOut", "Output level of the shaper (dB), to make up for the loudness the shaping adds or takes away." },
             { "tsMix", "Dry / shaped balance. 1 = all shaped." },
-            { "dmOn", "DI Match on/off. It reshapes the tone of your guitar before the amp, so one guitar can sound like another (single coil to humbucker, for example). It sits at the end of the input stage, after the Transpose." },
+            { "dmOn", "DI Match on/off. It reshapes the tone of your guitar before the amp, so one guitar can sound like another (single coil to humbucker, for example). It sits at the end of the input stage, after the Transpose, and follows what the Transpose did to the tone (with Formant Lock on that is nothing, so it matches the guitar you play)." },
             { "gxKey", "What the gate listens to when it decides to open or close. The input listens to your dry playing at the start of the chain, so the gate can sit after the amp and cut its hiss and ring-out, yet still follow your picking. Needs no extra cable or routing." },
             { "dmSource", "What your own pickups are. Pick a type, or Measured to teach the plug-in your guitar with Learn." },
             { "dmTarget", "The tone to move toward. A pickup type, Pink noise (a smooth, neutral balance) or Loaded DI (a recording you load). Pink noise and Loaded DI need Your pickups set to Measured; pickup types need a pickup type." },
@@ -741,15 +824,15 @@ namespace
             { "granSizeNote", "Free uses the Size knob. A note value makes every grain exactly that long at the tempo." },
             { "granDensNote", "Free uses the Density knob. A note value starts one grain per note length, so the cloud pulses with the tempo." },
             { "granPosNote", "Free uses the Position knob. A note value reads grains from exactly that many beats back in the loop." },
-            { "preDelayMode", "Delay character. Digital: clean and bright. Analog: darker, bucket-brigade style, with soft saturation and a slight wobble. Tape: dark and saturated with wow, flutter and drift. Lo-Fi: dark with reduced sample rate and bit depth. Oil-can: dark and warm with a heavy built-in wobble. Organ: the same on a very short delay, for a lush vibrato. The Lo-Fi and Warble knobs add to the mode. Tape Sustain, Three-Head Tape, Chorus Bucket, Studio Tape, Dub Echo and Memory Man are echo styles (approximations of how those kinds of machine behave): each sets its own tone, saturation, bass trim and wobble." },
-            { "postDelayMode", "Delay character. Digital: clean and bright. Analog: darker, bucket-brigade style, with soft saturation and a slight wobble. Tape: dark and saturated with wow, flutter and drift. Lo-Fi: dark with reduced sample rate and bit depth. Oil-can: dark and warm with a heavy built-in wobble. Organ: the same on a very short delay, for a lush vibrato. The Lo-Fi and Warble knobs add to the mode. Tape Sustain, Three-Head Tape, Chorus Bucket, Studio Tape, Dub Echo and Memory Man are echo styles (approximations of how those kinds of machine behave): each sets its own tone, saturation, bass trim and wobble." },
+            { "preDelayMode", "Delay character. Digital: clean and bright. Analog: darker, bucket-brigade style, with soft saturation and a slight wobble. Tape: dark and saturated with wow, flutter and drift. Lo-Fi: dark with reduced sample rate and bit depth. Oil-can: dark and warm with a heavy built-in wobble. Organ: the same on a very short delay, for a lush vibrato. The Lo-Fi and Warble knobs add to the mode. Tape Sustain, Three-Head Tape, Chorus Bucket, Studio Tape, Dub Echo and BBD Echo are echo styles (approximations of how those kinds of machine behave): each sets its own tone, saturation, bass trim and wobble." },
+            { "postDelayMode", "Delay character. Digital: clean and bright. Analog: darker, bucket-brigade style, with soft saturation and a slight wobble. Tape: dark and saturated with wow, flutter and drift. Lo-Fi: dark with reduced sample rate and bit depth. Oil-can: dark and warm with a heavy built-in wobble. Organ: the same on a very short delay, for a lush vibrato. The Lo-Fi and Warble knobs add to the mode. Tape Sustain, Three-Head Tape, Chorus Bucket, Studio Tape, Dub Echo and BBD Echo are echo styles (approximations of how those kinds of machine behave): each sets its own tone, saturation, bass trim and wobble." },
             { "tpOn", "Transpose on/off. It is the first effect in the chain, so everything after it (fuzz, overdrive, amp) plays the shifted notes. While it is on it adds a small delay, which the plugin reports to your DAW." },
-            { "tpSemis", "Shift the pitch by whole semitones (-24 to +24)." },
+            { "tpSemis", "Shift the pitch by whole semitones (-36 to +24). Below about -24 the output is mostly under 40 Hz: it needs a high note to be heard, and chords get less accurate." },
             { "tpFine", "Fine pitch shift in cents (hundredths of a semitone), for detuning." },
-            { "tpFormant", "Formant shift: moves the tone's emphasis up or down. This is an EQ-style approximation (it cuts and re-adds emphasis around two regions), not a true formant resynthesis. Plus the Lock amount if Formant Lock is on." },
-            { "tpLock", "Formant Lock: automatically shifts the formant the opposite way to the transpose, so the tone stays close to the original instead of getting chipmunk-bright (up) or dark (down)." },
+            { "tpFormant", "Formant shift: moves the tone's emphasis up or down without moving the pitch, note by note (the spectral envelope is rescaled and the harmonics stay where they are). Plus the Lock amount if Formant Lock is on. Adds about 2.7 ms of delay in the Fast and Low Latency modes (5.3 ms in the others) while it is moving the tone." },
+            { "tpLock", "Formant Lock: automatically shifts the formant the opposite way to the transpose, so the tone stays close to the guitar's own instead of getting chipmunk-bright (up) or dark (down). It is done note by note, so chords keep their tone too. DI Match, if on, then works on that same tone. Full up to one octave of shift, fading to nothing at two octaves (the tone mover costs accuracy on very large shifts). Adds about 2.7 ms of delay in the Fast and Low Latency modes (5.3 ms in the others) while it is moving the tone." },
             { "tpMix", "Blend between your original notes and the shifted ones. Around 0.5 gives a harmony or detune." },
-            { "tpQuality", "Fast has less delay (about 14 ms); Smooth adds about 27 ms and is better for low strings and for shifting down. Works best on single notes. (The Mode menu in the header can override this.)" },
+            { "tpQuality", "Fast has the least delay (about 6 ms in Transpose, and in the octaver, pitch pedal and harmonizer on Single note); Smooth is a little steadier on very deep shifts (about 14 ms). (The Mode menu in the header can override this.)" },
             { "ampAutoLevel", "Auto level: this amp's output is held at the same loudness for every setting of the Gain knob and for every amp model and voicing, so changing the gain changes the sound, not the volume. The level comes from a table I measured, so it adds no processing. Overdrive and Modern Metal settings can still change the loudness a little." },
             { "ampBAutoLevel", "Auto level for Amp B: same as Amp A's. Holds Amp B at the same loudness for every setting of its Gain knob and every model. B Level still works on top of it." },
             { "compAuto", "Auto level: adds the makeup gain for you, based on the Threshold, Ratio and Mix (a table I measured with a plucked test signal). The Output knob then trims on top of it, with 0 dB meaning 'about as loud as the compressor off'." },
@@ -799,7 +882,7 @@ namespace
             { "swellOn", "Swell on/off: automatically fades in each new note (volume swell / slow gear)." },
             { "swellAttack", "How long each note takes to fade in (ms)." },
             { "swellSens", "How easily it detects a new note. Higher catches softer notes; lower ignores them." },
-            { "granOn", "Granular cloud on/off. It records a 4-second loop and plays back lots of tiny overlapping grains. It sits after the Post EQ." },
+            { "granOn", "Granular cloud on/off. It keeps the last 30 seconds you played and plays back lots of tiny overlapping grains. It sits after the Post EQ." },
             { "granFreeze", "Stops recording, so the cloud keeps playing whatever was in the loop. Play something, then freeze it." },
             { "granSize", "Grain length (ms). Short = grainy and glitchy; long = smooth and pad-like." },
             { "granDensity", "How many grains start each second. More = thicker cloud." },
@@ -815,8 +898,10 @@ namespace
             { "reverbMix", "Wet/dry amount of reverb." },
             { "reverbSize", "Decay time in seconds (how long the tail takes to fade by 60 dB), from 0.1 to 30 s. Longer decays also use a bigger space. The Classic type tops out around 12 s; the other types go all the way to 30 s." },
             { "reverbPreDelay", "Gap before the reverb starts (ms). Longer keeps the dry note clearer." },
-            { "reverbDamp", "How quickly the highs die away in the tail. Higher = darker, softer tail." },
+            { "reverbDamp", "How quickly the highs die away in the tail. Higher = darker, softer tail. 0 is the old brightest setting; below 0 the tail rings brighter still (down to -1), like a real plate or a bright spring." },
             { "reverbWidth", "Stereo width of the reverb." },
+            { "reverbDryPan", "Balance of the dry guitar between left and right while the reverb is on: left of centre turns the right side down, right of centre the left. 0 leaves it as it was. Mono output is not affected." },
+            { "reverbWetPan", "Balance of the reverb between left and right, separately from the dry. Put the dry on one side and the reverb on the other, or push the tail to one side. 0 leaves it as it was. Mono output is not affected." },
             { "reverbLowCut", "Removes lows from the reverb (Hz) so it doesn't get muddy." },
             { "reverbHighCut", "Removes highs from the reverb (Hz) for a darker wash." },
             { "reverbDuck", "Lowers the reverb while you play and lets it bloom when you stop." },
@@ -826,6 +911,16 @@ namespace
             { "shimmerPitch", "The interval the shimmer is shifted by, from an octave down to two octaves up, including two-voice choices such as octave + fifth." },
             { "shimmerTone", "Tone (Hz) of the shimmer signal: lower = darker." },
             { "outGain", "Final output level (dB). Keep it low while you raise gain knobs." },
+            { "repOn", "Repeater (beat repeat) on the finished sound. It listens all the time and adds no delay. Use REPEAT NOW, or the Trigger menu, to make it grab the last slice and loop it." },
+            { "repHold", "Repeats the last slice for as long as this is on (it grabs the slice the moment you switch it on). It is a switch you can map to a MIDI controller or automate. It is not used when Trigger is set to one of the automatic modes." },
+            { "repAuto", "What makes it repeat. Repeat Now switch: you do. The other three follow the beat: the last beat of every bar, the last two beats of every bar, or the second half of every beat. Automatic modes follow the plugin's tempo and clock, or the host's tempo and position when HOST TEMPO is on and the DAW is playing." },
+            { "repDiv", "How long the slice is, as a note value at the tempo. A shorter slice stutters faster: 1/4 note repeats the last beat, 1/16 repeats the last sixteenth over and over." },
+            { "repPitch", "Each repeat is this many semitones further from the one before it, up to two octaves either way: a positive value climbs, a negative one falls. 0 repeats at the original pitch. The rhythm does not change." },
+            { "repGlitch", "How often a repeat is played differently: backwards, skipped, cut in half, or jumped in pitch (a fifth or an octave). 0 repeats it exactly each time." },
+            { "repDecay", "How much quieter each repeat is than the one before. 0 keeps them all at the same level." },
+            { "repMix", "How much of the repeats replaces the live sound while it is repeating (1 = the live sound is gone, 0.5 = both)." },
+            { "tapeStop", "Tape stop. Switch it on and the whole sound slows to a halt, the pitch falling away as it stops. Switch it off and the sound winds back up from what you are playing now and joins the live signal. Map it to a MIDI footswitch for a stop on demand. It always starts off when a session or preset loads." },
+            { "tapeStopTime", "How long the slow-down takes (0.1 to 4 seconds). The wind-up back to speed takes a little over half as long." },
             { "outMono", "Sums the output to mono (both sides get the same signal). Use it to check how a wide sound folds down on a mono system." },
             { "dblOn", "Doubler on/off: imitates double-tracking by adding two slightly delayed, drifting copies spread left and right. It sits after the textures, before the post-amp delay." },
             { "dblTime", "Base delay of the two copies (ms), 5 to 60. About 15-30 ms sounds like a second take; longer starts to sound like an echo; below about 10 ms it turns into a thick, flanger-like thickening." },
@@ -897,6 +992,7 @@ namespace
                 { "Doom (octave, rat-type, boost)", "An octave-up into a rat-type distortion, then a clean boost. Gain, Tone (filter), Octave and Boost; the diodes are in ADV." },
                 { "Distortion + Reverb (3 programs, order switch)", "A distortion and a reverb in one: Gain is the distortion, Reverb how much reverb, Decay and Mod shape it. Order puts the reverb after the distortion (clean wash) or before it (a thick, muddy wall of sound). Programs: Ambient (large and long), Octave Down (a dark octave-down in the tail) and Reverse (reversed trails fed back). Hold freezes the tails like a sustain pedal. Built from a description of a real pedal, not a schematic." },
                 { "Feral (self-oscillating, wandering bias)", "A fuzz that can sing on its own. Squeal feeds the output back through a tuned filter (Pitch); past a point it oscillates. Action moves the clipper's bias with a slow, uneven LFO (Speed) and with how hard you play, so the squeal gates in and out, spits and warbles. Starve sets the resting bias." },
+                { "Arc (gas discharge: Gate = voltage, flat dynamics, crackle)", "A gas-discharge fuzz. The drive has to pass a strike voltage (Gate) before an arc lights, and the arc holds until the drive falls well below it, once per half cycle. Quiet notes are pinched into narrow pulses and then gated out; loud ones become a flat-topped, crackling square, so playing dynamics are flattened. Stab sets how restless the arc is (jitter, flicker, sparks), Comp keeps decaying notes above the strike voltage, Octave Up adds an overtone, and Mix blends in the clean signal. A model from descriptions of such pedals, not measured on one." },
                 { "Metal Pedal (Cut, 5-band EQ, gate, boost)", "A tight, modern distortion: Cut (a pre-gain high-pass for tightness), Gain, a five-band EQ after the distortion (plus or minus 12 dB: Bass, Low-Mid, Mid, High-Mid, Treble), a boost and a noise gate. An approximation from descriptions, not a schematic." } } },
             { "fuzzBenderModel", {
                 { "Early (2 stage)", "Two transistors: thick, woolly, round mids and a lower gain." },
@@ -943,7 +1039,7 @@ namespace
                 { "Diode", "A rounded, symmetric diode-style softening, like a squeeze pedal's output. Pairs with Sustainer." } } },
             { "compStyle", {
                 { "Standard", "The original compressor." },
-                { "FET", "Fast attack, hard knee and a release that snaps back after deep squeezes: punchy and forward." },
+                { "FET", "Very fast attack (down to a few microseconds), a hard knee and a release that eases back after deep squeezes: punchy and forward. The low ratio buttons start squeezing a few dB earlier than the 20:1 button, as on the hardware (b86; the offsets are my estimates)." },
                 { "Opto", "A soft knee and a slow grab. The release slows down the longer and deeper it squeezes, so it is smooth and hard to hear." },
                 { "Variable-mu", "Very soft knee and a ratio that deepens as the signal gets louder: gentle, even glue." },
                 { "Sustainer", "A pedal-style squeeze that lets the first part of the pick through, then holds the note up with a long release." },
@@ -952,20 +1048,23 @@ namespace
                 { "Thump", "The Standard compressor with three extras that belong together: Bloom (works harder and lets go slowly, so notes squeeze down and swell back), Smack (a fast parallel compressor with lifted lows for low-end impact) and Clarity (a tilt EQ: right = bite, left = warmth)." },
                 { "Crush Limiter", "A late-1960s podium-microphone limiter pushed past its design, the kind used for crushed drums and pumping, gritty tones: a limiter with a 1.3 ms attack and a very slow release (about 1.7 s, half that on Fast, far slower with Crush up high). Crush squeezes harder and lifts the quiet parts and tails, Crunch drives the output stage, Darkness rolls off the fizz, Mix blends it with the clean signal and Volume sets the level." },
                 { "Opto Sustain", "An optical sustain pedal in the squeeze-and-swell style: Sustain sets how hard it squeezes (it is as close to infinite ratio as it goes), the attack is very fast and fixed, and the release is about half a second, so a note dips when it is hit and then rises as it dies away. Blend mixes in the dry sound, Grit adds a layer of hard-clipped fizz, Treble cuts or boosts the top end and Volume sets the output. Built from published descriptions only; every number is my own reading." },
-                { "Dyna (OTA)", "A squashing pedal compressor from a published analysis: Threshold sets how hard it squeezes (lower = more), Attack, Release, Output and Mix work as labelled, and the ratio, ratio curve and detector are my own estimates because the analysis does not give them. Ratio, Auto makeup and the extras are ignored." } } },
+                { "Squash (OTA)", "A squashing pedal compressor from a published analysis: Threshold sets how hard it squeezes (lower = more), Attack, Release, Output and Mix work as labelled, and the ratio, ratio curve and detector are my own estimates because the analysis does not give them. Ratio, Auto makeup and the extras are ignored." },
+                { "Sustainer (1980s VCA)", "After a 1980s compression-sustainer pedal, read from its 1986 service notes: a voltage-controlled amplifier whose gain is set by a detector listening after it (a feedback design), a 339 Hz high-pass in the detector, an 8.8 kHz roll-off, a tone stage and a Level. Knobs: Sustain, Attack, Tone, Level. The gain law, the Sustain range and the detector speed are my estimates; the chip\'s datasheet was not available." },
+                { "Sustainer, early OTA", "A late-1970s sustain pedal built around an OTA (a gain chip steered by a detector). It has about +40 dB of gain for quiet notes and a very flat ceiling, so the note is held up for a long time. Sustain sets the gain and how low the ceiling sits; Attack sets how quickly the detector reacts; Level and Mix as labelled. Fit to the output table in its service sheet (1 kHz: -50 dBm in gives -12 out, -40 gives -8.5, 0 gives -8). The detector speeds are my estimates and the sheet's two 100 Hz rows are not reproduced." } } },
             { "odStyle", {
-                { "Transparent", "A Centaur-type overdrive: a gain pot that fades the clean signal out as the clipped path comes in, germanium clipping, and an active treble shelf (Tone). Edge adds extra top end into the clipper. Component values the published analysis does not give are my estimates." },
+                { "Transparent", "A blend-type overdrive: a gain pot that fades the clean signal out as the clipped path comes in, germanium clipping, and an active treble shelf (Tone). Edge adds extra top end into the clipper. Component values the published analysis does not give are my estimates." },
                 { "Tight", "A tight, modern metal-style boost with Drive, Bright, Gate and Attack." },
                 { "Open", "A dynamic, amp-like overdrive with Drive and Tone and a High / Low range switch. It stays open and responds to your picking." },
-                { "Screamer", "A versatile mid-hump drive: a clean path blended with a clipped, low-cut gain path. Clipping and voicing menus, Drive, Tone and Mid; Bass, Mid Freq and Bright behind ADV." },
+                { "Mid Hump", "A versatile mid-hump drive: a clean path blended with a clipped, low-cut gain path. Clipping and voicing menus, Drive, Tone and Mid; Bass, Mid Freq and Bright behind ADV." },
                 { "Distortion", "A hard-clipped distortion: all the signal goes through a high-gain stage into hard diodes. Clipping menu, Dist and Tone; the Mids switch and Bright behind ADV." },
-                { "Tube Driver", "A full-range, warm, creamy tube-style drive that keeps a lot of the clean signal at low Drive and turns thick and compressed when pushed, a lead boost for rhythm and solos. Drive, Bass (a low cut: tight at 0, full at 1) and Treble; Bright behind ADV." },
+                { "Tube-style Drive", "A full-range, warm, creamy tube-style drive that keeps a lot of the clean signal at low Drive and turns thick and compressed when pushed, a lead boost for rhythm and solos. Drive, Bass (a low cut: tight at 0, full at 1) and Treble; Bright behind ADV." },
                 { "Op-Amp Distortion", "A single op-amp gain stage (1.5 to 213 times) into a diode clipper, with a 720 Hz low-cut at full gain, so it is mid-forward and bright. The Clipping menu picks the diodes; the stock pedal has germanium." },
                 { "Stack Drive", "Two gain stages (up to 70 dB) into red-LED clipping, then a tone section with a mid scoop. Gain and Tone. The tone section is my approximation: the analysis does not list its component values." },
-                { "Natural Overdrive", "A natural-sounding, mid-forward overdrive after the Nobels ODR-1: an input low-pass near 2.7 kHz, up to about 44 dB of gain in a stage with soft 1N4148 clipping in its feedback, a second harder clip, and a Spectrum control that tilts from a dark voice (about 700 Hz roll-off) to a bright one (5 kHz and an upper-mid lift). Drive, Spectrum and a Voicing menu: ODR-1, ODR-1 Plus (Boost on) and ODR-S. The Spectrum curve and the second filter stage are my estimates; the schematics do not give them in a readable form." },
-                { "Preamp Distortion", "A raw, mid-70s preamp distortion after the DOD 250: one 741 op-amp stage with a very wide Gain range (about 10 to 47 dB; the gain leg is a 4.7 nF capacitor, so the more you turn up the more it is mostly treble that gets amplified), then a clipper with one silicon diode on the positive side and two on the negative side, so the two halves of the wave clip at different levels. There is no tone control. The 741 is slow, so at full gain the top end stops near 5 kHz. The 741 output swing is my estimate." },
-                { "Metal Zone", "A high-gain distortion after the Boss MT-2, read from its service notes: a fixed first stage that is mostly a mid band-pass, a Dist stage of 2 to 252 times, two silicon diodes, a second stage, then a tone section with High and Low shelves (+/-15 dB) and a Middle band you can sweep from 200 Hz to 5 kHz. Dist, Low, Mid, Mid Freq and High. The notes do not resolve the diode direction or the Middle range, so those parts are my estimates." },
-                { "Blues Driver", "A two-stage, diode-clipped overdrive in the style of a classic blues pedal: from a touch of grit to full crunch, with a gentle bump around 120 Hz that keeps it warm. Gain and Tone. Several inter-stage and tone-network values were not legible in the source, so those are my estimates." } } },
+                { "Natural Drive", "A natural-sounding, mid-forward overdrive after a 1990s natural-sounding overdrive pedal: an input low-pass near 2.7 kHz, up to about 44 dB of gain in a stage with soft 1N4148 clipping in its feedback, a second harder clip, and a Spectrum control that tilts from a dark voice (about 700 Hz roll-off) to a bright one (5 kHz and an upper-mid lift). Drive, Spectrum and a Voicing menu: Stock, Plus (Boost on) and Special. The Spectrum curve and the second filter stage are my estimates; the schematics do not give them in a readable form." },
+                { "Preamp Distortion", "A raw, mid-70s preamp distortion after a classic 1970s op-amp distortion pedal: one 741 op-amp stage with a very wide Gain range (about 10 to 47 dB; the gain leg is a 4.7 nF capacitor, so the more you turn up the more it is mostly treble that gets amplified), then a clipper with one silicon diode on the positive side and two on the negative side, so the two halves of the wave clip at different levels. There is no tone control. The 741 is slow, so at full gain the top end stops near 5 kHz. The 741 output swing is my estimate." },
+                { "Metal Distortion", "A high-gain distortion after a well-known metal pedal, read from its service notes: a fixed first stage that is mostly a mid band-pass, a Dist stage of 2 to 252 times, two silicon diodes, a second stage, then a tone section with High and Low shelves (+/-15 dB) and a Middle band you can sweep from 200 Hz to 5 kHz. Dist, Low, Mid, Mid Freq and High. The notes do not resolve the diode direction or the Middle range, so those parts are my estimates." },
+                { "Transparent 2 (cut-only tone)", "A transparent, low-gain overdrive: one op-amp stage with the clipping diodes in its feedback, a flat response with no mid hump, then Bass and Treble controls that only cut (full up = flat). MY ESTIMATE from published descriptions; I found no schematic, so the circuit values are guesses of that shape. The Clipping menu stands in for the pedal's clipping switch (None uses the LED, the highest threshold). Overlaps Transparent and Mid Hump in what it does." },
+                { "Blues Drive", "A two-stage, diode-clipped overdrive in the style of a classic blues pedal: from a touch of grit to full crunch, with a gentle bump around 120 Hz that keeps it warm. Gain and Tone. Several inter-stage and tone-network values were not legible in the source, so those are my estimates." } } },
             { "odClip", {
                 { "Silicon (classic)", "The classic clipping: tight, even, familiar." },
                 { "LED (open)", "A higher clipping threshold: more headroom, louder and more open, with a later, harder bend." },
@@ -973,20 +1072,23 @@ namespace
                 { "Asymmetric", "One half of the wave clips harder than the other: more even harmonics, a warmer and more amp-like drive." },
                 { "None (op-amp rails)", "Circuit mode only: no diodes, the op-amp itself runs out of swing. Louder, more open and more gradual. (In the Distortion style this behaves like Asymmetric.)" } } },
             { "odVoice", {
-                { "Classic (mid hump, tube)", "Screamer: the familiar mid hump with the full gain range. Tube Driver: the standard tube drive." },
-                { "Mild (lean, Hex)", "Screamer: less gain and no extra hump. Tube Driver: the Hex voicing, with thick lows, a soft knee and a dark top." },
-                { "Open (bright, Hex hot)", "Screamer: more gain, a looser low end and extra top end. Tube Driver: the Hex voicing with more gain." } } },
+                { "Classic (mid hump, tube)", "Mid Hump: the familiar mid hump with the full gain range. Tube-style Drive: the standard tube drive." },
+                { "Mild (lean, Hex)", "Mid Hump: less gain and no extra hump. Tube-style Drive: the Hex voicing, with thick lows, a soft knee and a dark top." },
+                { "Open (bright, Hex hot)", "Mid Hump: more gain, a looser low end and extra top end. Tube-style Drive: the Hex voicing with more gain." } } },
+            { "odMz", {
+                { "Standard", "The Metal Distortion as built, from its service notes." },
+                { "Custom (more gain, tighter lows)", "My estimate of the reissue\'s Custom mode: about twice the Dist range, a tighter low end and a broader Middle band. The maker does not publish the reissue circuit." } } },
             { "odNob", {
-                { "ODR-1 (natural overdrive)", "The stock circuit: Drive 250k, 4558 stage with feedback diodes, second hard clip, Spectrum tilt." },
-                { "ODR-1 Plus (Boost on)", "The Plus model with its Boost switch on: a third ground leg (270 ohm with 2.2 uF) in the gain stage adds about 9 to 10 dB." },
-                { "ODR-S (germanium, 3-band)", "The Special: a 500k Drive, germanium shunt clipping after the gain stage, and a three-band Hi / Mid / Lo equaliser in place of Spectrum. The transistor stage and the equaliser's ranges are my estimates." } } },
+                { "Stock (natural drive)", "The stock circuit: Drive 250k, 4558 stage with feedback diodes, second hard clip, Spectrum tilt." },
+                { "Plus (Boost on)", "The Plus voicing with its Boost switch on: a third ground leg (270 ohm with 2.2 uF) in the gain stage adds about 9 to 10 dB." },
+                { "Special (germanium, 3-band)", "The Special voicing: a 500k Drive, germanium shunt clipping after the gain stage, and a three-band Hi / Mid / Lo equaliser in place of Spectrum. The transistor stage and the equaliser's ranges are my estimates." } } },
             { "odMidMod", {
                 { "Scoop (stock)", "A mid dip: scooped, fizzy and aggressive." },
                 { "Flat", "Leaves the mids alone." },
                 { "Boost", "A mid hump: thicker and more lead-like." } } },
             { "tpQuality", {
-                { "Fast (~14 ms delay)", "Shorter processing window: less delay, but low notes (below about 100 Hz) and down-shifts sound rougher." },
-                { "Smooth (~27 ms delay)", "Longer processing window: smoother on low strings and down-shifts, but adds more delay." } } },
+                { "Fast (least delay)", "Shorter processing window: the least delay (about 6 ms; the octaver, pitch pedal and harmonizer use the same window on Single note)." },
+                { "Smooth (steadier)", "Longer processing window: a little steadier on very deep shifts, but adds more delay (about 14 ms)." } } },
             { "ampMode", {
                 { "Classic", "The original voicing: the amp as set up by ear, with simple clipping curves. This is the default." },
                 { "Circuit-derived", "Clipping curves from tube-circuit simulation, plus feedback, presence, supply droop, transformer saturation and preamp corners worked out from the circuit values. About the same CPU as Classic." },
@@ -1004,7 +1106,7 @@ namespace
                 { "Modern Maul (scooped)", "A modern, scooped high-gain amp. Has the Focus knob." },
                 { "Club Crunch (crunch)", "A classic British rock-crunch amp: open, mid-forward, loose and dynamic. It stays clear at low gain. Voicing: Crunch is the main sound; Pushed is a hard-rock lead tone; Jumped is both channels linked, fatter and hotter." },
                 { "Bumble Lead (smooth, singing)", "A boutique-style amp with lots of clean headroom that turns into a smooth, vocal, compressed lead when you push it. Voicing: Jazz (off) is clean, round and warm; Rock (on) is pushed and mid-forward." },
-                { "5555 Block (raw to modern)", "A tight, aggressive three-stage high-gain amp for chugging rhythm and lead. Voicing: Raw (off) is bright and edgy; Modern (on) has more gain, a tighter low end and a smoother top. Has the Modern Metal controls and Focus." },
+                { "5555 Block (raw to modern)", "A tight, aggressive three-stage high-gain amp for chugging rhythm and lead. Voicing: Raw (off) is bright and edgy; Modern (on) has more gain and compression, with (since b88, eased back halfway in b89) a fuller low end and a more open top, toned toward captures of a modern high-gain amp. The fifth voicing, Vitriol, is fitted to a different captured head across its whole Gain range. Has the Modern Metal controls and Focus." },
                 { "Tweedle Dee (spongy breakup)", "A small, low-power combo that breaks up early and soft, with a lot of sag. It cleans up when you play softly. Voicing: Soft (off) is spongy and honky; Cranked (on) is louder, spittier and thicker; Jumped has the two channels jumpered: more gain and fuller lows (the Four-ten voicing is Tweedle Dum now)." },
                 { "Jade Chorus (solid-state)", "A stiff, solid-state style clean with huge headroom and no sag, great under chorus. Voicing: Glass (off) is bright and wide open; Warm (on) is rounder and darker." },
                 { "Marque Dream (tight, mid-hump)", "A tight, creamy high-gain amp with a mid hump. Voicing: Rhythm (off) is tight and punchy for chunk; Lead (on) has more gain, a big mid hump and long sustain. Has the Modern Metal controls and Focus." },
@@ -1017,25 +1119,30 @@ namespace
                 { "Wreck Stack (huge, very tight)", "A huge, very tight modern stack with a stiff big-bottle power stage: a firm low end, a scooped low mid and a hard, controlled top. Voicing: Lead, Crunch, Clean or Smooth (rounder, less bite). Has the Modern Metal controls and Focus." },
                 { "Power Brawl (punchy 6L6)", "A punchy modern 6L6-style amp with a choice of mid voicings. Voicing: Scooped lead, Mid-boosted lead (warm and creamy), Crunch, or Bottom (extra low end). Has the Modern Metal controls and Focus." },
                 { "Stolen Fire (growl, flexible)", "A growly, cutting lead whose mids sit in a different range from most high-gain amps, so it fits in a mix. Voicing: Lead, Sludge (lower gain, looser, darker), Clean (warm, high headroom) or Brilliant (a chimey clean). Has the Modern Metal controls and Focus." },
-                { "Hi-Wat Headroom (tight, clean to edge)", "A stiff, punchy British amp with a lot of clean headroom: tight bass, a forward upper mid and a bright top, clean until you push it, then a hard, fast crunch. Voicing: Normal, Brilliant (more top and gain), Linked (both channels jumped and the power stage working) or Open (even more headroom). Presence works through the feedback loop." },
-                { "Plex Appeal (Plexi-style, mod options)", "A Plexi-style 100 W British head, solved from its schematic and the common mods. Voicing: Stock (bright input, volumes up, open and hairy), Jumped (both inputs linked: thicker, darker, more gain), Modded (a cascade gain stage, a smaller bright cap, a diode clipper after a pre-tone-stack master and softer feedback: tighter, more sustain, less fizz) or Modded + Jumped." },
-                { "Matt's Amp (thick, dark, doom-friendly)", "A thick, dark, saggy 1970s British 100 to 120 W head with a wide bass and treble network. Voicing: Graphic (early 70s, a fixed top cap on the plate), Heavy (a bass-cut input cap, doomy low mids), Bright (a modern version with more top) or Mix (its gain stages feeding a Marshall-style stack)." },
-                { "Marmalade (thick, mid-forward crunch)", "A modern 50 W British-style head (read from schematics of a family of such amps): the bass is cut hard between the early gain stages so the clipping stays tight, then a thick mid-forward crunch and a smooth top, with a Marshall-style tone stack and an EL84-type power stage. Voicing: Crunch, Heavy (more gain, mellower), Clean (its clean channel) or Sharp (less mid, more bite)." },
-                { "Eclipse (Hi / Lo input, tight, huge)", "A modern 100 W extreme-metal head with two gain stages, a master volume that can be pulled out, a bass / middle / treble stack and a presence control. Voicing: Hi Pulled (the high input runs both gain stages and the master pulled adds compression: the most saturated and tight), Hi Pushed (the same with the master in: more volume, less squash), Lo Pushed (the low input skips the first stage: a Plexi-like grind, looser) or Lo Pulled (the low input with the master pulled: more gain and sag). Has the Modern Metal controls and Focus." },
+                { "Hi-Wat Headroom (tight, clean to edge)", "A stiff, punchy British amp with a lot of clean headroom: tight bass, a forward upper mid and a bright top, clean at the bottom of the Gain knob, a hard, fast crunch in the middle and a thick lead at the top (the range was widened in b87 against captures; measured, not listened to). Voicing: Normal, Brilliant (more top and gain), Linked (both channels jumped and the power stage working) or Open (even more headroom). Presence works through the feedback loop." },
+                { "Plex Appeal (early-British-style, mod options)", "A early-British-style 100 W British head, solved from its schematic and the common mods. Voicing: Stock (bright input, volumes up, open and hairy), Jumped (both inputs linked: thicker, darker, more gain), Modded (a cascade gain stage, a smaller bright cap, a diode clipper after a pre-tone-stack master and softer feedback: tighter, more sustain, less fizz) or Modded + Jumped." },
+                { "Matt's Amp (thick, dark, doom-friendly)", "A thick, dark, saggy 1970s British 100 to 120 W head with a wide bass and treble network. Voicing: Graphic (early 70s, a fixed top cap on the plate), Heavy (a bass-cut input cap, doomy low mids), Bright (a modern version with more top) or Mix (its gain stages feeding a British-style stack)." },
+                { "Marmalade (thick, mid-forward crunch)", "A modern 50 W British-style head (read from schematics of a family of such amps): the bass is cut hard between the early gain stages so the clipping stays tight, then a thick mid-forward crunch and a smooth top, with a British-style tone stack and an EL84-type power stage. Voicing: Crunch, Heavy (more gain, mellower), Clean (its clean channel) or Sharp (less mid, more bite)." },
+                { "Eclipse (Hi / Lo input, tight, huge)", "A modern 100 W extreme-metal head with two gain stages, a master volume that can be pulled out, a bass / middle / treble stack and a presence control. Voicing: Hi Pulled (the high input runs both gain stages and the master pulled adds compression: the most saturated and tight), Hi Pushed (the same with the master in: more volume, less squash), Lo Pushed (the low input skips the first stage: an early-British-like grind, looser) or Lo Pulled (the low input with the master pulled: more gain and sag). Has the Modern Metal controls and Focus." },
                 { "Marque Five (three channels, clean to lead)", "A modern three-channel 100 W head that goes from clean to tight lead, with a bass / middle / treble stack and presence. Voicing: Clean (lots of headroom, sparkly), Crunch (edge of breakup to crunch), Lead (tight, bright, very saturated) or Extreme (the lead with the mid contour out: scooped and very bright). Has the Modern Metal controls and Focus." },
                 { "Dual Thirty (two channels, chimey crunch)", "A two-channel 30 W combo in the chimey EL84 family, with a hotter front end than Chime Thirty. Voicing: Channel 1 (two cascaded gain stages with the tone controls after them: chime that thickens into crunch), Channel 2 (a single high-gain pentode stage: bright and a little thin, hard-clipping), Pushed (Channel 1 with the volume and master well up: power-stage grit and sag) or Cut (Channel 1 with the top cut well in: darker and rounder)." },
-                { "Solid Metal (solid-state, 90s metal)", "A solid-state and hybrid metal amp with stiff transistor power: no sag, big tight bottom, hard symmetric clipping and a scooped mid range. Voicing: Hybrid Hi-Gain (two op-amp stages into LED clippers, then a tube stage: the 90s hybrid-metal sound), Hybrid Classic OD (the lower-gain overdrive of the same circuit: warmer, less fizz), JFET Lead (two JFET stages into zener and diode clipping: harsh, bright, scooped) or JFET Crunch (the same amp's clean-to-crunch channel: soft JFET clipping, looser)." },
-                { "Cedar Spring (blackface combos, early breakup)", "A family of blackface-style spring-reverb combos that run out of headroom much sooner than the big American combo: they compress and round off as you turn them up. Voicing: Blackface (a 22 W two-6V6 1x12: clean to breakup, round low mids), Spanky (brighter, thinner lows, more bite), Cranked (volume well up: sag and a mid-forward singing breakup), Silverface (the later drip-edge Deluxe Reverb: tighter, brighter, more headroom) or Boost (the silverface Volume Boost pulled: more gain, a tighter low end). The big 6L6 combo that used to be Big Spring is Cedar Grand now, and Quad Ten is Cedar Ten." },
-                { "Triple Blend (three amps in one)", "Three amps played together inside one amp, the way some touring players run a rig: a warm 15-inch combo, a smooth Dumble-style lead amp and an open, clean-headroom head, all into the same cab. One Gain knob drives all three; the Warm, Smooth and Open knobs set how much of each you hear. Voicing: Three-in-One (an even mix), Warm (the combo leads), Open (the clean head leads) or Singing (the lead amp leads and sings). Placeholder parts for now: they will be fitted to captures." },
+                { "Solid Metal (solid-state, 90s metal)", "A solid-state and hybrid metal amp with stiff transistor power: no sag, big tight bottom, hard symmetric clipping and a scooped mid range. Voicing: Hybrid Hi-Gain (two op-amp stages into LED clippers, then a tube stage: the 90s hybrid-metal sound), Hybrid Classic OD (the lower-gain overdrive of the same circuit: warmer, less fizz), JFET Lead (two JFET stages into zener and diode clipping: harsh, bright, scooped), JFET Crunch (the same amp's clean-to-crunch channel: soft JFET clipping, looser) or, as the fifth, Hybrid + JFET (a blend of our own: the Hi-Gain hybrid's clipping stages with the JFET head's tighter lows, harsher upper mid and brighter top; designed, not read from a sheet)." },
+                { "Cedar Spring (blackface combos, early breakup)", "A family of blackface-style spring-reverb combos that run out of headroom much sooner than the big American combo: they compress and round off as you turn them up. Voicing: Blackface (a 22 W two-6V6 1x12: clean to breakup, round low mids), Bright (brighter, thinner lows, more bite), Cranked (volume well up: sag and a mid-forward singing breakup), Silverface (the later drip-edge 22 W combo: tighter, brighter, more headroom) or Boost (the silverface Volume Boost pulled: more gain, a tighter low end). The big 6L6 combo that used to be Big Spring is Cedar Grand now, and Quad Ten is Cedar Ten." },
+                { "Triple Blend (three amps in one)", "Three amps played together inside one amp, the way some touring players run a rig: a warm 15-inch combo, a smooth boutique-style lead amp and an open, clean-headroom head, all into the same cab. One Gain knob drives all three; the Warm, Smooth and Open knobs set how much of each you hear. Voicing: Three-in-One (an even mix), Warm (the combo leads), Open (the clean head leads) or Singing (the lead amp leads and sings). Placeholder parts for now: they will be fitted to captures." },
                 { "Jazz Box (dark jazz clean)", "A big, dark, solid-state jazz clean: a lot of headroom, a warm low-mid hump and a rolled-off top. Voicing: Jazz, Archtop (a little brighter), Dark Room (the roundest) or Pushed (turned up for a soft, dark breakup). Not matched to any real amp." },
                 { "Brit Eighteen (18 W EL84 combo)", "A small British EL84 combo: chimey and mid-forward, and it breaks up early. Voicing: Clean, Crunch, Cranked or Brilliant. Not matched to any real amp." },
                 { "Tweedle Dum (tweed bass amp, push-pull 4x10)", "A tweed-era bass amp played as a guitar amp: push-pull 6L6 power, a tube rectifier and a little global feedback with a Presence control, so it is bigger, tighter and cleaner than Tweedle Dee but still sags into a rich, spongy crunch. Voicing: Tweed Normal (the normal channel), Tweed Bright (the jumped, bright channel: more gain, thinner lows), Cranked (rectifier sag, loose and thick) or Silverface (a later solid-state-rectifier version: stiffer, more headroom, scooped mids)." },
                 { "Marque One (the original single-channel Mark)", "The original single-channel Mark-style head, split out of Marque Dream's Mark I voicing: four 6L6s, a bright stack and hot, mid-hump gain with looser lows than the later channels. Voicing: Mark I (as measured), Clean (Volume 1 low), Lead Boost (the footswitch boost: more gain and a mid push) or Graphic EQ (the scooped, hi-fi graphic setting)." },
                 { "Cedar Grand (6L6 reverb combo, 15-inch)", "A big 6L6 reverb combo split out of the Cedar Spring family, with its own supply and feedback: fuller lows, more headroom and a later, harder breakup than Cedar Spring's small combos. Voicing: Big Spring (the fitted late-breakup sound), Brownface (older and darker: looser, lower gain), Cranked (volume well up) or Bright (bright cap in, more bite)." },
                 { "Cedar Ten (4x10 combo, clean to gain channel)", "A four-10 combo with a clean channel and a gain channel, split out of the Cedar Spring family's Quad Ten voicing: 6L6 power, a solid-state rectifier and a Presence control. Voicing: Clean (headroom and a forward mid), Pushed, Drive (the gain channel at crunch) or Lead (the gain channel wide open)." },
-                { "Brit Forty-Five (KT66, the original 45 W head)", "The original KT66 45 W head, split out of the Plexi idea: a Bassman circuit with British voicing, a tube rectifier that sags, and much lower gain than Plex Appeal, so it stays clean for a long time and then breaks up thick and soft. Voicing: Normal, Bright (the jumped, brighter input), Cranked or Pushed (the gain well up)." },
-                { "Tweedle Mini (5 W single-ended tweed)", "A 5 W single-ended tweed: one 6V6 and no feedback, so it is the earliest and softest breakup in the plug-in, with the even-order grit of a class-A output stage. Voicing: Champ (the 5 W starter amp), Princeton (a little more headroom and a tone control), Cranked (flat out: heavy compression and sag) or Edge (the clean end, pushed just to the edge)." },
+                { "Brit Forty-Five (KT66, the original 45 W head)", "The original KT66 45 W head, split out of the Plex Appeal idea: a tweed bass-amp circuit with British voicing, a tube rectifier that sags, and much lower gain than Plex Appeal, so it stays clean for a long time and then breaks up thick and soft. Voicing: Normal, Bright (the jumped, brighter input), Cranked or Pushed (the gain well up)." },
+                { "Tweedle Mini (5 W single-ended tweed)", "A 5 W single-ended tweed: one 6V6 and no feedback, so it is the earliest and softest breakup in the plug-in, with the even-order grit of a class-A output stage. Voicing: Starter (the 5 W starter amp), Small (a little more headroom and a tone control), Cranked (flat out: heavy compression and sag) or Edge (the clean end, pushed just to the edge)." },
                 { "Jubilant (silver-jubilee-style, cascaded clipping)", "A silver-jubilee-style 100 W head: a blackface-like clean channel and a lead channel with two clipping stages after the gain stages, which gives a thick, smooth compression unlike the other British heads. Voicing: Clean, Rhythm (one clipping stage), Lead (two clipping stages) or Lead Hi (more gain and presence)." },
+                { "Clarion (clear, tight and thick high gain)", "An idealized high-gain amp of our own design: tight before the clipping and thick after it, with a pre-boosted front end, a low-pass between every gain stage so the top stays bright without fizz, and little sag. Voicing: Clear (the main rhythm sound), Lead (more gain and upper-mid focus), Thick (more weight in the lows), Edge (brighter and more forward) or Cascade (since b89: the lows are cut harder before the early gain stages than before the late one, so palm-muted notes stay tight, with the weight put back after the clipping and a clearer top)." },
+                { "Prism (glassy, full-range clean)", "An idealized clean amp of our own design: bright, glassy and full range, with a tight low end and a lot of headroom. It is voiced to sound right with the cab section off and close to the same through a full-range cab (SUGGEST CAB sets one up). Voicing: Glass (the main sound), Air (more shimmer above 4 kHz), Body (more low mids and a little compression) or Pushed (breaks up when you dig in)." },
+                { "Ember (weighty, smooth lead, edge of breakup to extreme)", "An idealized lead amp of our own design: the weight and smoothness of a Mark-style lead channel with the bite and touch sensitivity of a hot-rodded plexi-style amp. The Amp Gain knob covers a wide range, from edge-of-breakup sounds that clean up with your guitar volume to extreme high gain. Voicing: Lead (the main sound), Edge (lower gain, the knob stays near breakup), Bite (more upper-mid attack) or Extreme (more gain, tighter)." },
+                { "Kindle (chime with weight, clean to light lead)", "An idealized low / mid gain amp of our own design: the chime and jangle of a class-A British combo over the weight, smoothness and touch sensitivity of Ember. The Amp Gain knob runs from clean through edge of breakup and crunch to a light lead, and no further. Voicing: Chime (the main sound), Crunch (more gain, a mid push), Push (the treble-boosted sound with the harsh top rounded off) or Warm (rounder and darker, with some chime back). Presence works as a normal Presence control." },
+                { "Ironside (raw British 100 W, firm lows)", "A 1969 British 100 W head, read from its preamp, power-amp and supply sheets: a cousin of the early-British-style amp with a few real differences. The second gain stage has an unbypassed cathode (less gain, so it is cleaner and firmer before it breaks up), the tone stack has a larger slope resistor (a deeper mid scoop), the supply is stiffer and the feedback stronger (a tighter low end, less power-stage mush). Voicing: Treble (the bright channel, the main sound), Bass (the other channel: darker and rounder), Linked (both channels and both gain pots up: thicker, more gain) or Fifty (the 50 W two-EL34 version's softer supply: it sags and breaks up sooner). The numbers come from the sheets (estimates), and since b87 the Gain range is fitted to captures of a similar head (measured, not listened to); a boost pedal in front still gives the classic lead sound." },
                 { "Console DI (class-A channel, no amp)", "A recording-console channel instead of a guitar amp: wide, clean, with a little even-order colour from the transformers, and a low shelf and a 12 kHz high shelf. Turn the cab off for a direct sound. Voicing: Console, Pushed (the input driven into thick saturation), Funk (160 Hz high-pass, 3.2 kHz lift, a little compression) or Air (low and high shelves both up). No compressor is built in: use the Compressor section for a squashed funk sound." } } },
             { "ampBModel", {
                 { "Twin Sparkle (sparkly)", "A bright, sparkly clean amp with lots of headroom." },
@@ -1046,7 +1153,7 @@ namespace
                 { "Club Crunch (crunch)", "A classic British rock-crunch amp: open, mid-forward, loose and dynamic." },
                 { "Bumble Lead (smooth, singing)", "Clean headroom that turns into a smooth, singing lead. Voicing: Jazz (off) or Rock (on)." },
                 { "5555 Block (raw to modern)", "A tight, aggressive high-gain amp. Voicing: Raw (off) or Modern (on)." },
-                { "Tweedle Dee (spongy breakup)", "A small combo that breaks up early and soft, built from a tweed Deluxe schematic: its single Tone control is the Treble knob; Bass and the mid knobs sit on top as extra EQ. Voicing: Soft (off) or Cranked (on)." },
+                { "Tweedle Dee (spongy breakup)", "A small combo that breaks up early and soft, built from a tweed-era combo schematic: its single Tone control is the Treble knob; Bass and the mid knobs sit on top as extra EQ. Voicing: Soft (off) or Cranked (on)." },
                 { "Jade Chorus (solid-state)", "A stiff, solid-state style clean with huge headroom. Voicing: Glass (off) or Warm (on)." },
                 { "Marque Dream (tight, mid-hump)", "A tight, creamy high-gain amp. Voicing: Rhythm (off) or Lead (on)." },
                 { "Citrus Doom (thick, loose)", "A thick, loose, heavy amp for doom and sludge. Voicing: Stoner (off) or Wall (on)." },
@@ -1060,31 +1167,50 @@ namespace
                 { "Stolen Fire (growl, flexible)", "A growly, cutting lead. Voicing: Lead, Sludge, Clean or Brilliant." },
                 { "Hi-Wat Headroom (tight, clean to edge)", "A stiff, punchy British amp with a lot of clean headroom. Voicing: Normal, Brilliant, Linked or Open." },
                 { "Console DI (class-A channel, no amp)", "A recording-console channel: wide and clean with a little transformer colour. Voicing: Console, Pushed, Funk or Air." },
-                { "Plex Appeal (Plexi-style, mod options)", "A Plexi-style head. Voicing: Stock, Jumped, Modded or Modded + Jumped." },
+                { "Plex Appeal (early-British-style, mod options)", "A early-British-style head. Voicing: Stock, Jumped, Modded or Modded + Jumped." },
                 { "Matt's Amp (thick, dark, doom-friendly)", "A thick, dark 1970s British head. Voicing: Graphic, Heavy, Bright or Mix." },
                 { "Marmalade (thick, mid-forward crunch)", "A modern 50 W British-style head: tight lows into the clipping, a thick mid-forward crunch and a smooth top. Voicing: Crunch, Heavy (more gain, mellower), Clean or Sharp (less mid, more bite)." },
                 { "Eclipse (Hi / Lo input, tight, huge)", "A modern 100 W extreme-metal head. Voicing: Hi Pulled, Hi Pushed, Lo Pushed or Lo Pulled." },
                 { "Marque Five (three channels, clean to lead)", "A modern three-channel head. Voicing: Clean, Crunch, Lead or Extreme." },
                 { "Dual Thirty (two channels, chimey crunch)", "A two-channel 30 W EL84 combo. Voicing: Channel 1, Channel 2, Pushed or Cut." },
-                { "Solid Metal (solid-state, 90s metal)", "A solid-state / hybrid metal amp. Voicing: Hybrid Hi-Gain, Hybrid Classic OD, JFET Lead or JFET Crunch." },
-                { "Cedar Spring (blackface combos, early breakup)", "A family of blackface-style combos that break up early. Voicing: Blackface, Spanky, Cranked, Silverface or Boost." },
+                { "Solid Metal (solid-state, 90s metal)", "A solid-state / hybrid metal amp. Voicing: Hybrid Hi-Gain, Hybrid Classic OD, JFET Lead, JFET Crunch or Hybrid + JFET." },
+                { "Cedar Spring (blackface combos, early breakup)", "A family of blackface-style combos that break up early. Voicing: Blackface, Bright, Cranked, Silverface or Boost." },
                 { "Jazz Box (dark jazz clean)", "A big, dark, solid-state jazz clean. Voicing: Jazz, Archtop, Dark Room or Pushed." },
                 { "Brit Eighteen (18 W EL84 combo)", "A small British EL84 combo that breaks up early. Voicing: Clean, Crunch, Cranked or Brilliant." },
                 { "Tweedle Dum (tweed bass amp, push-pull 4x10)", "A tweed-era bass amp played as a guitar amp: push-pull 6L6 power, a tube rectifier and a little global feedback with a Presence control, so it is bigger, tighter and cleaner than Tweedle Dee but still sags into a rich, spongy crunch. Voicing: Tweed Normal (the normal channel), Tweed Bright (the jumped, bright channel: more gain, thinner lows), Cranked (rectifier sag, loose and thick) or Silverface (a later solid-state-rectifier version: stiffer, more headroom, scooped mids)." },
                 { "Marque One (the original single-channel Mark)", "The original single-channel Mark-style head, split out of Marque Dream's Mark I voicing: four 6L6s, a bright stack and hot, mid-hump gain with looser lows than the later channels. Voicing: Mark I (as measured), Clean (Volume 1 low), Lead Boost (the footswitch boost: more gain and a mid push) or Graphic EQ (the scooped, hi-fi graphic setting)." },
                 { "Cedar Grand (6L6 reverb combo, 15-inch)", "A big 6L6 reverb combo split out of the Cedar Spring family, with its own supply and feedback: fuller lows, more headroom and a later, harder breakup than Cedar Spring's small combos. Voicing: Big Spring (the fitted late-breakup sound), Brownface (older and darker: looser, lower gain), Cranked (volume well up) or Bright (bright cap in, more bite)." },
                 { "Cedar Ten (4x10 combo, clean to gain channel)", "A four-10 combo with a clean channel and a gain channel, split out of the Cedar Spring family's Quad Ten voicing: 6L6 power, a solid-state rectifier and a Presence control. Voicing: Clean (headroom and a forward mid), Pushed, Drive (the gain channel at crunch) or Lead (the gain channel wide open)." },
-                { "Brit Forty-Five (KT66, the original 45 W head)", "The original KT66 45 W head, split out of the Plexi idea: a Bassman circuit with British voicing, a tube rectifier that sags, and much lower gain than Plex Appeal, so it stays clean for a long time and then breaks up thick and soft. Voicing: Normal, Bright (the jumped, brighter input), Cranked or Pushed (the gain well up)." },
-                { "Tweedle Mini (5 W single-ended tweed)", "A 5 W single-ended tweed: one 6V6 and no feedback, so it is the earliest and softest breakup in the plug-in, with the even-order grit of a class-A output stage. Voicing: Champ (the 5 W starter amp), Princeton (a little more headroom and a tone control), Cranked (flat out: heavy compression and sag) or Edge (the clean end, pushed just to the edge)." },
-                { "Jubilant (silver-jubilee-style, cascaded clipping)", "A silver-jubilee-style 100 W head: a blackface-like clean channel and a lead channel with two clipping stages after the gain stages, which gives a thick, smooth compression unlike the other British heads. Voicing: Clean, Rhythm (one clipping stage), Lead (two clipping stages) or Lead Hi (more gain and presence)." } } },
+                { "Brit Forty-Five (KT66, the original 45 W head)", "The original KT66 45 W head, split out of the Plex Appeal idea: a tweed bass-amp circuit with British voicing, a tube rectifier that sags, and much lower gain than Plex Appeal, so it stays clean for a long time and then breaks up thick and soft. Voicing: Normal, Bright (the jumped, brighter input), Cranked or Pushed (the gain well up)." },
+                { "Tweedle Mini (5 W single-ended tweed)", "A 5 W single-ended tweed: one 6V6 and no feedback, so it is the earliest and softest breakup in the plug-in, with the even-order grit of a class-A output stage. Voicing: Starter (the 5 W starter amp), Small (a little more headroom and a tone control), Cranked (flat out: heavy compression and sag) or Edge (the clean end, pushed just to the edge)." },
+                { "Jubilant (silver-jubilee-style, cascaded clipping)", "A silver-jubilee-style 100 W head: a blackface-like clean channel and a lead channel with two clipping stages after the gain stages, which gives a thick, smooth compression unlike the other British heads. Voicing: Clean, Rhythm (one clipping stage), Lead (two clipping stages) or Lead Hi (more gain and presence)." },
+                { "Clarion (clear, tight and thick high gain)", "An idealized high-gain amp of our own design: tight before the clipping and thick after it, with a pre-boosted front end, a low-pass between every gain stage so the top stays bright without fizz, and little sag. Voicing: Clear (the main rhythm sound), Lead (more gain and upper-mid focus), Thick (more weight in the lows), Edge (brighter and more forward) or Cascade (since b89: the lows are cut harder before the early gain stages than before the late one, so palm-muted notes stay tight, with the weight put back after the clipping and a clearer top)." },
+                { "Prism (glassy, full-range clean)", "An idealized clean amp of our own design: bright, glassy and full range, with a tight low end and a lot of headroom. It is voiced to sound right with the cab section off and close to the same through a full-range cab (SUGGEST CAB sets one up). Voicing: Glass (the main sound), Air (more shimmer above 4 kHz), Body (more low mids and a little compression) or Pushed (breaks up when you dig in)." },
+                { "Ember (weighty, smooth lead, edge of breakup to extreme)", "An idealized lead amp of our own design: the weight and smoothness of a Mark-style lead channel with the bite and touch sensitivity of a hot-rodded plexi-style amp. The Amp Gain knob covers a wide range, from edge-of-breakup sounds that clean up with your guitar volume to extreme high gain. Voicing: Lead (the main sound), Edge (lower gain, the knob stays near breakup), Bite (more upper-mid attack) or Extreme (more gain, tighter)." },
+                { "Kindle (chime with weight, clean to light lead)", "An idealized low / mid gain amp of our own design: the chime and jangle of a class-A British combo over the weight, smoothness and touch sensitivity of Ember. The Amp Gain knob runs from clean through edge of breakup and crunch to a light lead, and no further. Voicing: Chime (the main sound), Crunch (more gain, a mid push), Push (the treble-boosted sound with the harsh top rounded off) or Warm (rounder and darker, with some chime back). Presence works as a normal Presence control." },
+                { "Ironside (raw British 100 W, firm lows)", "A 1969 British 100 W head, read from its preamp, power-amp and supply sheets: a cousin of the early-British-style amp with a few real differences. The second gain stage has an unbypassed cathode (less gain, so it is cleaner and firmer before it breaks up), the tone stack has a larger slope resistor (a deeper mid scoop), the supply is stiffer and the feedback stronger (a tighter low end, less power-stage mush). Voicing: Treble (the bright channel, the main sound), Bass (the other channel: darker and rounder), Linked (both channels and both gain pots up: thicker, more gain) or Fifty (the 50 W two-EL34 version's softer supply: it sags and breaks up sooner). The numbers come from the sheets (estimates), and since b87 the Gain range is fitted to captures of a similar head (measured, not listened to); a boost pedal in front still gives the classic lead sound." } } },
             { "wowMode", {
-                { "Octave up", "Heel: normal pitch. Toe: one octave up." },
-                { "Two octaves up", "Heel: normal pitch. Toe: two octaves up." },
+                { "Octave up", "Heel: normal pitch. Toe: one octave up (the range of a pitch-wow pedal\'s Blade 1 mode)." },
+                { "Two octaves up", "Heel: normal pitch. Toe: two octaves up (the range of a pitch-wow pedal\'s Blade 2 mode)." },
                 { "Octave down", "Heel: normal pitch. Toe: one octave down." },
                 { "Two octaves down", "Heel: normal pitch. Toe: two octaves down." },
                 { "Dive bomb", "A falling pitch drop. Position 0 = no shift; turned up, it dives deeper (the response is curved for a natural feel)." },
-                { "Bend (-12 to +12)", "Heel: an octave down. Centre: no shift. Toe: an octave up." },
+                { "Bend (-12 to +12)", "Heel: an octave down. Centre: no shift. Toe: an octave up (the range of a pitch-wow pedal\'s Fatso mode; set Mix for its Fatso blend)." },
                 { "Custom (heel and toe)", "You choose the shift at the heel and at the toe (Heel and Toe knobs)." } } },
+            { "wowChar", {
+                { "Clean", "The shifter you had, in the Tracking mode chosen below." },
+                { "Grainy Sweep (lo-fi)", "A crude two-tap shifter (32 ms sweep) with a warble at the sweep rate, a lower sample rate, 13 to 9 bit and a dark top; the pitch moves in coarse steps. Grit sets how rough." },
+                { "Glitchy (jumps, dropouts)", "A 64 ms sweep with random events: a few semitones of wrong pitch, short dropouts, and slurs where the pitch stops following the pedal. Grit sets how often." },
+                { "Abrasive (crushed, buzzy)", "A 16 ms sweep, driven into a hard clip, rectified and crushed to 10 to 5 bit with no filtering: buzzy and harsh." },
+                { "Noisy (hiss, drifting)", "Hiss that follows your playing, a slow random pitch drift of up to about 25 cents, 12 to 9 bit." },
+                { "Warble (slow wobble)", "A long, soft two-tap shifter with no damage stages: shifted notes swell and fade at a few hertz (about 8 Hz for an octave up at the middle Grit). Grit sets the wobble from slow and deep (a 380 ms window) to quick and shallow (110 ms). Since b118 the shifted copy trails the dry one by only about 6 ms; the wobble is added to it, not made by a long delay." } } },
+            { "wowForm", {
+                { "Follows the pitch", "The tone moves with the pitch, as in a plain shifter: octave up small and bright, octave down big and dull." },
+                { "Stays natural", "The tone is moved back so only the pitch changes. Adds about 21 ms of delay at 48 kHz." } } },
+            { "wowTrack", {
+                { "Single note (fast)", "The delay-line shifter: lowest delay, best for single notes and leads." },
+                { "Chords (long window, cleaner lows)", "Moves every note of a chord by the same amount, with the long window: about 85 ms of delay, cleaner lows, suited to 7 and 8 strings." },
+                { "Chords (fast)", "The same chord shifter with the short window: about 43 ms, but notes closer than about 100 Hz blur together." } } },
             { "ampTube", {
                 { "12AX7 (high gain)", "Tighter and crisper, with more headroom." },
                 { "12AT7 (medium)", "In between." },
@@ -1123,12 +1249,13 @@ namespace
                 { "Passive stack: chime (class A)", "A chime-style stack with big treble range and a bass control that sets how much low end gets through: open, glassy and mid-cut at the top. The 'Cut' character is approximated with the Treble knob turned down." },
                 { "Passive stack: high-gain, 680 pF", "A two-channel high-gain amp's stack from its schematic: 220k treble, 1M bass, 22k mid, 47.5k slope, 680 pF treble cap and 0.02 uF caps. Close to the British lead stack with a slightly smaller treble pot and mid pot: a little darker and tighter. Mid is the average of Low Mid and High Mid." },
                 { "Passive stack: high-gain, 500 pF", "The same stack with a 500 pF treble cap, as on that amp's second channel: a little brighter and more open at the top." },
-                { "Passive stack: orange-style (driven from a plate)", "A stack driven from a tube plate: 250k treble, 500k bass, 25k mid, 39k slope and a 560 pF treble cap." },
-                { "Passive stack: Dumble-style (Rock setting)", "The passive stack read from a 1970s boutique preamp sheet (Rock setting): a 330 pF treble cap and a big mid control that moves the mid hump." },
-                { "Passive stack: German high-gain (200k treble, 500k bass)", "The stack of a German four-channel high-gain head, read from a hand-drawn sheet: 200k treble, 500k bass, 22k mid, 39k slope, a 560 pF treble cap and two 22 nF capacitors. It is close to the orange-style stack with a lighter treble pot." },
+                { "Passive stack: plate-driven", "A stack driven from a tube plate: 250k treble, 500k bass, 25k mid, 39k slope and a 560 pF treble cap." },
+                { "Passive stack: boutique-style (Rock setting)", "The passive stack read from a 1970s boutique preamp sheet (Rock setting): a 330 pF treble cap and a big mid control that moves the mid hump." },
+                { "Passive stack: German high-gain (200k treble, 500k bass)", "The stack of a German four-channel high-gain head, read from a hand-drawn sheet: 200k treble, 500k bass, 22k mid, 39k slope, a 560 pF treble cap and two 22 nF capacitors. It is close to the plate-driven stack with a lighter treble pot." },
                 { "Passive stack: bass head (270 pF, linear pots)", "The stack of a four-6550 bass head from its 1973 schematic: 250k treble, 1M bass, 25k mid, 56k slope, 270 pF treble cap and two 0.022 uF caps, all linear pots. A British-style layout with a much bigger bass pot." },
                 { "Passive stack: American, bright (1000 pF)", "The American combo stack with the treble cap raised from 250 pF to 1000 pF, as when the bright switch of a three-channel American lead amp is in: the Treble knob opens up much lower in frequency." },
-                { "Passive stack: solid-state combo (150 pF, 0.082 uF)", "The tone stack of a 1983 two-channel solid-state combo from its service notes: 250k treble (linear), 250k bass (audio), 10k mid, 100k slope, a 150 pF treble cap and 0.082 uF / 0.047 uF caps, driven from a 12k source. A deep, wide mid notch near 520 Hz (about 26 dB down at the middle settings) that the Mid knob fills in; treble and bass ranges of about 17 and 14 dB. Needs a lot of gain behind it, which the makeup gain supplies." } } },
+                { "Passive stack: solid-state combo (150 pF, 0.082 uF)", "The tone stack of a 1983 two-channel solid-state combo from its service notes: 250k treble (linear), 250k bass (audio), 10k mid, 100k slope, a 150 pF treble cap and 0.082 uF / 0.047 uF caps, driven from a 12k source. A deep, wide mid notch near 520 Hz (about 26 dB down at the middle settings) that the Mid knob fills in; treble and bass ranges of about 17 and 14 dB. Needs a lot of gain behind it, which the makeup gain supplies." },
+                { "Passive stack: solid-state combo, 1979 (low impedance)", "The earlier tone stack of the same two-channel solid-state combo (1979 service sheet): 50k treble, 100k bass, 5k mid with a 100 ohm resistor under it, 18k slope, 1.5 nF, 0.47 uF and 0.15 uF. A low-impedance stack with a much bigger loss and a wide, smooth bass range; the Mid knob is mild." } } },
             { "%sFeel", {
                 { "Loose feel (low feedback)", "Sags and blooms: fuller, looser lows and a softer top end." },
                 { "Normal feel", "The amp as voiced." },
@@ -1143,9 +1270,9 @@ namespace
                 { "Passive stack: chime (class A)", "A chime-style stack with big treble range and a bass control that sets how much low end gets through: open, glassy and mid-cut at the top. The 'Cut' character is approximated with the Treble knob turned down." },
                 { "Passive stack: high-gain, 680 pF", "A two-channel high-gain amp's stack from its schematic: 220k treble, 1M bass, 22k mid, 47.5k slope, 680 pF treble cap and 0.02 uF caps. Close to the British lead stack with a slightly smaller treble pot and mid pot: a little darker and tighter. Mid is the average of Low Mid and High Mid." },
                 { "Passive stack: high-gain, 500 pF", "The same stack with a 500 pF treble cap, as on that amp's second channel: a little brighter and more open at the top." },
-                { "Passive stack: orange-style (driven from a plate)", "A stack driven from a tube plate: 250k treble, 500k bass, 25k mid, 39k slope and a 560 pF treble cap." },
-                { "Passive stack: Dumble-style (Rock setting)", "The passive stack read from a 1970s boutique preamp sheet (Rock setting): a 330 pF treble cap and a big mid control that moves the mid hump." },
-                { "Passive stack: German high-gain (200k treble, 500k bass)", "The stack of a German four-channel high-gain head, read from a hand-drawn sheet: 200k treble, 500k bass, 22k mid, 39k slope, a 560 pF treble cap and two 22 nF capacitors. It is close to the orange-style stack with a lighter treble pot." },
+                { "Passive stack: plate-driven", "A stack driven from a tube plate: 250k treble, 500k bass, 25k mid, 39k slope and a 560 pF treble cap." },
+                { "Passive stack: boutique-style (Rock setting)", "The passive stack read from a 1970s boutique preamp sheet (Rock setting): a 330 pF treble cap and a big mid control that moves the mid hump." },
+                { "Passive stack: German high-gain (200k treble, 500k bass)", "The stack of a German four-channel high-gain head, read from a hand-drawn sheet: 200k treble, 500k bass, 22k mid, 39k slope, a 560 pF treble cap and two 22 nF capacitors. It is close to the plate-driven stack with a lighter treble pot." },
                 { "Passive stack: bass head (270 pF, linear pots)", "The stack of a four-6550 bass head from its 1973 schematic: 250k treble, 1M bass, 25k mid, 56k slope, 270 pF treble cap and two 0.022 uF caps, all linear pots. A British-style layout with a much bigger bass pot." },
                 { "Passive stack: American, bright (1000 pF)", "The American combo stack with the treble cap raised from 250 pF to 1000 pF, as when the bright switch of a three-channel American lead amp is in: the Treble knob opens up much lower in frequency." } } },
             { "%sFeel", {
@@ -1241,7 +1368,7 @@ namespace
                 { "Ideal Presence", "Smooth with a clear 3 to 5 kHz presence and a slightly scooped low mid: cutting without harshness." },
                 { "Ideal Wide Open", "Smooth and wide, with extended highs and a light mid lift: the most open of the idealized speakers." },
                 { "Big Fifteen", "A large-diameter (15-inch-style) speaker: a big, loose low thump, a scooped low mid, a forward 2 to 3 kHz and a top that rolls off early. Pairs with small-combo amps for a bigger, rounder sound." },
-                { "Jensen-Style Ten", "A 10-inch driver in the Jensen mould: lively upper mids, an open top and a lower thump than a 12. For the four-ten and two-ten combos." },
+                { "Vintage-Style Ten", "A 10-inch driver in the vintage mould: lively upper mids, an open top and a lower thump than a 12. For the four-ten and two-ten combos." },
                 { "Paper Eight", "A small 8-inch paper-cone driver: bright, honky, a lot of cone breakup, very little bass. For the 5 W combos." },
                 { "Battery Three-Inch", "A 3-inch driver from a battery practice amp: a tiny, boxy, forward voice with almost no lows. A lo-fi colour." },
                 { "Telephone", "A telephone earpiece: a narrow band from about 300 Hz to 3.4 kHz. Not a guitar speaker; for effect." },
@@ -1250,7 +1377,8 @@ namespace
                 { "PA Horn", "A PA horn driver: no lows, a hard 2 to 4.5 kHz push and a bright top. Cutting and harsh; try it on a clean tone." },
                 { "Studio Tweeter", "A studio tweeter on its own: highs only, from about 1 kHz up. For use as a bright layer or as an effect." },
                 { "Cracked Cone", "A guitar speaker with a damaged cone: the usual voice with a lot of added breakup and rattle in the upper mids." },
-                { "Tin Can", "A resonant tin-can voice: a strong honk near 800 Hz and almost nothing above 3 kHz. A deliberately odd colour." } } },
+                { "Tin Can", "A resonant tin-can voice: a strong honk near 800 Hz and almost nothing above 3 kHz. A deliberately odd colour." },
+                { "Ideal Defined", "Our idealized speaker for the idealized amps (Clarion, Prism, Ember, Kindle): a low end that reaches lower than a typical mixed cab, full but not boomy low mids, a small presence lift near 2.5 kHz, a gentle dip across 3 to 4.5 kHz where fizz lives and a smooth roll-off from 5 kHz with no cone ripple. Designed from the statistics of mixed cab recordings, closest with the 4x12 Closed cabinet and the Flat mic. A first guess, not listened to." } } },
             { "cabMic", {
                 { "Dynamic Bright", "A bright dynamic mic with a presence peak: cutting and aggressive." },
                 { "Dynamic Full", "A fuller dynamic mic with more low mids." },
@@ -1290,7 +1418,7 @@ namespace
             { "mfAType", {
                 { "Flanger", "A short swept delay with feedback: positive rings, negative sounds hollow." },
                 { "Through-zero flanger", "The dry signal is delayed as well, so the sweep passes through zero: the deep, jet-like null. Adds a fixed 4 ms delay." },
-                { "Vibrato", "A swept delay with no dry signal: pure pitch wobble." },
+                { "Vibrato", "A swept delay with no dry signal: pure pitch wobble. The Voicing menu adds a bucket-brigade voicing with Rise Time (the Feedback knob) and a Custom mode with a swept filter." },
                 { "Uni-V", "Four swept all-pass stages with a lamp-like lag: a throbbing phase-vibrato. Half Mix = phase-chorus notches, full Mix = vibrato." },
                 { "Rotary", "A rotating horn and drum with speed inertia. Rate is the horn speed; Manual balances horn and drum." },
                 { "Auto-pan", "Pans between the left and right (a plain tremolo if the signal is mono)." },
@@ -1299,7 +1427,7 @@ namespace
                 { "Shifted-feedback flanger", "A flanger whose feedback is frequency-shifted by the Shift knob on each trip, so the sweep spirals up or down and the notches move. Needs Feedback above zero (either sign)." },
                 { "Pitch modulation", "A pitch-shifted voice mixed with your signal. Manual sets the interval in whole semitones (centre = unison, up to an octave either way). The LFO swings the pitch around it: small Depth = detune/chorus, large Depth = siren and dive-bomb sweeps. Feedback sends the shifted voice back so repeats climb or fall. Use a Ramp shape for endless rising or falling." },
                 { "Stutter (rhythmic repeats)", "Locks to the tempo (set Note) and chops the sound into repeats. Each cycle the last stretch of what you played is looped. Depth is how much of each cycle is stuttered (low = a short flurry at the end of the beat, 1 = the whole beat); Manual is the number of repeats (1 to 8); Mix blends it with the live signal. Unlike Glitch in the Grain section, it is rhythmic and always on the beat, with no random jumps." },
-                { "Chorus", "The old Chorus as a type: the Mode menu picks the voicing (I, II, I + II, Dimension, Tri-chorus, Ensemble, Detune, Small Clone low or high depth), Rate is the speed relative to the mode's own (1 = as built), Depth is the depth, Tone the top end, Fidelity below 1 adds hiss. Mono." },
+                { "Chorus", "The old Chorus as a type: the Mode menu picks the voicing (I, II, I + II, Dimension, Tri-chorus, Ensemble, Detune, single-line low or high depth), Rate is the speed relative to the mode's own (1 = as built), Depth is the depth, Tone the top end, Fidelity below 1 adds hiss. Mono." },
                 { "Phaser", "The old Phaser as a type. Manual is the centre frequency (80 Hz to 3 kHz), Feedback the resonance; Stages (2 to 12), Envelope and Lag are their own knobs. Every LFO shape works. Mono." },
                 { "Lo-Fi warble", "The old Lo-Fi as a type: tape / cassette wobble. Rate and Depth set the warble, Manual the random drift, Tone the top end, Feedback the dirt; Noise, Dropouts and Level are their own knobs. Every LFO shape works. Mono." },
                 { "Filter sweep (low-pass)", "A low-pass filter swept by the LFO (Rate, Depth). Manual is the cutoff, Feedback the resonance, Shape Random makes random steps. This is the Filter block as a slot type." },
@@ -1311,6 +1439,8 @@ namespace
                 { "Filter (all modes)", "The old Filter pedal as a type. Filter Mode: low-pass, high-pass, band-pass, notch, formant or resonator. Filter Motion: manual, LFO, envelope (your playing) or random steps. Manual is the cutoff, Feedback the resonance, Depth the sweep size (Sweep Down flips it), Vowel the formant vowel." },
                 { "Frequency shifter / ring mod", "Moves every partial by the same number of Hz, so the harmonics stop lining up: slow shifts spiral like a barber-pole phaser, big ones sound metallic and clangy. Mode picks Shift (single sideband), Ring modulator or Spread (left up, right down). Shift is in Hz and goes to 2 kHz either way; Feedback and Delay make shifted repeats." },
                 { "Vocoder (talk through a synth)", "A voice (or any sound) shapes a synth. The modulator is the host's sidechain input when your DAW routes one in (send a vocal track to this plugin's sidechain), otherwise your own playing. Carrier picks what is shaped: your guitar, a synth that follows your pitch, noise (a whisper) or a fixed drone. Formant moves the bands up or down an octave." },
+                { "Digital damage (codec, dropouts, freeze)", "Makes the sound a bad digital copy. Depth is Loss: low-bitrate codec damage, where the quiet parts of the spectrum drop out into watery holes and the top end is cut back. Manual is Dropouts: short packets of sound are lost, muted or stuttered like a bad connection. Feedback (either direction) is Freeze: a snapshot of the sound is held and sustained. Rate sets how often the pattern of holes changes and a new freeze snapshot is taken. Tone is the top of the range. The effect adds about 21 ms of delay; Mix keeps the dry sound lined up with it. Own design from a description of codec and packet-loss effects; measured, not listened to." },
+                { "Sustain hold (sostenuto)", "Holds the note or chord you just played, like a piano sostenuto pedal: switch HOLD on and the last 0.1 to 0.3 s is looped (without the pick attack) so it rings on under your playing. Each new HOLD adds a layer, up to Layers; Rise is how fast a layer swells in, Tail how long it lingers after you let go (all the way up: until it is replaced), Tone darkens it, and Mix sets its level against your playing (the middle is the level you played it). It is a loop of your own sound, so it has a slight cyclic movement. Not measured against any unit." },
                 { "Wobble (tremolo-arm vibrato)", "Pitch vibrato like a loosely held tremolo arm (this was the separate Wobble pedal). Feedback sets the random drift of the arm (either direction); Manual and Tone are not used." } } },
             { "mfAPos", {
                 { "Before the amp", "The effect feeds the amp (so it is affected by the amp's gain)." },
@@ -1334,8 +1464,18 @@ namespace
                 { "Tri-chorus", "Three lines a third of a cycle apart: a smooth, wide, swirling chorus." },
                 { "Ensemble", "A string-machine style ensemble: three lines with a slow sweep and a faint fast shimmer on top." },
                 { "Detune", "Two longer lines drifting slowly in opposite directions, a few cents sharp and flat, like a doubled take." },
-                { "Small Clone (low depth)", "A single-line bucket-brigade chorus after the Small Clone with its Depth switch low: one dark, slowly swept delay line summed with the dry signal. The sweep figures are my estimates; the schematic is not in the EHX book." },
-                { "Small Clone (high depth)", "The same single-line chorus with the Depth switch high: a wider sweep that bends the pitch more, the seasick swirl the pedal is known for. Estimated, like the low setting." } } },
+                { "Single-line chorus, low depth", "A single-line bucket-brigade chorus after a 1970s single-line chorus pedal with its Depth switch low: one dark, slowly swept delay line summed with the dry signal. The sweep figures are my estimates; the schematic is not published." },
+                { "Single-line chorus, high depth", "The same single-line chorus with the Depth switch high: a wider sweep that bends the pitch more, the seasick swirl the pedal is known for. Estimated, like the low setting." },
+                { "Single-line chorus (1980s)", "A single-line bucket-brigade chorus after a 1980s chorus pedal: one dark delay line (top end near 6.6 kHz) swept by a triangle LFO (up to about 3.5 Hz) and mixed with the dry signal. The line, filter and rate figures follow a published analysis of the original; the centre delay and sweep depth are my estimates, and its reissue circuit is not published." },
+                { "Two-line chorus (preamp, wider)", "After a 1970s two-line chorus and vibrato unit (also a mode of the reissue of the pedal above): a soft-clipping input preamp that warms and compresses the signal, then two lines swept in opposite directions, with a darker top. A thicker, less pitchy swirl than the single-line chorus. Estimated figures, not a measured unit." },
+                { "Two-line vibrato (no dry)", "That unit's Vibrato setting: the swept line alone, no dry signal, so the pitch wobbles. The Mix knob is ignored. Rate covers slow to fast; Depth sets how far the pitch bends. Estimated figures." },
+                { "Stereo spatial", "A wide stereo chorus fitted to captures of a rack chorus in its Spatial mode: long delays (about 17 ms at Depth 1, up to about 27 ms at 1.5) swept slowly (0.9 Hz at Rate 1), the left and right sides moving differently so a mono guitar becomes a wide stereo sound. Mix 1 is the unit's maximum (dry and wet at equal level). Measured on the capture, not listened to; set Tone to 14 kHz for the captured top end. Before the amp it is summed to mono (use After the cab for the stereo width)." },
+                { "Stereo vintage", "Fitted to the same rack chorus in its Vintage mode: shorter delays (about 8.5 ms at Depth 1), a stronger wet signal and an almost mono sweep (the two sides nearly agree), a touch darker. Measured on the capture, not listened to." },
+                { "Stereo spatial, wide", "My variation on Spatial: the two sides sweep in opposite directions, a little slower and longer, for the widest image. Not measured on anything." },
+                { "Stereo spatial, four voices", "My variation on Spatial: two voices on each side at different delays and phases, a thicker, more ensemble-like swirl. Not measured on anything." },
+                { "Stereo shimmer", "My variation: a short delay swept fast and shallow (4.5 Hz at Rate 1), the sides a quarter turn apart: a quick sparkle and widening rather than a slow sweep. Not measured on anything." },
+                { "Stereo drift", "My variation on Spatial: each side is swept by two slow waves that never line up, so the movement never repeats and sounds loose and organic. Not measured on anything." },
+                { "Stereo dimension", "My stereo take on Dimension: very short delays with a tiny, slow sweep and the sides in opposite directions, a soft widening you hear more as space than as chorus. Try Mix at 0.4 to 0.7. Not measured on anything." } } },
             { "mfAFMode", {
                 { "Low-pass", "Lets the lows through and cuts the highs." },
                 { "High-pass", "Lets the highs through and cuts the lows." },
@@ -1364,12 +1504,18 @@ namespace
                 { "Before the amp", "Mono: the harmony goes into the amp's gain with your playing." },
                 { "After the cab", "Stereo: the harmony is added to the finished sound, with a pan for each voice." } } },
             { "hmTrack", {
-                { "Single note", "One note at a time. Fast (about 14 ms) and clean for lead lines. A chord will confuse it." },
+                { "Single note", "One note at a time. Fast (about 6 ms) and clean for lead lines. A chord will confuse it." },
                 { "Chords", "Follows up to 6 notes at once. About 90 ms of delay, shown to your DAW. Best for full chords and low strings." },
                 { "Chords (fast)", "Chords with about 45 ms of delay. Good for upper-string voicings; low notes close together blur." } } },
             { "hmMode", {
                 { "Interval", "Each voice is a fixed number of semitones away." },
-                { "Scale", "Each voice follows your note up or down the scale you choose." } } },
+                { "Scale", "Each voice follows your note up or down the scale you choose." },
+                { "MIDI", "The voices sing the notes you hold on a MIDI keyboard. The lowest held key is voice A, the next is B, and so on." } } },
+            { "hmArpPattern", {
+                { "Up", "From the lowest voice to the highest, then start again." },
+                { "Down", "From the highest voice to the lowest, then start again." },
+                { "Up and down", "Up, then back down, without repeating the ends." },
+                { "Random", "Any voice, in no fixed order." } } },
             { "hmScale", {
                 { "Major", "Seven notes, bright and happy." },
                 { "Natural minor", "Seven notes, dark." },
@@ -1377,7 +1523,8 @@ namespace
                 { "Mixolydian", "Major with a flat seventh: bluesy rock." },
                 { "Harmonic minor", "Minor with a raised seventh: dramatic and neo-classical." },
                 { "Major pentatonic", "Five notes: sweet, country-style harmonies." },
-                { "Minor pentatonic", "Five notes: the rock and blues scale." } } },
+                { "Minor pentatonic", "Five notes: the rock and blues scale." },
+                { "Melodic minor", "Minor with a raised sixth and seventh: jazzy and tense." } } },
             { "riffMode", {
                 { "DI (before the chain)", "Records the guitar at the input; the playback goes through everything." },
                 { "Full tone (after the chain)", "Records the finished sound at the output; the playback is added at the output." } } },
@@ -1440,6 +1587,7 @@ namespace
                 { "Reverse", "Your playing is cut into overlapping pieces that are played backwards into a short, dense reverb, so each phrase swells up backwards. Decay sets the length of the pieces (about 0.3 to 2 seconds); there is a delay of up to half a piece before you hear it." },
                 { "ModEcho", "A wobbling echo that feeds into a lush hall, so the repeats themselves get reverberated. Set the echo with Echo Time and Echo Fdbk (Reverb Shaping); Mod sets how much the echoes wobble. Inspired by the echo-into-reverb idea of big-name processors; not matched to any unit." },
                 { "Spring (tank)", "A model of a spring reverb tank: two springs of different length, each a loop with the real thing's dispersion (low notes travel slower than high ones, so a pluck arrives as a falling chirp, the drip and boing), a pickup that only hears the middle of the spectrum and a top end that dies on every trip. Decay and Damping set the tail; Spring Drive pushes the driver for the splash and crash. Sits well in the amp's FX loop. The plain Spring type is the older, generic one." },
+                { "Studio 78", "A smooth 1970s digital concert hall: long, gently chorused and soft on top. Use Bass Decay to trim the lows and Clock (Hall 78) for the vintage grain. Own design, not matched to any unit." },
                 { "Mangled", "A dense, dark reverb whose output is squashed, crushed and fed back into itself, so it growls and rings. Mangle (Reverb Shaping) sets how rough it gets. Not matched to any unit." } } },
             { "reverbReturn", {
                 { "Generic", "No amp circuit: the spring and its driver as they were." },
@@ -1492,7 +1640,9 @@ namespace
                 { "Chorus Bucket", "A dark bucket-brigade echo with its own chorus-like movement built in (Mod depth adds more). Soft and watery." },
                 { "Studio Tape", "A bright, clean tape echo: a little saturation, very little wobble, a touch of bass trim." },
                 { "Dub Echo", "Dark and heavily saturated, with the bass cut hard inside the loop, so the repeats thin out and swirl as they fade. Wobbles a lot." },
-                { "Memory Man", "A dark analog bucket-brigade echo in the style of a Deluxe Memory Man: soft, slightly gritty repeats that smear and darken as they build, with a gentle chorus/vibrato sweep always on the delay line (Mod rate and Mod depth set the Speed and Depth; depth never goes fully still). An estimate of the idea, not yet matched to the real unit." } } },
+                { "BBD Echo", "A dark analog bucket-brigade echo in the style of a classic deluxe BBD echo unit: soft, slightly gritty repeats that smear and darken as they build, with a gentle chorus/vibrato sweep always on the delay line (Mod rate and Mod depth set the Speed and Depth; depth never goes fully still). An estimate of the idea, not yet matched to the real unit." },
+                { "Analog BBD delay (1980s)", "A bucket-brigade analog delay after a 1980s analog delay pedal: warm, dark-ish repeats with soft saturation and a little movement, the repeats darkening as they build. The maker does not publish the reissue circuit, so the tone figures are my estimates." },
+                { "Analog BBD Custom (clearer, wider band)", "The reissue\'s Custom idea as I understand it: the same analog line with a wider, clearer top end and less grit. Use the Time knob for the longer times. My estimate, not a reading." } } },
             { "widMode", {
                 { "Wide: Classic", "The default widening: a balanced amount of smearing and lift." },
                 { "Wide: Desktop", "Tuned for small speakers: more lift in the low mids and highs." },
@@ -1537,8 +1687,18 @@ namespace
                 { "Tri-chorus", "Three lines a third of a cycle apart: a smooth, wide, swirling chorus." },
                 { "Ensemble", "A string-machine style ensemble: three lines with a slow sweep and a faint fast shimmer on top." },
                 { "Detune", "Two longer lines drifting slowly in opposite directions, a few cents sharp and flat, like a doubled take." },
-                { "Small Clone (low depth)", "A single-line bucket-brigade chorus after the Small Clone with its Depth switch low: one dark, slowly swept delay line summed with the dry signal. The sweep figures are my estimates; the schematic is not in the EHX book." },
-                { "Small Clone (high depth)", "The same single-line chorus with the Depth switch high: a wider sweep that bends the pitch more, the seasick swirl the pedal is known for. Estimated, like the low setting." } } },
+                { "Single-line chorus, low depth", "A single-line bucket-brigade chorus after a 1970s single-line chorus pedal with its Depth switch low: one dark, slowly swept delay line summed with the dry signal. The sweep figures are my estimates; the schematic is not published." },
+                { "Single-line chorus, high depth", "The same single-line chorus with the Depth switch high: a wider sweep that bends the pitch more, the seasick swirl the pedal is known for. Estimated, like the low setting." },
+                { "Single-line chorus (1980s)", "A single-line bucket-brigade chorus after a 1980s chorus pedal and its reissue: one dark delay line (top end near 6.5 kHz) swept by a triangle LFO and summed with the dry signal. The maker does not publish the reissue circuit, so the delay, sweep and rate figures are my estimates, not readings." },
+                { "Two-line chorus (preamp, wider)", "After a 1970s two-line chorus and vibrato unit (also a mode of the reissue of the pedal above): a soft-clipping input preamp that warms and compresses the signal, then two lines swept in opposite directions, with a darker top. A thicker, less pitchy swirl than the single-line chorus. Estimated figures, not a measured unit." },
+                { "Two-line vibrato (no dry)", "That unit's Vibrato setting: the swept line alone, no dry signal, so the pitch wobbles. The Mix knob is ignored. Rate covers slow to fast; Depth sets how far the pitch bends. Estimated figures." },
+                { "Stereo spatial", "A wide stereo chorus fitted to captures of a rack chorus in its Spatial mode: long delays (about 17 ms at Depth 1, up to about 27 ms at 1.5) swept slowly (0.9 Hz at Rate 1), the left and right sides moving differently so a mono guitar becomes a wide stereo sound. Mix 1 is the unit's maximum (dry and wet at equal level). Measured on the capture, not listened to; set Tone to 14 kHz for the captured top end. Before the amp it is summed to mono (use After the cab for the stereo width)." },
+                { "Stereo vintage", "Fitted to the same rack chorus in its Vintage mode: shorter delays (about 8.5 ms at Depth 1), a stronger wet signal and an almost mono sweep (the two sides nearly agree), a touch darker. Measured on the capture, not listened to." },
+                { "Stereo spatial, wide", "My variation on Spatial: the two sides sweep in opposite directions, a little slower and longer, for the widest image. Not measured on anything." },
+                { "Stereo spatial, four voices", "My variation on Spatial: two voices on each side at different delays and phases, a thicker, more ensemble-like swirl. Not measured on anything." },
+                { "Stereo shimmer", "My variation: a short delay swept fast and shallow (4.5 Hz at Rate 1), the sides a quarter turn apart: a quick sparkle and widening rather than a slow sweep. Not measured on anything." },
+                { "Stereo drift", "My variation on Spatial: each side is swept by two slow waves that never line up, so the movement never repeats and sounds loose and organic. Not measured on anything." },
+                { "Stereo dimension", "My stereo take on Dimension: very short delays with a tiny, slow sweep and the sides in opposite directions, a soft widening you hear more as space than as chorus. Try Mix at 0.4 to 0.7. Not measured on anything." } } },
             { "eqMode", {
                 { "Graphic", "All nine bands have the same medium Q (1.4)." },
                 { "Mod (custom Q)", "Each band has its own Q, narrower in the mids and wider at the ends. The Q knob scales them." } } },
@@ -1855,8 +2015,18 @@ namespace
             { 0xff17161a, 0xff070709, 0xffe8d49a, 0xff8a7436, 0xff12100c, 0xff060504, 0xffe8d49a, 0xff3a3226, 0xff1a150d, 0xffb8a064, 3, 0xffe9dcb0, 0xff8a7a46, 0xffffc85a },
             { 0xffcbb27a, 0xff8c7442, 0xff3a2a14, 0xff1e1408, 0xffd9c9a0, 0xffa89466, 0xff2b1a08, 0xff7a6038, 0xff463618, 0xffd6c088, 1, 0xfff0e6c8, 0xff8a7a50, 0xffffd88a },
             { 0xff9aa0a8, 0xff5c626a, 0xff1c1d20, 0xff0a0a0c, 0xff16171a, 0xff08080a, 0xffe8cf86, 0xff2a2a2e, 0xff121316, 0xffa4a8b0, 3, 0xffe8cf86, 0xff6a5a2a, 0xffffd04a },
+            // b69 Clarion: deep slate-teal tolex, silver plate, ice-green accent
+            { 0xff10222a, 0xff050e12, 0xffd8e2e6, 0xff7a929c, 0xff0a1418, 0xff04090c, 0xffe6f0f2, 0xff223a44, 0xff0e1c22, 0xff90a8b0, 3, 0xffe6f0f2, 0xff324c56, 0xff7cf0e0 },
+            // b70 Prism: deep indigo tolex, pearl plate, ice-blue accent
+            { 0xff1a1d33, 0xff0a0b16, 0xffe2e6f4, 0xff8a92b8, 0xff0f1120, 0xff06070f, 0xffeef0fa, 0xff2e3350, 0xff161930, 0xffa4abd0, 3, 0xffeef0fa, 0xff40466a, 0xff9ad0ff },
+            // b73 Ember: dark burgundy-brown tolex, warm cream plate, amber accent
+            { 0xff2c1511, 0xff0f0605, 0xffecd2ae, 0xff9c7c5a, 0xff1e0f0b, 0xff0b0504, 0xfff4e0c4, 0xff40251d, 0xff20110d, 0xffbb9b7a, 3, 0xfff4e0c4, 0xff5c3b2d, 0xffff9a3c },
+            // b80 Kindle: deep bottle-green tolex, aged cream plate, diamond grille cloth (a nod to the chime amp it borrows from), pale gold accent
+            { 0xff12261e, 0xff060f0b, 0xffe8dcb0, 0xff948a5a, 0xff0d1a14, 0xff050b08, 0xfff0e8c8, 0xff2c4234, 0xff16241b, 0xffb8c49a, 1, 0xfff0e8c8, 0xff3c5a46, 0xffe8d27a },
+            // b84 Ironside: black tolex, brushed alloy plate, bright red accent (a plain panel and a red jewel lamp)
+            { 0xff161617, 0xff070708, 0xffd6d9de, 0xff7e838c, 0xff101012, 0xff050506, 0xffeceef2, 0xff2a2b2f, 0xff141416, 0xffb0b5bd, 0, 0xffeceef2, 0xff44464c, 0xffff4a3c },
         };
-        return themes[juce::jlimit (0, 39, index)];
+        return themes[juce::jlimit (0, 44, index)];
     }
 
     // The look for an amp model (the ampModel parameter's value): Acoustic wears the Chime Thirty look,
@@ -1864,7 +2034,7 @@ namespace
     // the two v61 amps (13, 14) are looks 12 and 13, the v62 Master Cranker amp (15) is look 14, and the five v95 amps (16 to 20) are looks 15 to 19.
     int themeForModel (int model)
     {
-        return model == 5 ? 1 : model >= 6 ? juce::jmin (model - 1, 39) : juce::jlimit (0, 4, model);
+        return model == 5 ? 1 : model >= 6 ? juce::jmin (model - 1, 44) : juce::jlimit (0, 4, model);
     }
 
     // Upper-case text with a little extra space between the letters (used for titles).
@@ -2258,14 +2428,14 @@ static const juce::String& captionForId (const juce::String& idIn)
         { "eqMode", "Type" }, { "chorusMode", "Mode" }, { "compDetHp", "Detector HP" }, { "compRatio", "Ratio" }, { "compSat", "Saturation" }, { "compStyle", "Style" },
         { "filtMode", "Type" }, { "filtMotion", "Motion" }, { "fuzzBenderModel", "Model" }, { "fuzzMuffDiode", "Diodes" }, { "fuzzMuffVer", "Version" },
         { "fuzzVerbProg", "Program" }, { "gxMode", "Mode" }, { "granScale", "Scale" }, { "granShape", "Grain shape" }, { "hmKey", "Key" }, { "hmMode", "Mode" },
-        { "hmScale", "Scale" }, { "hmTrack", "Tracking" }, { "lfShape", "Shape" }, { "mfAShape", "Shape" }, { "mfAChMode", "Mode" }, { "mfAFsMode", "Mode" }, { "mfALoVoice", "Voicing" }, { "mfAPhVoice", "Voicing" }, { "mfAVocCar", "Carrier" }, { "mfAVocBands", "Bands" }, { "mfAVocNote", "Drone note" }, { "mfAFMode", "Filter" }, { "mfAFMotion", "Motion" }, { "mfAType", "Type" }, { "mfAPos", "Position" },
-        { "noiseGrossScene", "Scene" }, { "odClip", "Clipping" }, { "odMidMod", "Mids" }, { "odNob", "Voicing" }, { "odStyle", "Style" }, { "odVoice", "Voice" }, { "phaserShape", "Shape" },
+        { "hmScale", "Scale" }, { "hmArpPattern", "Pattern" }, { "hmArpRate", "Rate" }, { "hmTrack", "Tracking" }, { "lfShape", "Shape" }, { "mfAShape", "Shape" }, { "mfAFrame", "Frame" }, { "mfBFrame", "Frame" }, { "mfCFrame", "Frame" }, { "mfDFrame", "Frame" }, { "mfAChMode", "Mode" }, { "mfAFsMode", "Mode" }, { "mfALoVoice", "Voicing" }, { "mfAViVoice", "Voicing" }, { "mfAFlVoice", "Voicing" }, { "mfAPhVoice", "Voicing" }, { "mfAPhStereo", "Stereo" }, { "mfAVocCar", "Carrier" }, { "mfAVocBands", "Bands" }, { "mfAVocNote", "Drone note" }, { "mfAFMode", "Filter" }, { "mfAFMotion", "Motion" }, { "mfAType", "Type" }, { "mfAPos", "Position" },
+        { "noiseGrossScene", "Scene" }, { "odClip", "Clipping" }, { "odMidMod", "Mids" }, { "odNob", "Voicing" }, { "odMz", "Mode" }, { "odStyle", "Style" }, { "odVoice", "Voice" }, { "phaserShape", "Shape" },
         { "preDelayMode", "Type" }, { "postDelayMode", "Type" }, { "postDelayStyle", "Playback" }, { "preDelayStyle", "Playback" }, { "preDelayHoldMode", "Hold" }, { "postDelayHoldMode", "Hold" },
         { "preDelayTaps", "Taps" }, { "postDelayTaps", "Taps" }, { "preDelaySatType", "Saturation" }, { "postDelaySatType", "Saturation" }, { "reverbDragMode", "Drag" }, { "reverbGravity", "Gravity" }, { "reverbIrSource", "IR" },
-        { "reverbReturn", "Return" }, { "dmSource", "Your pickups" }, { "dmTarget", "Match to" }, { "gxKey", "Listens to" }, { "reverbSymphPitch", "Symphony" }, { "reverbTremShape", "Trem shape" }, { "reverbWDriveType", "Wet drive" }, { "reverbType", "Type" },
+        { "reverbReturn", "Return" }, { "reverbGateShape", "Gate" }, { "dmSource", "Your pickups" }, { "dmTarget", "Match to" }, { "gxKey", "Listens to" }, { "reverbSymphPitch", "Symphony" }, { "reverbTremShape", "Trem shape" }, { "reverbWDriveType", "Wet drive" }, { "reverbType", "Type" },
         { "shimmerMode", "Shimmer" }, { "shimmerPitch", "Pitch" }, { "ringMode", "Mode" }, { "ringWave", "Wave" }, { "synWave1", "Wave 1" }, { "synWave2", "Wave 2" },
         { "synOct2", "Osc 2" }, { "synTrack", "Tracking" }, { "tremShape", "Shape" }, { "tpRange", "Strings" }, { "wahEnvDir", "Direction" }, { "wahEnvShape", "Filter" },
-        { "wahVoice", "Voice" }, { "bsMode", "Mode" }, { "bsTightStyle", "Tighten" }, { "octA", "Voice A" }, { "octB", "Voice B" }, { "deNoiseHz", "Mains" }
+        { "wahVoice", "Voice" }, { "wahRange", "Range" }, { "bsMode", "Mode" }, { "bsTightStyle", "Tighten" }, { "octA", "Voice A" }, { "octB", "Voice B" }, { "octMode", "Voices" }, { "octTrack", "Tracking" }, { "octChar", "Character" }, { "octDryFx", "Dry routing" }, { "wowTrack", "Tracking" }, { "wowChar", "Character" }, { "wowForm", "Tone" }, { "deNoiseHz", "Mains" }
     };
     static const juce::String none;
     juce::String id = idIn.replace ("fuzz2", "fuzz").replace ("od2", "od").replace ("rev2", "reverb");
@@ -2911,15 +3081,37 @@ void Panel::resized()
     if (! shownKnobs.empty())
     {
         const int count    = (int) shownKnobs.size();
-        const int columns  = knobColumns > 0 ? std::min (knobColumns, count) : count;
+        int columns        = knobColumns > 0 ? std::min (knobColumns, count) : count;
+        // b113: with ADV on, a box can get so many knobs that the rows squeeze them to a few pixels (Octaver, Fuzz, Granular). When the
+        // dial would end up smaller than 36 px, use more columns (fewer, taller rows) as long as each cell stays at least 54 px wide.
+        // Boxes that are already comfortable (every box in its normal view) are not touched.
+        {
+            auto dialAt = [&] (int c)
+            {
+                const int rws = (count + c - 1) / c;
+                return std::min (area.getWidth() / c - 4, std::min (area.getHeight() / rws, 104) - 32);
+            };
+            if (dialAt (columns) < 36)
+            {
+                int best = columns, bestDial = dialAt (columns);
+                for (int c = columns + 1; c <= count; ++c)
+                {
+                    if (area.getWidth() / c < 54) break;
+                    if (dialAt (c) > bestDial + 3) { best = c; bestDial = dialAt (c); }
+                }
+                columns = best;
+            }
+        }
         const int knobRows = (count + columns - 1) / columns;
         const int cellW    = area.getWidth() / columns;
-        const int cellH    = area.getHeight() / knobRows;
+        // b113: in a tall box (Wah, Fuzz with ADV on) rows no longer spread over the whole height: they keep a normal spacing and sit just under the switches
+        const int cellH    = knobRows > 1 ? std::min (area.getHeight() / knobRows, 112) : area.getHeight() / knobRows;
+        const int blockTop = area.getY() + std::min (10, (area.getHeight() - cellH * knobRows) / 2);     // under the switches, the spare height goes below
 
         for (int i = 0; i < count; ++i)
         {
             juce::Rectangle<int> cell (area.getX() + (i % columns) * cellW,
-                                       area.getY() + (i / columns) * cellH, cellW, cellH);
+                                       blockTop + (i / columns) * cellH, cellW, cellH);
             shownKnobs[(size_t) i]->setBounds (cell.withSizeKeepingCentre (cell.getWidth(), std::min (cell.getHeight(), 104)));
         }
     }
@@ -3654,6 +3846,203 @@ void MeterView::paint (juce::Graphics& g)
 }
 
 //==============================================================================
+// CalibView (b94)
+//==============================================================================
+CalibView::CalibView (StarterAmpProcessor& p) : Panel ("INPUT CALIBRATION"), proc (p)
+{
+    setStyle (PanelKind::Rack);
+    setVisible (false);
+    startBtn.setTooltip ("Starts the measurement: 3 seconds of quiet, then 8 seconds of playing. Your sound is not muted, and nothing changes until you press APPLY.");
+    applyBtn.setTooltip ("Writes the ticked suggestions to the Input level, the Gate and the De-Noise controls.");
+    closeBtn.setTooltip ("Closes this panel. If a measurement is running it is stopped.");
+    tickIn.setTooltip ("Set the Input level to the suggestion.");
+    tickGate.setTooltip ("Set the Gate threshold to the suggestion.");
+    tickHum.setTooltip ("Switch Pickup De-Noise on and set its hum frequency to what was measured.");
+    startBtn.onClick = [this] { res = {};  proc.inputCal.start();  shownPhase = -1; };
+    applyBtn.onClick = [this] { applyAdvice(); };
+    closeBtn.onClick = [this] { setVisible (false); };
+    for (auto* t : { &tickIn, &tickGate, &tickHum }) { t->setToggleState (true, juce::dontSendNotification);  addChildComponent (*t); }
+    addAndMakeVisible (startBtn);
+    addChildComponent (applyBtn);
+    addAndMakeVisible (closeBtn);
+}
+
+float CalibView::getFloat (const char* id) const { return proc.apvts.getRawParameterValue (id)->load(); }
+
+void CalibView::setFloat (const char* id, float v)
+{
+    if (auto* prm = proc.apvts.getParameter (id))
+    {
+        prm->beginChangeGesture();
+        prm->setValueNotifyingHost (prm->convertTo0to1 (v));
+        prm->endChangeGesture();
+    }
+}
+
+void CalibView::visibilityChanged()
+{
+    if (isVisible())
+    {
+        res = {};  shownPhase = -1;
+        startTimerHz (20);
+        refreshButtons();
+    }
+    else
+    {
+        stopTimer();
+        proc.inputCal.cancel();
+    }
+}
+
+void CalibView::resized()
+{
+    const int w = getWidth(), h = getHeight();
+    startBtn.setBounds (26, h - 46, 110, 30);
+    applyBtn.setBounds (146, h - 46, 110, 30);
+    closeBtn.setBounds (w - 136, h - 46, 110, 30);
+    tickIn.setBounds (26, h - 86, 130, 26);
+    tickGate.setBounds (166, h - 86, 100, 26);
+    tickHum.setBounds (276, h - 86, 170, 26);
+}
+
+void CalibView::refreshButtons()
+{
+    const int ph = proc.inputCal.currentPhase();
+    const bool running = ph == InputCalibrator::quiet || ph == InputCalibrator::play;
+    const bool done = ph == InputCalibrator::done && res.heardPlaying;
+    startBtn.setButtonText (done || (ph == InputCalibrator::done) ? "AGAIN" : "START");
+    startBtn.setEnabled (! running);
+    applyBtn.setVisible (done);
+    tickIn.setVisible (done);
+    tickGate.setVisible (done);
+    tickHum.setVisible (done && res.hum);
+}
+
+void CalibView::timerCallback()
+{
+    const int ph = proc.inputCal.currentPhase();
+    const int run = proc.inputCal.completedRuns();
+    if (ph != shownPhase || (ph == InputCalibrator::done && run != shownRun))
+    {
+        shownPhase = ph;
+        if (ph == InputCalibrator::done)
+        {
+            shownRun = run;
+            res = proc.inputCal.result();
+            // tick what changes something; the Gate is only offered when it differs by more than a dB
+            tickIn.setToggleState (std::abs (res.recInGain - getFloat ("inGain")) >= 0.25f, juce::dontSendNotification);
+            tickGate.setToggleState (std::abs (res.recGate - getFloat ("gate")) >= 1.0f, juce::dontSendNotification);
+            tickHum.setToggleState (res.hum, juce::dontSendNotification);
+        }
+        refreshButtons();
+    }
+    repaint();
+}
+
+void CalibView::applyAdvice()
+{
+    if (! res.heardPlaying) return;
+    if (tickIn.getToggleState())   setFloat ("inGain", res.recInGain);
+    if (tickGate.getToggleState()) setFloat ("gate", res.recGate);
+    if (tickHum.isVisible() && tickHum.getToggleState() && res.hum)
+    {
+        setFloat ("deNoiseOn", 1.0f);
+        setFloat ("deNoiseHz", res.humHz == 50 ? 1.0f : 0.0f);
+    }
+    repaint();
+}
+
+void CalibView::paint (juce::Graphics& g)
+{
+    Panel::paint (g);
+    auto area = getLocalBounds().reduced (26, 8).toFloat();
+    area.removeFromTop (30.0f);
+    area.removeFromBottom (96.0f);
+    const int ph = proc.inputCal.currentPhase();
+    auto line = [&] (const juce::String& s, float size, juce::Colour col, bool bold = false)
+    {
+        g.setColour (col);
+        g.setFont (juce::Font (juce::FontOptions (size, bold ? juce::Font::bold : juce::Font::plain)));
+        g.drawFittedText (s, area.removeFromTop (size + 7.0f).toNearestInt(), juce::Justification::centredLeft, 1);
+    };
+    auto bar = [&] (float frac, juce::Colour col, const juce::String& label)
+    {
+        auto r = area.removeFromTop (16.0f);
+        g.setColour (juce::Colour (0xff0a0b0d));
+        g.fillRoundedRectangle (r, 4.0f);
+        g.setColour (col);
+        g.fillRoundedRectangle (r.withWidth (std::max (4.0f, r.getWidth() * juce::jlimit (0.0f, 1.0f, frac))), 4.0f);
+        g.setColour (ui::text);
+        g.setFont (juce::Font (juce::FontOptions (11.0f)));
+        g.drawText (label, r, juce::Justification::centred);
+        area.removeFromTop (8.0f);
+    };
+
+    if (ph == InputCalibrator::idle || (ph == InputCalibrator::done && ! res.heardPlaying && shownPhase < 0))
+    {
+        line ("Set your input level", 18.0f, ui::text, true);
+        area.removeFromTop (4.0f);
+        line ("1.  Rest your hand on the strings so they are quiet, and do not play for 3 seconds.", 14.0f, ui::text);
+        line ("2.  Then play your loudest normal part for 8 seconds: a hard strum or your heaviest riff.", 14.0f, ui::text);
+        area.removeFromTop (6.0f);
+        line ("It measures your noise floor, any mains hum and how hard you play, then suggests the Input level, the Gate and the", 12.0f, ui::textDim);
+        line ("De-Noise setting. Your sound is not muted, and nothing changes until you press APPLY.", 12.0f, ui::textDim);
+        line ("A looped DI recording works too, if you would rather not play.", 12.0f, ui::textDim);
+        return;
+    }
+    if (ph == InputCalibrator::quiet)
+    {
+        line ("Step 1 of 2: stay quiet", 18.0f, ui::text, true);
+        line ("Hand on the strings. Do not play.", 14.0f, ui::textDim);
+        area.removeFromTop (8.0f);
+        bar (proc.inputCal.progress(), ui::colourB, "measuring the noise floor");
+        return;
+    }
+    if (ph == InputCalibrator::play)
+    {
+        line ("Step 2 of 2: play your loudest normal part", 18.0f, ui::text, true);
+        line ("A hard strum or your heaviest riff. Keep going until the bar is full.", 14.0f, ui::textDim);
+        area.removeFromTop (8.0f);
+        bar (proc.inputCal.progress(), ui::accent, "measuring your playing");
+        const float live = proc.inputCal.liveLevelDb();
+        bar ((live + 60.0f) / 60.0f, live > -3.0f ? juce::Colour (0xffff5a4a) : ui::colourD, "level now  " + (live > -99.0f ? fmtDb (live) : juce::String ("-")));
+        line ("Aim for peaks around -10 dB. The suggestion is worked out from the whole 8 seconds, not from this bar.", 12.0f, ui::textDim);
+        return;
+    }
+
+    // done
+    if (! res.heardPlaying)
+    {
+        line ("No playing was heard", 18.0f, juce::Colour (0xffffc850), true);
+        line ("Check that the guitar is plugged in, the Input menu on the INPUT page matches the cable, and the interface's gain is up. Then press AGAIN.", 13.0f, ui::textDim);
+        return;
+    }
+    const float curIn = getFloat ("inGain"), curGate = getFloat ("gate");
+    line ("Results", 18.0f, ui::text, true);
+    juce::String noise = "Noise floor  " + fmtDb (res.noiseRmsDb) + " RMS,  peaks " + fmtDb (res.noiseEnvDb);
+    if (res.hum) noise += "   Hum: " + juce::String (res.humHz) + " Hz at " + fmtDb (res.humDb);
+    line (noise, 13.0f, ui::text);
+    static const char* cls[4] = { "quiet", "medium", "hot", "very hot" };
+    line ("Your playing  hard " + fmtDb (res.p99Db) + ",  typical " + fmtDb (res.medianDb) + ",  highest " + fmtDb (res.maxDb) + "   (" + cls[juce::jlimit (0, 3, res.outputClass)] + " output, " + juce::String ((int) std::lround (res.snrDb)) + " dB above the noise)", 13.0f, ui::text);
+    area.removeFromTop (4.0f);
+    line ("Input level   " + fmtDb (curIn) + "  ->  " + fmtDb (res.recInGain) + "     puts your hard playing at -10 dB, where the amps were tuned", 13.0f, ui::accent2);
+    line ("Gate            " + fmtDb (curGate) + "  ->  " + fmtDb (res.recGate) + "     6 dB above the noise, after the new Input level", 13.0f, ui::accent2);
+    if (res.hum) line ("De-Noise      hum found at " + juce::String (res.humHz) + " Hz:  switch it on and set " + juce::String (res.humHz) + " Hz", 13.0f, ui::accent2);
+    area.removeFromTop (4.0f);
+    const juce::Colour warn (0xffffc850);
+    if (res.clipped > 0 || res.maxDb > -0.3f)
+        line ("Your interface input is clipping (" + juce::String (res.clipped) + " samples at full scale). Lower the interface's input gain and run this again; no setting here can undo clipping.", 12.0f, warn);
+    else if (res.gainLimited && res.recInGain >= 24.0f)
+        line ("Very quiet signal. Raise the interface's input gain; the Input knob adds at most 24 dB.", 12.0f, warn);
+    else if (res.gainLimited)
+        line ("Very hot signal. Lower the interface's input gain; the Input knob cuts at most 24 dB.", 12.0f, warn);
+    if (res.snrDb < 40.0f)
+        line ("Noisy: only " + juce::String ((int) std::lround (res.snrDb)) + " dB between your playing and the noise. Try a different cable or position, or the De-Noise hiss control.", 12.0f, warn);
+    if (std::abs (res.dc) > 0.01f)
+        line ("The input has a DC offset of " + juce::String (res.dc, 3) + ". An interface that does this is faulty or set to the wrong input type.", 12.0f, warn);
+}
+
+//==============================================================================
 // TunerView
 //==============================================================================
 TunerView::TunerView (StarterAmpProcessor& p) : Panel ("TUNER  (OUTPUT MUTED WHILE OPEN)"), proc (p)
@@ -3824,7 +4213,7 @@ void TunerView::visibilityChanged()
         const double sr = proc.getSampleRate();
         if (sr > 0.0)
         {
-            poly.prepare (sr);
+            poly.prepare (sr);  settle.reset();
             polyRate = sr;
             polyIn.assign ((size_t) poly.window(), 0.0f);
         }
@@ -3914,7 +4303,7 @@ void TunerView::runPoly()
         return;
     if (sr != polyRate || polyIn.empty())
     {
-        poly.prepare (sr);
+        poly.prepare (sr);  settle.reset();
         polyRate = sr;
         polyIn.assign ((size_t) poly.window(), 0.0f);
         proc.tunerLong.reset();
@@ -3942,7 +4331,12 @@ void TunerView::runPoly()
     for (int i = 0; i < PolyTuner::kMaxStrings; ++i)
     {
         polySince[i] += dt;
-        if (i < count && polyRes.found[i])
+        const bool settled = settle.update (i, i < count && polyRes.found[i] ? polyRes.level[i] : 0.0f, dt);
+        if (i < count && polyRes.found[i] && ! settled)
+        {
+            if (polyShown[i]) polySince[i] = 0.0f;                  // b111: just plucked: keep the old reading on show, take the new one when it has settled
+        }
+        else if (i < count && polyRes.found[i])
         {
             const bool fresh = polyShown[i] && polySince[i] < 0.5f && polyApprox[i] == polyRes.shared[i];
             polyCents[i] = fresh ? polyCents[i] + 0.6f * (polyRes.cents[i] - polyCents[i]) : polyRes.cents[i];
@@ -5381,10 +5775,15 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     pageEq.addAndMakeVisible (spectrumView);
     for (auto* panel : { &outputPanel, &doublerPanel, &widenerPanel })
         pagePost.addAndMakeVisible (*panel);
+    pageDelay.addAndMakeVisible (repeaterPanel);
+    pageDelay.addAndMakeVisible (tapeStopPanel);
 
     // ---- INPUT & GATE
     inputPanel.addRow ({ &makeCombo ("inputMode") });
     inputPanel.addRow ({ &makeToggle ("deNoiseOn", "PICKUP DE-NOISE"), &makeCombo ("deNoiseHz") });
+    calibButton.setTooltip ("Input calibration: stay quiet for 3 seconds, then play your loudest part for 8. It measures your noise floor, any hum and how hard you play, and suggests the Input level, the Gate and the De-Noise setting. Nothing changes until you press APPLY.");
+    calibButton.onClick = [this] { calibView.setVisible (true);  calibView.toFront (false); };
+    inputPanel.addRow ({ &calibButton });
     inputPanel.setKnobColumns (2);
     addKnob (inputPanel, "inGain",      "Input",  " dB", 1);
     addKnob (inputPanel, "gate",        "Gate",   " dB", 1);
@@ -5591,6 +5990,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     addKnob (compPanel, "compSustain", "Sustain");             compOptoKnob[0] = knobs.back().get();      // b58: the Opto Sustain style's own knobs
     addKnob (compPanel, "compGrit",    "Grit");                compOptoKnob[1] = knobs.back().get();
     addKnob (compPanel, "compTreble",  "Treble", "", 2);       compOptoKnob[2] = knobs.back().get();
+    addKnob (compPanel, "compCsAttack", "Attack");             compCsKnob = knobs.back().get();           // b76: the CS-3 style's Attack
     addKnob (compPanel, "compCrush",   "Crush");               compLlKnob[0] = knobs.back().get();        // b62: the Crush Limiter style's own knobs
     addKnob (compPanel, "compCrunch",  "Crunch");              compLlKnob[1] = knobs.back().get();
     addKnob (compPanel, "compDark",    "Darkness");            compLlKnob[2] = knobs.back().get();
@@ -5649,6 +6049,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     addAdvKnob (grainPanel, "granSpray",     "Spray");
     addKnob (grainPanel, "granPitch",     "Pitch",      " st", 0);
     addKnob (grainPanel, "granScan",      "Scan");
+    addKnob (grainPanel, "granRecall",    "Recall");
     addAdvKnob (grainPanel, "granPitchRand", "Pitch Rand", " st", 1);
     addAdvKnob (grainPanel, "granReverse",   "Reverse");
     addAdvKnob (grainPanel, "granWidth",     "Width");
@@ -5716,10 +6117,13 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     // b55: multiband saturator (its own block on the board)
     {
         auto& autoT = makeToggle ("msAuto", "AUTO LEVEL");
-        satPanel.addRow ({ &makeToggle ("msOn", "SATURATOR ON"), &makeCombo ("msType"), &autoT }, { 1.0f, 1.0f, 0.9f });
+        satPanel.addRow ({ &makeToggle ("msOn", "SATURATOR ON"), &makeToggle ("msEasy", "EASY MODE") }, { 1.0f, 1.0f });
+        satPanel.addRow ({ &makeCombo ("msType"), &autoT }, { 1.6f, 1.0f });
         satPanel.markAdvanced (&autoT);           // b63: Auto level, Low Cut and High Cut are behind ADV
     }
-    satPanel.setKnobColumns (4);
+    satPanel.setKnobColumns (5);        // b112: Easy mode added two knobs; five columns keep the box at two rows, with ADV on as well
+    addKnob (satPanel, "msAmount", "Amount");        // b112: Easy mode
+    addKnob (satPanel, "msFocus",  "Focus", {}, 2);
     addKnob (satPanel, "msBias", "Bias");
     addKnob (satPanel, "msOut",  "Output", " dB", 1);
     addKnob (satPanel, "msMix",  "Mix");
@@ -5744,7 +6148,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
             tab.onClick = [this, index] { satBandsPanel.setPage (index); };
         }
         satTab[0].setToggleState (true, juce::dontSendNotification);
-        satBandsPanel.addRow ({ &satTab[0], &satTab[1], &satTab[2], &satTab[3], &satTab[4] }, {}, 24);
+        satBandsPanel.addRow ({ &satTab[0], &satTab[1], &satTab[2], &satTab[3], &satTab[4], &satTab[5] }, {}, 24);
         for (auto& tab : satTab) satBandsPanel.markAdvanced (&tab);
         static const char* const bandName[4] = { "Band 1 (lows)", "Band 2", "Band 3", "Band 4 (highs)" };
         static const char* const typeId[4] = { "msType1", "msType2", "msType3", "msType4" };
@@ -5763,6 +6167,8 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     for (int k = 1; k <= 4; ++k) addKnob (satBandsPanel, ("msMix" + juce::String (k)).toRawUTF8(),   "Mix " + juce::String (k), {}, 2, 2);
     for (int k = 1; k <= 4; ++k) addKnob (satBandsPanel, ("msTone" + juce::String (k)).toRawUTF8(),  "Tone " + juce::String (k), {}, 2, 3);
     for (int k = 1; k <= 4; ++k) addKnob (satBandsPanel, ("msDyn" + juce::String (k)).toRawUTF8(),   "Dyn " + juce::String (k), {}, 2, 4);
+    for (int k = 1; k <= 4; ++k) addKnob (satBandsPanel, ("msFb" + juce::String (k)).toRawUTF8(),    "Fdbk " + juce::String (k), {}, 2, 5);        // b112
+    addKnob (satBandsPanel, "msFbPitch", "Pitch", {}, 2, 5);                                                                                          // b112: shared by the four bands
     satBandsPanel.setPage (0);
 
     // ---- DI MATCH (end of the input stage, after the Transpose)
@@ -5830,11 +6236,14 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
 
     wahPanel.addRow ({ &makeToggle ("wahOn", "WAH ON"), &makeCombo ("wahMode"), &makeSyncCombo ("wahNote") }, { 0.8f, 1.4f, 1.2f });
     wahPanel.addRow ({ &makeCombo ("wahVoice"), &makeCombo ("wahEnvDir"), &makeCombo ("wahEnvShape") }, { 1.4f, 0.7f, 0.9f });
-    wahPanel.setKnobColumns (5);
+    wahPanel.addRow ({ &makeCombo ("wahRange") }, { 1.0f });       // b76: the 535Q / Dimebag Range selector
+    wahPanel.setKnobColumns (6);       // b113: 11 knobs with ADV on: 6 + 5 instead of 5 + 5 + 1
     addKnob (wahPanel, "wahPos",   "Position");
     addAdvKnob (wahPanel, "wahHeel",  "Heel",       " Hz", 0);
     addAdvKnob (wahPanel, "wahToe",   "Toe",        " Hz", 0);
-    addAdvKnob (wahPanel, "wahQ",     "Resonance",  "",    1);
+    addKnob (wahPanel, "wahQ",     "Resonance",  "",    1);       // b76: Q and Boost are on the front, as on the 535Q
+    addKnob (wahPanel, "wahBoost", "Boost",      " dB", 1);
+    addKnob (wahPanel, "wahFuzz",  "Fuzz");
     addKnob (wahPanel, "wahMix",   "Mix");
     addKnob (wahPanel, "wahSens",  "Sensitivity");
     addAdvKnob (wahPanel, "wahDecay", "Decay",      " ms", 0);
@@ -5938,9 +6347,11 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     overdrivePanel.addRow ({ &makeCombo (ID ("Clip").c_str()), &makeCombo (ID ("Voice").c_str()) }, { 1.0f, 1.0f }, 26, 3);
     // v77: circuit mode for Tight (page 1) and Screamer (page 3); off by default, so older sessions sound the same
     overdrivePanel.addRow ({ &makeCombo (ID ("Clip").c_str()) }, {}, 26, 1);
-    overdrivePanel.addRow ({ &makeCombo (ID ("Voice").c_str()) }, {}, 26, 5);                    // Tube Driver: Classic or the Hex voicing
+    overdrivePanel.addRow ({ &makeCombo (ID ("Voice").c_str()) }, {}, 26, 5);                    // Tube-style Drive: Classic or the Hex voicing
     overdrivePanel.addRow ({ &makeCombo (ID ("Clip").c_str()) }, {}, 26, 6);                      // v92: Op-Amp Distortion (stock = Germanium)
-    overdrivePanel.addRow ({ &makeCombo (ID ("Nob").c_str()) }, {}, 26, 9);                       // b64: Natural Overdrive voicing
+    overdrivePanel.addRow ({ &makeCombo (ID ("Mz").c_str()) }, {}, 26, 11);                       // b75: Metal Zone Standard / Custom
+    overdrivePanel.addRow ({ &makeCombo (ID ("Clip").c_str()) }, {}, 26, 12);                     // b78: transparent-style drive
+    overdrivePanel.addRow ({ &makeCombo (ID ("Nob").c_str()) }, {}, 26, 9);                       // b64: Natural Drive voicing
     {
         auto& midMod = makeCombo (ID ("MidMod").c_str());
         overdrivePanel.addRow ({ &makeCombo (ID ("Clip").c_str()), &midMod }, { 1.0f, 1.0f }, 26, 4);
@@ -5961,16 +6372,16 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     addKnob (overdrivePanel, ID ("Tone").c_str(),   "Tone",   {}, 2, 3);
     addKnob (overdrivePanel, ID ("Mid").c_str(),    "Mid",    {}, 2, 3);
     addKnob (overdrivePanel, ID ("Tone").c_str(),   "Tone",   {}, 2, 4);
-    addKnob (overdrivePanel, ID ("Gain").c_str(),   "Drive",  {}, 2, 5);         // v64 Tube Driver
+    addKnob (overdrivePanel, ID ("Gain").c_str(),   "Drive",  {}, 2, 5);         // v64 Tube-style Drive
     addKnob (overdrivePanel, ID ("Bass").c_str(),   "Bass",   {}, 2, 5);
     addKnob (overdrivePanel, ID ("Tone").c_str(),   "Treble", {}, 2, 5);
     // v92: five pedals from published analyses
     addKnob (overdrivePanel, ID ("Gain").c_str(),   "Dist",    {}, 2, 6);
     addKnob (overdrivePanel, ID ("Gain").c_str(),   "Gain",    {}, 2, 7);
     addKnob (overdrivePanel, ID ("Tone").c_str(),   "Tone",    {}, 2, 7);
-    addKnob (overdrivePanel, ID ("Gain").c_str(),   "Gain",    {}, 2, 8);      // v0.2 Blues Driver
+    addKnob (overdrivePanel, ID ("Gain").c_str(),   "Gain",    {}, 2, 8);      // v0.2 Blues Drive
     addKnob (overdrivePanel, ID ("Tone").c_str(),   "Tone",    {}, 2, 8);
-    addKnob (overdrivePanel, ID ("Gain").c_str(),   "Drive",    {}, 2, 9);      // b64 Natural Overdrive
+    addKnob (overdrivePanel, ID ("Gain").c_str(),   "Drive",    {}, 2, 9);      // b64 Natural Drive
     addKnob (overdrivePanel, ID ("Tone").c_str(),   "Spectrum", {}, 2, 9);
     addKnob (overdrivePanel, ID ("Gain").c_str(),   "Gain",     {}, 2, 10);     // b64 Preamp Distortion (the DOD 250 type has no tone control)
     addKnob (overdrivePanel, ID ("Gain").c_str(),    "Dist",     {}, 2, 11);     // b67 Metal Zone (MT-2): Dist, Low, Mid, Mid Freq, High
@@ -5978,6 +6389,9 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     addKnob (overdrivePanel, ID ("Mid").c_str(),     "Mid",      {}, 2, 11);
     addKnob (overdrivePanel, ID ("MidFreq").c_str(), "Mid Freq", {}, 2, 11);
     addKnob (overdrivePanel, ID ("Tone").c_str(),    "High",     {}, 2, 11);
+    addKnob (overdrivePanel, ID ("Gain").c_str(),    "Gain",     {}, 2, 12);     // b78 transparent-style drive: Gain, Bass (cut), Treble (cut)
+    addKnob (overdrivePanel, ID ("Bass").c_str(),    "Bass",     {}, 2, 12);
+    addKnob (overdrivePanel, ID ("Tone").c_str(),    "Treble",   {}, 2, 12);
     addKnob (overdrivePanel, ID ("Volume").c_str(), "Volume", " dB", 1);
     addAdvKnob (overdrivePanel, ID ("Mix").c_str(),    "Mix",    {}, 2);   // b63: wet/dry is for tinkerers; the five main knobs get the room
     addAdvKnob (overdrivePanel, ID ("Bass").c_str(),    "Lo",       {}, 2, 9);      // b64: ODR-S low band
@@ -5993,7 +6407,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
 
     // ---- AMP
     auto& ampModelBox = makeAmpModelCombo ("ampModel");
-    voicingToggle = &makeCombo ("ampVoicing");
+    voicingToggle = &makeIndexCombo ("ampVoicing");
     ampQualityBox = &makeCombo ("ampQuality");
     // v59: streamlined. Always visible: model, voicing, auto level, then the switches that change the amp's feel most
     // (bright, tone stack, feel, power). Behind ADV: the tubes and rectifier, class, deep and the oversampling quality.
@@ -6043,7 +6457,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     setupAdvanced (ampPanel, "amp");
 
     // ---- AMP B (parallel amp, v40)
-    voicingBoxB = &makeCombo ("ampBVoicing");
+    voicingBoxB = &makeIndexCombo ("ampBVoicing");
     auto& brightB = makeToggle ("ampBBright", "BRIGHT");
     ampBPanel.addRow ({ &makeAmpModelCombo ("ampBModel"), voicingBoxB, &makeToggle ("ampBOn", "AMP B ON"), &brightB,
                         &makeToggle ("ampBAutoLevel", "AUTO LEVEL"), &makeToggle ("ampBUseOd", "FED BY OVERDRIVE") },
@@ -6213,11 +6627,20 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
                 mfFModeBox[s] = &makeCombo ((q + "FMode").c_str());
                 mfFMotionBox[s] = &makeCombo ((q + "FMotion").c_str());
                 mfFlipBox[s] = &makeToggle ((q + "Flip").c_str(), "SWEEP DOWN");
-                pn.addRow ({ mfChModeBox[s], mfFModeBox[s], mfFMotionBox[s], mfFlipBox[s] }, { 1.2f, 1.4f, 1.6f, 1.0f });
+                mfHoldBox[s] = &makeToggle ((q + "Hold").c_str(), "HOLD");                  // b105
+                pn.addRow ({ mfChModeBox[s], mfFModeBox[s], mfFMotionBox[s], mfFlipBox[s], mfHoldBox[s] }, { 1.2f, 1.4f, 1.6f, 1.0f, 1.0f });
+                mfFrameBox[s] = &makeCombo ((q + "Frame").c_str());                         // b118: Digital damage only
+                pn.addRow ({ mfFrameBox[s] }, { 1.0f });
                 mfLoVoiceBox[s] = &makeCombo ((q + "LoVoice").c_str());                     // b62
                 pn.addRow ({ mfLoVoiceBox[s] }, { 1.0f });
+                mfViVoiceBox[s] = &makeCombo ((q + "ViVoice").c_str());                     // b75
+                pn.addRow ({ mfViVoiceBox[s] }, { 1.0f });
+                mfFlVoiceBox[s] = &makeCombo ((q + "FlVoice").c_str());                     // b84
+                pn.addRow ({ mfFlVoiceBox[s] }, { 1.0f });
                 mfPhVoiceBox[s] = &makeCombo ((q + "PhVoice").c_str());                     // b64
                 pn.addRow ({ mfPhVoiceBox[s] }, { 1.0f });
+                mfPhStereoBox[s] = &makeCombo ((q + "PhStereo").c_str());                   // b106
+                pn.addRow ({ mfPhStereoBox[s] }, { 1.0f });
                 mfFsModeBox[s] = &makeCombo ((q + "FsMode").c_str());                       // b62
                 mfVocBox[s][0] = &makeCombo ((q + "VocCar").c_str());
                 mfVocBox[s][1] = &makeCombo ((q + "VocBands").c_str());
@@ -6252,6 +6675,8 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
                 addKnob (pn, (q + "Pick").c_str(),   "Pick Response");   mfXKnob[s][7] = knobs.back().get();
                 addKnob (pn, (q + "VocSib").c_str(),  "Sibilance");      mfXKnob[s][8] = knobs.back().get();      // b62
                 addKnob (pn, (q + "VocResp").c_str(), "Response");       mfXKnob[s][9] = knobs.back().get();
+                addKnob (pn, (q + "Breath").c_str(),  "Breathing");      mfXKnob[s][10] = knobs.back().get();     // b120
+                addKnob (pn, (q + "BitMangle").c_str(), "Bit Mangle");   mfXKnob[s][11] = knobs.back().get();
             }
         }
     }
@@ -6283,6 +6708,8 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
 
     // ---- PITCH PEDAL (expression-pedal style) and OCTAVER, on the MOD page
     wowPanel.addRow ({ &makeToggle ("wowOn", "PITCH PEDAL ON"), &makeCombo ("wowMode") }, { 1.0f, 1.7f });
+    wowPanel.addRow ({ &makeCombo ("wowChar"), &makeToggle ("wowDryNow", "INSTANT DRY") }, { 1.6f, 1.0f });       // b78: how clean or how bad the pedal sounds; b118: the dry is not delayed
+    wowPanel.addRow ({ &makeCombo ("wowTrack"), &makeCombo ("wowForm") }, { 1.0f, 1.0f });       // b77: how the pedal tracks what you play; b97: what happens to the tone
     wowPanel.setKnobColumns (5);
     addKnob (wowPanel, "wowPos",   "Position");
     addKnob (wowPanel, "wowHeel",  "Heel", " st", 1);
@@ -6291,15 +6718,39 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     wowToeKnob = knobs.back().get();
     addAdvKnob (wowPanel, "wowGlide", "Glide", " ms", 0);
     addKnob (wowPanel, "wowMix",   "Mix");
+    addKnob (wowPanel, "wowGrit",  "Grit");      // b78: how bad the Character gets
+    wowGritKnob = knobs.back().get();
+    addKnob (wowPanel, "wowFormShift", "Formant", " st", 1);      // b97: moves the tone on its own
+    addAdvKnob (wowPanel, "wowLowKeep", "Keep lows", " Hz", 0);   // b97: the lows stay dry
     setupAdvanced (wowPanel, "wow");
 
-    octPanel.addRow ({ &makeToggle ("octOn", "OCTAVER ON") }, {}, 26);
-    octPanel.addRow ({ &makeCombo ("octA"), &makeCombo ("octB") }, {}, 26);
+    octPanel.addRow ({ &makeToggle ("octOn", "OCTAVER ON"), &makeCombo ("octMode") }, { 1.0f, 1.7f }, 26);
+    octABox = &makeCombo ("octA");  octBBox = &makeCombo ("octB");
+    octPanel.addRow ({ octABox, octBBox }, {}, 26);
+    octTrackBox = &makeCombo ("octTrack");  octCharBox = &makeCombo ("octChar");
+    octPanel.addRow ({ octTrackBox, octCharBox }, { 1.0f, 1.0f }, 26);       // b79: the same Tracking and Character as the pitch pedal
     octPanel.setKnobColumns (4);
-    addKnob (octPanel, "octALvl", "Voice A");
-    addKnob (octPanel, "octBLvl", "Voice B");
+    addKnob (octPanel, "octALvl", "Voice A");   octKnob[0] = knobs.back().get();
+    addKnob (octPanel, "octBLvl", "Voice B");   octKnob[1] = knobs.back().get();
+    addKnob (octPanel, "octM2",   "-2 Oct");    octKnob[2] = knobs.back().get();
+    addKnob (octPanel, "octM1",   "-1 Oct");    octKnob[3] = knobs.back().get();
+    addKnob (octPanel, "octP1",   "+1 Oct");    octKnob[4] = knobs.back().get();
+    addKnob (octPanel, "octP2",   "+2 Oct");    octKnob[5] = knobs.back().get();
+    addKnob (octPanel, "octP7",   "+5th");      octKnob[6] = knobs.back().get();
+    addKnob (octPanel, "octP19",  "+12th");     octKnob[7] = knobs.back().get();
+    addKnob (octPanel, "octP28",  "+17th");     octKnob[8] = knobs.back().get();
+    addKnob (octPanel, "octP36",  "+3 Oct");    octKnob[9] = knobs.back().get();
     addKnob (octPanel, "octDry",  "Dry");
     addKnob (octPanel, "octTone", "Tone");
+    addKnob (octPanel, "octAttack", "Attack");  octAtkKnob = knobs.back().get();
+    addKnob (octPanel, "octDecay",  "Decay");   octDecKnob = knobs.back().get();
+    addAdvKnob (octPanel, "octRes",    "Resonance");
+    addAdvKnob (octPanel, "octDetune", "Detune", " c", 1);
+    addAdvKnob (octPanel, "octGrit",   "Grit");   octGritKnob = knobs.back().get();
+    octDryFxBox = &makeCombo ("octDryFx");
+    octPanel.addRow ({ octDryFxBox }, { 1.0f }, 26);
+    octPanel.markAdvanced (octDryFxBox);
+    setupAdvanced (octPanel, "oct");
 
     // ---- GUITAR SYNTH (v0.2)
     synthPanel.addRow ({ &makeToggle ("synOn", "SYNTH ON"), &makeCombo ("synWave1"), &makeCombo ("synWave2"), &makeCombo ("synOct2"), &makeCombo ("synTrack") }, { 1.0f, 0.8f, 0.8f, 0.9f, 1.0f });
@@ -6334,19 +6785,30 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     harmHeard.setJustificationType (juce::Justification::centredLeft);
     harmHeard.setText ("Hearing: nothing yet", juce::dontSendNotification);
     harmHeard.setTooltip ("The notes the harmonizer is hearing right now. If these are wrong, the harmony will be wrong: check that the guitar is in tune and the input is clean.");
+    harmPanel.addRow ({ &makeToggle ("hmArp", "ARPEGGIATE"), &makeCombo ("hmArpPattern"), &makeCombo ("hmArpRate") }, { 1.0f, 1.0f, 0.9f });      // b115
     harmPanel.addRow ({ &harmHeard }, {}, 20);
     harmPanel.setKnobColumns (6);
     addKnob (harmPanel, "hmAInt",  "A Interval", " st", 0);
     addKnob (harmPanel, "hmADeg",  "A Step",     "", 0);
     addKnob (harmPanel, "hmALvl",  "A Level");
     addKnob (harmPanel, "hmAPan",  "A Pan", "", 2);
-    addKnob (harmPanel, "hmDry",   "Dry");
-    addKnob (harmPanel, "hmTone",  "Tone");
     addKnob (harmPanel, "hmBInt",  "B Interval", " st", 0);
     addKnob (harmPanel, "hmBDeg",  "B Step",     "", 0);
     addKnob (harmPanel, "hmBLvl",  "B Level");
     addKnob (harmPanel, "hmBPan",  "B Pan", "", 2);
+    addKnob (harmPanel, "hmCInt",  "C Interval", " st", 0);       // b115: voices C and D
+    addKnob (harmPanel, "hmCDeg",  "C Step",     "", 0);
+    addKnob (harmPanel, "hmCLvl",  "C Level");
+    addKnob (harmPanel, "hmCPan",  "C Pan", "", 2);
+    addKnob (harmPanel, "hmDInt",  "D Interval", " st", 0);
+    addKnob (harmPanel, "hmDDeg",  "D Step",     "", 0);
+    addKnob (harmPanel, "hmDLvl",  "D Level");
+    addKnob (harmPanel, "hmDPan",  "D Pan", "", 2);
+    addKnob (harmPanel, "hmDry",   "Dry");
+    addKnob (harmPanel, "hmTone",  "Tone");
     addKnob (harmPanel, "hmGlide", "Glide", " ms", 0);
+    addKnob (harmPanel, "hmArpGate",  "Gate");
+    addKnob (harmPanel, "hmArpLevel", "Arp Level");
 
     // ---- SPEAKER page: per-block EQ / resonance / phase, speaker dynamics, and exporting the blend as an IR
     {
@@ -6416,6 +6878,12 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         irButtons[blk].onClick = [this, blk] { chooseIR (blk); };
     alignButton.onClick = [this] { processorRef.alignIRs(); };
     libraryButton.onClick = [this] { openLibraryWindow(); };
+    suggestCabButton.onClick = [this]
+    {
+        const auto t = processorRef.applySuggestedCab();
+        suggestCabButton.setButtonText (t.isEmpty() ? "NO SUGGESTION" : "SET: " + t);
+        juce::Timer::callAfterDelay (4000, [safe = juce::Component::SafePointer<juce::TextButton> (&suggestCabButton)] { if (safe != nullptr) safe->setButtonText ("SUGGEST CAB"); });
+    };
 
     // Each IR slot is either a built-in model (speaker, mic, position, distance, angle) or an IR file.
     // Its Source menu picks which; page 0 shows the model controls, page 1 the file button.
@@ -6449,7 +6917,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         buildSlot (*irPanels[blk], cabLetter (blk).toRawUTF8(), irButtons[blk]);
     syncIRPages();
 
-    cabPanel.addRow ({ &makeToggle ("cabOn", "CAB ON"), &makeToggle ("cabAutoAlign", "AUTO ALIGN"), &alignButton, &libraryButton, &makeToggle ("cabMeasured", "REALISTIC") });
+    cabPanel.addRow ({ &makeToggle ("cabOn", "CAB ON"), &makeToggle ("cabAutoAlign", "AUTO ALIGN"), &alignButton, &libraryButton, &suggestCabButton, &makeToggle ("cabMeasured", "REALISTIC") });
     cabPanel.addRow ({ &makeCombo ("cabRoomType") }, {}, 26);
     cabPanel.setKnobColumns (8);
     addKnob (cabPanel, "cabRoom",    "Room");
@@ -6545,6 +7013,8 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         addAdvKnob (main, id ("reverbHighCut").toRawUTF8(),  "High Cut", " Hz", 0);
         addAdvKnob (main, id ("reverbDuck").toRawUTF8(),     "Duck");
         addAdvKnob (main, id ("reverbDuckRel").toRawUTF8(),  "Duck Rel", " ms", 0);
+        addAdvKnob (main, id ("reverbDryPan").toRawUTF8(),   "Dry Pan");       // b120
+        addAdvKnob (main, id ("reverbWetPan").toRawUTF8(),   "Wet Pan");
         setupAdvanced (main, ru == 0 ? "reverb" : "reverb2");
         addKnob (main, id ("shimmerAmount").toRawUTF8(),  "Shimmer");
         (ru == 0 ? shimmerAmountKnob : shimmerAmountKnob2) = knobs.back().get();
@@ -6565,8 +7035,10 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         shape.addRow ({ &makeCombo (id ("reverbDragMode").toRawUTF8()), &makeCombo (id ("reverbGravity").toRawUTF8()) }, {});
         shape.addRow ({ &makeCombo (id ("reverbWDriveType").toRawUTF8()), &makeCombo (id ("reverbTremShape").toRawUTF8()) }, {});
         shape.addRow ({ &makeCombo (id ("reverbReturn").toRawUTF8()) }, {});
+        shape.addRow ({ &makeCombo (id ("reverbGateShape").toRawUTF8()) }, {});                          // b106
         if (ru == 0)
             shape.addRow ({ &makeCombo ("reverbIrSource"), &reverbIrButton, &makeToggle ("reverbIrReverse", "REVERSE") }, { 1.6f, 1.3f, 1.0f });
+        shape.addRow ({ &makeCombo (id ("reverbClock").toRawUTF8()) }, {});
         shape.setKnobColumns (8);
         addKnob (shape, id ("reverbDiffuse").toRawUTF8(), "Diffuse");
         addKnob (shape, id ("reverbSpace").toRawUTF8(),   "Space", " x", 2);
@@ -6574,6 +7046,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         addKnob (shape, id ("reverbDrag").toRawUTF8(),    "Drag");
         addKnob (shape, id ("reverbBloom").toRawUTF8(),   "Bloom");
         addKnob (shape, id ("reverbDrive").toRawUTF8(),   "Spring Drive");
+        addKnob (shape, id ("reverbSpringFb").toRawUTF8(), "Spring Fdbk");
         if (ru == 0) addKnob (shape, "reverbIrStretch", "IR Stretch", " x", 2);
         addKnob (shape, id ("reverbWDrive").toRawUTF8(),  "Wet Drive");
         addKnob (shape, id ("reverbFocus").toRawUTF8(),   "Focus", " Hz", 0);
@@ -6583,6 +7056,8 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         addKnob (shape, id ("reverbEchoTime").toRawUTF8(), "Echo Time", " ms", 0);
         addKnob (shape, id ("reverbEchoFb").toRawUTF8(),   "Echo Fdbk");
         addKnob (shape, id ("reverbMangle").toRawUTF8(),   "Mangle");
+        addKnob (shape, id ("reverbBassDecay").toRawUTF8(), "Bass Decay", " x", 2);
+        addKnob (shape, id ("reverbCross").toRawUTF8(),    "Bass Xover", " Hz", 0);
     }
 
     // ---- OUTPUT
@@ -6595,6 +7070,19 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     limCeilKnob = knobs.back().get();
     addKnob (outputPanel, "limRel",  "Release", " ms", 0);
     limRelKnob = knobs.back().get();
+
+    // ---- TAPE STOP (TIME page; it acts on the finished sound, so it still runs at the end of the chain)
+    // b120: the Repeater (beat repeat)
+    repeaterPanel.addRow ({ &makeToggle ("repOn", "REPEATER"), &makeToggle ("repHold", "REPEAT NOW") });
+    repeaterPanel.addRow ({ &makeCombo ("repAuto"), &makeCombo ("repDiv") }, { 1.5f, 1.0f });
+    repeaterPanel.setKnobColumns (4);
+    addKnob (repeaterPanel, "repPitch",  "Pitch", " st", 1);
+    addKnob (repeaterPanel, "repGlitch", "Glitch");
+    addKnob (repeaterPanel, "repDecay",  "Decay");
+    addKnob (repeaterPanel, "repMix",    "Mix");
+    tapeStopPanel.addRow ({ &makeToggle ("tapeStop", "TAPE STOP") });
+    tapeStopPanel.setKnobColumns (1);
+    addKnob (tapeStopPanel, "tapeStopTime", "Stop Time", " s", 2);
 
     // ---- Pages. Each page is laid out in its own coordinates, starting at (0, 0).
     auto place = [] (juce::Component& panel, int& x, int y, int width, int height)
@@ -6725,8 +7213,8 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         v.push_back (item (swellPanel, 330, "swellOn", "SWELL"));
         page (pageInput, std::move (v));  v.clear();
 
-        v.push_back (item (fuzzPanel, 380, "fuzzOn", "FUZZ"));
-        v.push_back (item (fuzz2Panel, 380, "fuzz2On", "FUZZ 2"));
+        v.push_back (item (fuzzPanel, 380, "fuzzOn", "FUZZ"));   v.back().tallWithAdv = true;
+        v.push_back (item (fuzz2Panel, 380, "fuzz2On", "FUZZ 2"));   v.back().tallWithAdv = true;
         v.push_back (item (compPanel, 540, "compOn", "COMPRESSOR"));
         v.push_back (item (overdrivePanel, 360, "odOn", "OVERDRIVE"));
         v.push_back (item (drive2Panel, 360, "od2On", "DRIVE 2"));
@@ -6737,7 +7225,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         v.push_back (item (satPanel, 340, "msOn", "MULTIBAND SATURATOR", &satBandsPanel, 420));
         page (pageGain, std::move (v));  v.clear();
 
-        v.push_back (item (wahPanel, 520, "wahOn", "WAH"));
+        v.push_back (item (wahPanel, 520, "wahOn", "WAH"));   v.back().tallWithAdv = true;
         v.push_back (item (phaserPanel, 440, "phaserOn", "PHASER"));   v.back().legacy = true;
         v.push_back (item (chorusPanel, 380, "chorusOn", "CHORUS"));   v.back().legacy = true;
         v.push_back (item (mfPanel0, 720, "mfAOn", "MOD FX A"));
@@ -6761,6 +7249,8 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         v.push_back (item (reverbPanel, 640, "reverbOn", "REVERB", &reverbShapePanel, 620));  v.back().extraWithAdv = true;
         v.push_back (item (reverb2Panel, 640, "rev2On", "REVERB 2", &reverb2ShapePanel, 620));  v.back().extraWithAdv = true;
         v.push_back (item (grainPanel, 760, "granOn", "GRANULAR CLOUD"));
+        v.push_back (item (repeaterPanel, 420, "repOn", "REPEATER"));
+        v.push_back (item (tapeStopPanel, 230, "", ""));
         page (pageDelay, std::move (v));  v.clear();
 
         v.push_back (item (outputPanel, 270, "", ""));
@@ -6777,7 +7267,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     for (auto* panel : { &inputPanel, &noisePanel, &fuzzPanel, &fuzz2Panel, &preDelayPanel, &compPanel, &wahPanel, &phaserPanel, &chorusPanel,
                          &overdrivePanel, &drive2Panel, &transposePanel, &grainPanel, &tremPanel, &wobblePanel, &swellPanel, &doublerPanel,
                          &widenerPanel, &filterPanel, &volPanPanel, &mbPanel, &mbBandsPanel, &satPanel, &satBandsPanel, &gatePanel, &shaperPanel, &shaperBandsPanel, &ampPanel, &metalPanel, &ampBPanel, &metalBPanel, &ampMixPanel, &namStrip[0].panel, &namStrip[1].panel, &namStrip[2].panel, &namStrip[3].panel, &lofiPanel, &boostPanel, &boostEqPanel, &mfPanel0, &mfPanel1, &mfPanel2, &mfPanel3, &reverbShapePanel, &reverb2Panel, &reverb2ShapePanel, &acousticPanel, &irAPanel, &irBPanel, &irCPanel, &irDPanel,
-                         &cabPanel, &postDelayPanel, &reverbPanel, &outputPanel, &wowPanel, &octPanel, &shapePanel, &dynPanel, &exportPanel,
+                         &cabPanel, &postDelayPanel, &reverbPanel, &outputPanel, &repeaterPanel, &tapeStopPanel, &wowPanel, &octPanel, &shapePanel, &dynPanel, &exportPanel,
                          &synthPanel, &harmPanel, &preDelayFxPanel, &postDelayFxPanel })
         panel->resized();
 
@@ -6835,6 +7325,8 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         addMouseListener (this, true);
         tunerView.setBounds ((ui::kWidth - 880) / 2, ui::kPageY + 20, 880, 340);
         content.addChildComponent (tunerView);
+        calibView.setBounds ((ui::kWidth - 800) / 2, ui::kPageY + 20, 800, 380);
+        content.addChildComponent (calibView);
     }
 
     // ---- Presets, in the header between the title and the tempo controls
@@ -6891,6 +7383,9 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     loopButton.setTooltip ("Looper: records what you play and plays it back so you can play over it. Opens its window. In the standalone app the space bar is the big record / play / overdub button. The button shows the looper's state.");
     loopButton.onClick = [this] { openLoopWindow(); };
     content.addAndMakeVisible (loopButton);
+    modsButton.setTooltip ("Modulators: two sources (your playing level, an LFO or a random source) that move knobs of your choice, for envelope-controlled effects, wah-like sweeps on any knob and slow drifts. Opens its window.");
+    modsButton.onClick = [this] { openModsWindow(); };
+    content.addAndMakeVisible (modsButton);
     content.addAndMakeVisible (metroButton);
     content.addAndMakeVisible (orderButton);
     setWantsKeyboardFocus (true);
@@ -6941,11 +7436,11 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
     perfLabel.setBounds (1010, 6, 126, 32);
     for (int i = 0; i < 9; ++i)
         pageTabs[i].setBounds (12 + i * 106, 46, 102, 28);
-    tunerButton.setBounds (976, 46, 52, 28);   metroButton.setBounds (1032, 46, 52, 28);
-    loopButton.setBounds (1088, 46, 62, 28);   riffButton.setBounds (1154, 46, 46, 28);
-    midiButton.setBounds (1204, 46, 46, 28);
-    orderButton.setBounds (1262, 46, 58, 28);  tidyButton.setBounds (1324, 46, 90, 28);
-    helpButton.setBounds (1418, 46, 52, 28);
+    tunerButton.setBounds (968, 46, 52, 28);   metroButton.setBounds (1024, 46, 52, 28);
+    loopButton.setBounds (1080, 46, 62, 28);   riffButton.setBounds (1146, 46, 46, 28);
+    midiButton.setBounds (1196, 46, 46, 28);   modsButton.setBounds (1246, 46, 46, 28);
+    orderButton.setBounds (1296, 46, 58, 28);  tidyButton.setBounds (1358, 46, 82, 28);
+    helpButton.setBounds (1444, 46, 44, 28);
     riffButton.setTooltip ("Riff recorder: record a phrase and loop it back. In DI mode the playback goes through all your pedals and the amp, so you can change the tone while it plays. The button turns red while recording and green while playing.");
     riffButton.onClick = [this] { openRiffWindow(); };
     content.addAndMakeVisible (riffButton);
@@ -6970,6 +7465,7 @@ StarterAmpEditor::StarterAmpEditor (StarterAmpProcessor& p)
         presetNext.setTooltip ("Load the next preset.");
         presetSave.setTooltip ("Save the current settings as a preset. An existing name is replaced.");
         presetDelete.setTooltip ("Delete the selected preset file.");
+        suggestCabButton.setTooltip ("Set IR block A to a built-in cab that suits the amp that is playing (Amp A when it is on, otherwise Amp B): cabinet, speaker, mic and position. Only block A changes; blocks B to D and the room are left alone. If block A held an IR file it switches to the built-in model. Starting points chosen by reading what each amp is modelled on, not measured.");
         libraryButton.setTooltip ("Browse folders of IR files, see each one's frequency curve, hear it in place of your cab blocks (AUDITION), find near-duplicates, and send it to a block.");
         alignButton.setTooltip ("Line the active cab blocks up with the first one: sets each block's Delay and Invert from the measured offset. Blocks that match poorly are left alone.");
         for (int blk = 0; blk < kCabBlocks; ++blk)
@@ -8494,7 +8990,7 @@ juce::Colour LooperPanel::stateColour (int s)
 
 LooperPanel::LooperPanel (StarterAmpProcessor& p) : processor (p)
 {
-    setSize (460, 450);
+    setSize (460, 484);
     cycleButton.setTooltip ("Record, then Play, then Overdub, then Play again. Press it to step to the next one. In the standalone app the space bar does the same. A MIDI footswitch can too: open MIDI and map a control to 'Looper Record / Play / Overdub'.");
     undoButton.setTooltip ("Takes off your last overdub. Press it again to put it back. If there is only the first recording, it erases the loop.");
     stopButton.setTooltip ("Stops the loop. The big button then starts it again from the top.");
@@ -8503,21 +8999,25 @@ LooperPanel::LooperPanel (StarterAmpProcessor& p) : processor (p)
     latchButton.setTooltip ("Some MIDI footswitches send a different value each press (on, then off). Turn this on so every press counts. Leave it off for a switch that sends on only while pressed.");
     barsBox.setTooltip ("Free: the loop is as long as you record. 1 to 8 bars: the loop closes by itself after that many bars at the tempo in the header, using the beats per bar from the metronome. Maximum loop length is 40 seconds.");
     levelSlider.setTooltip ("How loud the loop plays back, in dB.");
+    modeBox.setTooltip ("How the loop plays back. Reverse plays it backwards; half speed plays it at half speed, an octave down (like a tape deck), and double speed an octave up. The recording itself is not changed, so Normal gets it back. Overdub only works at Normal.");
     cycleButton.onClick = [this] { processor.getLooper().command (Looper::Cycle); };
     undoButton.onClick  = [this] { processor.getLooper().command (Looper::Undo); };
     stopButton.onClick  = [this] { processor.getLooper().command (Looper::Stop); };
     clearButton.onClick = [this] { processor.getLooper().command (Looper::Clear); };
     for (auto* c : { (juce::Component*) &cycleButton, (juce::Component*) &undoButton, (juce::Component*) &stopButton, (juce::Component*) &clearButton,
                      (juce::Component*) &armButton, (juce::Component*) &latchButton, (juce::Component*) &barsBox, (juce::Component*) &levelSlider,
-                     (juce::Component*) &barsLabel, (juce::Component*) &levelLabel, (juce::Component*) &note })
+                     (juce::Component*) &barsLabel, (juce::Component*) &levelLabel, (juce::Component*) &modeBox, (juce::Component*) &modeLabel, (juce::Component*) &note })
         addAndMakeVisible (c);
     barsLabel.setText ("Length", juce::dontSendNotification);   barsLabel.setColour (juce::Label::textColourId, ui::textDim);
+    modeLabel.setText ("Playback", juce::dontSendNotification);   modeLabel.setColour (juce::Label::textColourId, ui::textDim);
     levelLabel.setText ("Loop level", juce::dontSendNotification);  levelLabel.setColour (juce::Label::textColourId, ui::textDim);
     levelSlider.setSliderStyle (juce::Slider::LinearHorizontal);
     levelSlider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 64, 20);
     levelSlider.textFromValueFunction = [] (double v) { return juce::String (v, 1) + " dB"; };
     if (auto* pc = dynamic_cast<juce::AudioParameterChoice*> (p.apvts.getParameter ("lprBars"))) barsBox.addItemList (pc->choices, 1);
     barsAttach  = std::make_unique<APVTS::ComboBoxAttachment> (p.apvts, "lprBars", barsBox);
+    if (auto* pc = dynamic_cast<juce::AudioParameterChoice*> (p.apvts.getParameter ("lprMode"))) modeBox.addItemList (pc->choices, 1);
+    modeAttach  = std::make_unique<APVTS::ComboBoxAttachment> (p.apvts, "lprMode", modeBox);
     levelAttach = std::make_unique<APVTS::SliderAttachment> (p.apvts, "lprLevel", levelSlider);
     armAttach   = std::make_unique<APVTS::ButtonAttachment> (p.apvts, "lprArm", armButton);
     latchAttach = std::make_unique<APVTS::ButtonAttachment> (p.apvts, "lprLatch", latchButton);
@@ -8593,6 +9093,9 @@ void LooperPanel::resized()
     auto l1 = r.removeFromTop (28);
     barsLabel.setBounds (l1.removeFromLeft (90));  barsBox.setBounds (l1.removeFromLeft (140));
     r.removeFromTop (6);
+    auto l1b = r.removeFromTop (28);
+    modeLabel.setBounds (l1b.removeFromLeft (90));  modeBox.setBounds (l1b.removeFromLeft (240));
+    r.removeFromTop (6);
     auto l2 = r.removeFromTop (28);
     levelLabel.setBounds (l2.removeFromLeft (90));  levelSlider.setBounds (l2);
     r.removeFromTop (4);
@@ -8600,6 +9103,164 @@ void LooperPanel::resized()
     latchButton.setBounds (r.removeFromTop (26));
     r.removeFromTop (6);
     note.setBounds (r.removeFromTop (60));
+}
+
+//==============================================================================
+// ModSourcePanel (b107)
+//==============================================================================
+ModSourcePanel::ModSourcePanel (StarterAmpProcessor& p) : processor (p)
+{
+    setSize (820, 500);                                                  // b120: room for the 16 step bars
+    auto& st = p.apvts;
+    auto label = [this] (juce::Label& l, const char* text) { l.setText (text, juce::dontSendNotification); l.setColour (juce::Label::textColourId, ui::textDim); addAndMakeVisible (l); };
+    for (int m = 0; m < 2; ++m)
+    {
+        auto& c = col[m];
+        const juce::String q = "mod" + juce::String (m + 1);
+        label (c.title, m == 0 ? "MODULATOR 1" : "MODULATOR 2");
+        c.title.setFont (juce::Font (juce::FontOptions (15.0f, juce::Font::bold)));
+        c.title.setColour (juce::Label::textColourId, ui::text);
+        label (c.rateLabel, "Rate");  label (c.smoothLabel, "Smooth");
+        addAndMakeVisible (c.source);  addAndMakeVisible (c.rate);  addAndMakeVisible (c.smooth);
+        if (auto* pc = dynamic_cast<juce::AudioParameterChoice*> (st.getParameter (q + "Src"))) c.source.addItemList (pc->choices, 1);
+        c.sourceAtt = std::make_unique<APVTS::ComboBoxAttachment> (st, q + "Src", c.source);
+        c.rateAtt   = std::make_unique<APVTS::SliderAttachment> (st, q + "Rate", c.rate);
+        c.smoothAtt = std::make_unique<APVTS::SliderAttachment> (st, q + "Smooth", c.smooth);
+        for (auto* sl : { &c.rate, &c.smooth })
+        {
+            sl->setSliderStyle (juce::Slider::LinearHorizontal);
+            sl->setTextBoxStyle (juce::Slider::TextBoxRight, false, 64, 20);
+        }
+        // b120: the Step sequence: a step length, a pattern length and 16 step bars (-1 to 1, double-click for 0)
+        addChildComponent (c.div);  addChildComponent (c.len);
+        if (auto* pc = dynamic_cast<juce::AudioParameterChoice*> (st.getParameter (q + "Div"))) c.div.addItemList (pc->choices, 1);
+        if (auto* pc = dynamic_cast<juce::AudioParameterChoice*> (st.getParameter (q + "Len"))) c.len.addItemList (pc->choices, 1);
+        c.divAtt = std::make_unique<APVTS::ComboBoxAttachment> (st, q + "Div", c.div);
+        c.lenAtt = std::make_unique<APVTS::ComboBoxAttachment> (st, q + "Len", c.len);
+        c.div.setTooltip ("How long each step lasts, in note values at the plugin's tempo (the tempo box, tap tempo, or the host's tempo and position when HOST TEMPO is on and the DAW is playing).");
+        c.len.setTooltip ("How many of the 16 steps the pattern uses before it starts again. Odd lengths against a bar of 4 make the pattern drift against the beat.");
+        for (int k = 0; k < 16; ++k)
+        {
+            auto& sl = c.steps[k];
+            addChildComponent (sl);
+            sl.setSliderStyle (juce::Slider::LinearBarVertical);
+            sl.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
+            sl.setDoubleClickReturnValue (true, 0.0);
+            sl.setColour (juce::Slider::trackColourId, ui::accent.withAlpha (0.55f));
+            sl.setTooltip ("Step " + juce::String (k + 1) + ": how far this step pushes the target knobs (the Amount sliders below scale it). Up is positive, down is negative, double-click for 0.");
+            c.stepAtt[k] = std::make_unique<APVTS::SliderAttachment> (st, q + "S" + juce::String (k + 1), sl);
+        }
+        c.rate.textFromValueFunction = [] (double v) { return juce::String (v, 2) + " Hz"; };
+        c.rate.updateText();
+        c.source.setTooltip ("What drives this modulator. Envelope follows how hard you play (0 to 1, full at about -10 dBFS at the input). The LFOs and the random sources swing both ways around your knob. Off switches the modulator off.");
+        c.rate.setTooltip ("How fast the LFO or the random source moves. Not used by the Envelope.");
+        c.smooth.setTooltip ("Envelope: how long it takes to fall back after you stop (20 ms to 1.5 s). The other sources: how much the movement is rounded off. Random glide always glides.");
+        for (int d = 0; d < 3; ++d)
+        {
+            const juce::String t = q + "T" + juce::String (d + 1), a = q + "A" + juce::String (d + 1);
+            addAndMakeVisible (c.target[d]);  addAndMakeVisible (c.amount[d]);
+            if (auto* pc = dynamic_cast<juce::AudioParameterChoice*> (st.getParameter (t))) c.target[d].addItemList (pc->choices, 1);
+            c.targetAtt[d] = std::make_unique<APVTS::ComboBoxAttachment> (st, t, c.target[d]);
+            c.amountAtt[d] = std::make_unique<APVTS::SliderAttachment> (st, a, c.amount[d]);
+            c.amount[d].setSliderStyle (juce::Slider::LinearHorizontal);
+            c.amount[d].setTextBoxStyle (juce::Slider::TextBoxRight, false, 56, 20);
+            c.amount[d].setDoubleClickReturnValue (true, 0.0);
+            c.target[d].setTooltip ("The knob this modulator moves. The knob keeps the value you set; the modulation is added on top of it, along the knob's own travel (a frequency knob moves in octaves). The effect must be switched on to be heard.");
+            c.amount[d].setTooltip ("How far it moves the knob, as a fraction of the knob's whole travel. Negative moves it the other way (with the Envelope, a positive amount turns the knob up when you play harder). Double-click for 0.");
+        }
+    }
+    note.setText ("The knob you set is the base; the modulator moves it around that value. Changes happen about every 10 ms (once per audio block), so very fast LFOs sound stepped. "
+                  "A knob that is already at the end of its travel can only move one way.", juce::dontSendNotification);
+    note.setFont (juce::Font (juce::FontOptions (12.0f)));
+    note.setColour (juce::Label::textColourId, ui::textDim);
+    note.setJustificationType (juce::Justification::topLeft);
+    addAndMakeVisible (note);
+    startTimerHz (30);
+}
+
+void ModSourcePanel::timerCallback()
+{
+    for (int m = 0; m < 2; ++m)
+    {
+        const int type = col[m].source.getSelectedItemIndex();
+        const bool env = type == 1, off = type <= 0, seq = type == 6;
+        col[m].rate.setEnabled (! off && ! env);
+        col[m].smooth.setEnabled (! off && type != 5);
+        if (col[m].div.isVisible() != seq)
+        {
+            col[m].div.setVisible (seq);  col[m].len.setVisible (seq);  col[m].rate.setVisible (! seq);  col[m].rateLabel.setVisible (! seq);
+            for (auto& sl : col[m].steps) sl.setVisible (seq);
+        }
+        const float v = processor.getModulatorValue (m);
+        const int stp = seq ? processor.getModulatorStep (m) : -1;
+        if (type != shownType[m] || stp != shownStep[m] || std::abs (v - shownValue[m]) > 0.004f) { shownType[m] = type;  shownStep[m] = stp;  shownValue[m] = v;  repaint(); }
+    }
+}
+
+void ModSourcePanel::paint (juce::Graphics& g)
+{
+    g.fillAll (ui::background);
+    for (int m = 0; m < 2; ++m)
+    {
+        auto b = juce::Rectangle<int> (20 + m * 400, 20, 380, 436).toFloat();
+        g.setColour (ui::panel);
+        g.fillRoundedRectangle (b, 6.0f);
+        // the live value: 0 to 1 for the Envelope, centred for the others
+        const auto bar = juce::Rectangle<float> (b.getX() + 14.0f, b.getY() + 74.0f, b.getWidth() - 28.0f, 8.0f);
+        g.setColour (juce::Colour (0xff1d232b));
+        g.fillRoundedRectangle (bar, 3.0f);
+        const int type = col[m].source.getSelectedItemIndex();
+        if (type > 0)
+        {
+            const float v = processor.getModulatorValue (m);
+            g.setColour (ui::accent);
+            if (type == 6)
+            {
+                // the step the sequence is on: a marker under its bar
+                const int stp = processor.getModulatorStep (m);
+                const auto& sl = col[m].steps[juce::jlimit (0, 15, stp)];
+                g.setColour (ui::accent);
+                g.fillRect (juce::Rectangle<int> (sl.getX() + 2, sl.getBottom() + 3, sl.getWidth() - 4, 4));
+            }
+            if (type == 1) g.fillRoundedRectangle (bar.withWidth (bar.getWidth() * juce::jlimit (0.0f, 1.0f, v)), 3.0f);
+            else
+            {
+                const float mid = bar.getCentreX(), x = mid + 0.5f * bar.getWidth() * juce::jlimit (-1.0f, 1.0f, v);
+                g.fillRoundedRectangle (juce::Rectangle<float> (std::min (mid, x), bar.getY(), std::max (3.0f, std::abs (x - mid)), bar.getHeight()), 3.0f);
+            }
+        }
+    }
+}
+
+void ModSourcePanel::resized()
+{
+    for (int m = 0; m < 2; ++m)
+    {
+        auto& c = col[m];
+        auto r = juce::Rectangle<int> (20 + m * 400, 20, 380, 436).reduced (14, 10);
+        c.title.setBounds (r.removeFromTop (24));
+        c.source.setBounds (r.removeFromTop (26));
+        r.removeFromTop (22);                                  // the meter (painted)
+        auto row = r.removeFromTop (24);
+        c.rateLabel.setBounds (row.removeFromLeft (60));  c.rate.setBounds (row);
+        c.div.setBounds (row.withX (c.rateLabel.getX()).withWidth (c.rateLabel.getWidth() + row.getWidth() / 2 + 2).withTrimmedRight (4));
+        c.len.setBounds (juce::Rectangle<int> (c.div.getRight() + 6, row.getY(), c.rate.getRight() - c.div.getRight() - 6, row.getHeight()));
+        row = r.removeFromTop (24);
+        c.smoothLabel.setBounds (row.removeFromLeft (60));  c.smooth.setBounds (row);
+        r.removeFromTop (10);
+        for (int d = 0; d < 3; ++d)
+        {
+            c.target[d].setBounds (r.removeFromTop (26));
+            c.amount[d].setBounds (r.removeFromTop (24));
+            r.removeFromTop (8);
+        }
+        {   // the 16 step bars under the targets (shown for the Step sequence only)
+            auto strip = r.removeFromTop (88).withTrimmedBottom (8);
+            const int w = strip.getWidth() / 16;
+            for (int k = 0; k < 16; ++k) c.steps[k].setBounds (strip.getX() + k * w + 1, strip.getY(), w - 2, strip.getHeight());
+        }
+    }
+    note.setBounds (20, 462, getWidth() - 40, 34);
 }
 
 //==============================================================================
@@ -8990,6 +9651,7 @@ StarterAmpEditor::~StarterAmpEditor()
     midiWindow.reset();
     orderWindow.reset();
     metroWindow.reset();
+    modsWindow.reset();
     loopWindow.reset();
     browserWindow.reset();
     libraryWindow.reset();
@@ -9076,6 +9738,30 @@ juce::ComboBox& StarterAmpEditor::makeCombo (const char* paramId)
     return combos.back()->box;
 }
 
+// b101: a menu whose item count changes with the chosen amp (the Voicing menus show only the voicings the amp has), attached by hand:
+// the item id is the parameter's index + 1. JUCE's own ComboBoxAttachment maps item i of n to i / (n - 1) of the parameter's whole range, which only
+// works when the menu has as many items as the parameter has choices. The Voicing parameter has seven choices and most amps show four, so
+// the second item set voicing 3, the third and fourth set voicing 5 and 7 (which the amp then held at its last voicing), and the menu
+// then redrew itself on a different item. (Found from a b100 report: "picks the voicing below, skipping voicing 2".)
+juce::ComboBox& StarterAmpEditor::makeIndexCombo (const char* paramId)
+{
+    auto c = std::make_unique<ComboControl>();
+    auto* param = processorRef.apvts.getParameter (paramId);
+    if (auto* choice = dynamic_cast<juce::AudioParameterChoice*> (param))
+        c->box.addItemList (choice->choices, 1);
+    c->box.setJustificationType (juce::Justification::centred);
+    c->box.paramId = paramId;
+    c->box.setTooltip (tipFor (processorRef.apvts, paramId));
+    auto* box = &c->box;
+    auto* holder = c.get();
+    c->paramAttach = std::make_unique<juce::ParameterAttachment> (*param, [box] (float v) { box->setSelectedId ((int) std::lround (v) + 1, juce::dontSendNotification); });
+    c->box.onChange = [holder, box] { holder->paramAttach->setValueAsCompleteGesture ((float) (box->getSelectedId() - 1)); };
+    c->paramAttach->sendInitialUpdate();
+    idMap[paramId] = &c->box;
+    combos.push_back (std::move (c));
+    return combos.back()->box;
+}
+
 bool StarterAmpEditor::isLatched (const char* latchId) const
 {
     return processorRef.apvts.getRawParameterValue (latchId)->load() > 0.5f;
@@ -9126,9 +9812,9 @@ void StarterAmpEditor::setupSwitch (juce::TextButton& button, const char* paramI
 namespace
 {
     // Amp model values (the ampModel parameter) in each folder, quietest first.
-    const int kCleanAmps[]   = { 10, 22, 32, 0, 30, 31, 1 };                    // Jade Chorus, Clean, Chime Thirty
-    const int kMidAmps[]     = { 21, 33, 9, 7, 6, 15, 23, 25, 16, 3, 27, 28 };              // Tweedle Dee, Bumble Lead, Club Crunch, Master Cranker, Slow Burn
-    const int kHighAmps[]    = { 2, 11, 20, 4, 8, 17, 19, 18, 13, 14, 24, 26, 29, 12 };     // Hot-Rod, Marque Dream, Modern Maul, 5555 Block, Precision, Digital Dread, Citrus Doom
+    const int kCleanAmps[]   = { 10, 22, 32, 0, 42, 30, 31, 1 };                    // Jade Chorus, Clean, Chime Thirty
+    const int kMidAmps[]     = { 21, 33, 9, 7, 6, 15, 23, 45, 25, 16, 3, 27, 28, 44, 43 };              // Tweedle Dee, Bumble Lead, Club Crunch, Master Cranker, Slow Burn
+    const int kHighAmps[]    = { 2, 11, 20, 4, 8, 17, 19, 18, 13, 14, 24, 26, 29, 12, 41, 43 };     // Hot-Rod, Marque Dream, Modern Maul, 5555 Block, Precision, Digital Dread, Citrus Doom
 
     // b34: amps that have a clean, a crunch and a lead voicing appear in every folder they cover. Picking one from a folder sets the
     // voicing that matches the folder. folder: 0 Clean, 1 Low / mid gain, 2 High gain.
@@ -9152,10 +9838,11 @@ namespace
         { 37, 0, 0 }, { 37, 1, 1 }, { 37, 2, 2 },        // Cedar Ten: Clean / Pushed / Drive
         { 38, 0, 0 }, { 38, 1, 2 },                      // Brit Forty-Five: Normal / Cranked
         { 39, 0, 1 }, { 39, 1, 0 },                      // Tweedle Mini: Princeton / Champ
-        { 40, 0, 0 }, { 40, 1, 1 }, { 40, 2, 2 } };      // Jubilant: Clean / Rhythm / Lead
+        { 40, 0, 0 }, { 40, 1, 1 }, { 40, 2, 2 },       // Jubilant: Clean / Rhythm / Lead
+        { 43, 1, 1 }, { 43, 2, 0 } };                    // Ember: Edge / Lead
     // Amp B's menu has no Acoustic or Triple Blend entry: the parameter index of an amp model value, and the model value of a parameter index
     int ampBIndexOf (int value) { return value < 5 ? value : value <= 30 ? value - 1 : value == 31 ? -1 : value - 2; }
-    int ampBModelOf (int idx)   { return idx <= 4 ? std::max (0, idx) : idx <= 29 ? idx + 1 : std::min (idx, 38) + 2; }
+    int ampBModelOf (int idx)   { return idx <= 4 ? std::max (0, idx) : idx <= 29 ? idx + 1 : std::min (idx, 43) + 2; }
     bool hasRoles (int model) { for (const auto& r : kAmpRoles) if (r.model == model) return true; return false; }
     // Item ids: a plain amp is index + 1. A role entry is 1000 + index * 4 + voicing.
     int roleId (int idx, int voicing) { return 1000 + idx * 4 + voicing; }
@@ -9218,16 +9905,16 @@ juce::ComboBox& StarterAmpEditor::makeGroupedCombo (const char* paramId)
     const juce::String pid (paramId);
     std::vector<Group> groups;
     if (pid == "reverbType" || pid == "rev2Type")
-        groups = { { "Regular", { 0, 1, 2, 3, 4, 5, 6, 17, 7 } }, { "Big spaces", { 9, 13 } },
+        groups = { { "Regular", { 0, 1, 2, 3, 4, 5, 18, 6, 17, 7 } }, { "Big spaces", { 9, 13 } },
                    { "Effected", { 8, 10, 11, 14, 15, 16 } }, { "Impulse response", { 12 } } };
     else if (pid == "fuzzStyle" || pid == "fuzz2Style")
-        groups = { { "Fuzz", { 0, 4, 5, 7, 13 } }, { "Distortion", { 1, 2, 3, 6, 9, 10, 11 } }, { "Special", { 8, 12 } } };
+        groups = { { "Fuzz", { 0, 4, 5, 7, 13, 14 } }, { "Distortion", { 1, 2, 3, 6, 9, 10, 11 } }, { "Special", { 8, 12 } } };
     else if (pid == "fuzzMuffVer" || pid == "fuzz2MuffVer")
         groups = { { "Voiced", { 0, 1, 2, 3 } }, { "Solved from a circuit", { 4, 5, 6, 7, 8, 9 } } };
     else if (pid == "compSat")
         groups = { { "Basic", { 0, 1, 2, 3 } }, { "Stage emulations", { 4, 5, 6, 7, 8 } }, { "Shared curves (as in the Multiband Saturator, Delay and Reverb)", { 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24 } } };
     else if (pid == "mfAType" || pid == "mfBType" || pid == "mfCType" || pid == "mfDType")
-        groups = { { "Flangers", { 0, 1, 9 } }, { "Vibrato and pitch", { 2, 3, 7, 10 } }, { "Tremolo and pan", { 4, 5, 6, 8 } }, { "Chorus, phaser and lo-fi", { 12, 13, 14 } }, { "Filters", { 21, 15, 16, 17, 18, 19 } }, { "Rhythmic", { 11, 20 } }, { "Shifter and voice", { 22, 23 } } };
+        groups = { { "Flangers", { 0, 1, 9 } }, { "Vibrato and pitch", { 2, 3, 7, 10 } }, { "Tremolo and pan", { 4, 5, 6, 8 } }, { "Chorus, phaser and lo-fi", { 12, 13, 14 } }, { "Filters", { 21, 15, 16, 17, 18, 19 } }, { "Rhythmic", { 11, 20 } }, { "Shifter and voice", { 22, 23 } }, { "Digital", { 24, 25 } } };
     else
         groups = { { "Default", { 0, 1 } }, { "Clean and crunch", { 2, 3, 6 } }, { "Lead and high gain", { 4, 5, 7, 8 } }, { "Boutique", { 9, 10 } } };   // amp stack
 
@@ -9333,7 +10020,7 @@ juce::ComboBox& StarterAmpEditor::makeSpeakerCombo (const char* paramId)
         static const int kClassic[] = { 31, 32, 33, 34, 35 };       // Classic ... (35 = Classic Warm Presence, v71)
         static const int kRaw[]     = { 36, 37, 38 };               // Raw Big Low, Raw Bright Cap (v71), Full-Range Open (v94)
         static const int kOther[]   = { 39, 40, 41, 42, 43 };       // American Thin Bite ... Vintage Hollow Mid (fitted to single-mic recordings of other speakers)
-        static const int kIdeal[]   = { 44, 45, 46, 47 };
+        static const int kIdeal[]   = { 44, 45, 46, 47, 59 };       // b80: Ideal Defined (the last speaker, so saved sessions keep their numbers)
         static const int kSmallD[]  = { 48, 49, 50, 51 };           // b67: Big Fifteen (it had no menu entry), Jensen-Style Ten, Paper Eight, Battery Three-Inch
         static const int kOddD[]    = { 52, 53, 54, 55, 56, 57, 58 }; // b67: Telephone ... Tin Can (deliberately not guitar speakers)           // Ideal Reference, Warm, Presence, Wide Open (v0.1 cab pass)
         auto* root = c->box.getRootMenu();
@@ -9581,7 +10268,7 @@ void StarterAmpEditor::syncVisibility()
         applyAccent (juce::Colour (ampThemeFor (themeIndex).tick));
         auto* modelParam = dynamic_cast<juce::AudioParameterChoice*> (vts.getParameter ("ampModel"));
         const juce::String modelName = modelParam != nullptr ? modelParam->getCurrentChoiceName() : juce::String();
-        static const char* const shortNames[34] = { "Clean", "Vintage", "Hot-Rod", "Lead", "Modern", "Acoustic", "Club Crunch", "Boutique", "5555 Block", "Low-Watt", "Glass", "Creamy", "Doom", "Precision", "Digital", "MV Rock", "Harmonic", "Aggressive", "Mod Stack", "4-Ch Modern", "Mid-Cut", "British", "Console", "Plexi", "Matamp", "Marmalade", "Eclipse", "Marque 5", "Dual 30", "Solid Metal", "Cedar 12", "Triple Blend", "Jazz Box", "Brit 18" };
+        static const char* const shortNames[34] = { "Clean", "Vintage", "Hot-Rod", "Lead", "Modern", "Acoustic", "Club Crunch", "Boutique", "5555 Block", "Low-Watt", "Glass", "Creamy", "Doom", "Precision", "Digital", "MV Rock", "Harmonic", "Aggressive", "Mod Stack", "4-Ch Modern", "Mid-Cut", "British", "Console", "Plex", "Matt's", "Marmalade", "Eclipse", "Marque 5", "Dual 30", "Solid Metal", "Cedar 12", "Triple Blend", "Jazz Box", "Brit 18" };
                 auto* modelBParam = dynamic_cast<juce::AudioParameterChoice*> (vts.getParameter ("ampBModel"));
         const juce::String modelBName = modelBParam != nullptr ? modelBParam->getCurrentChoiceName() : juce::String();
         ampArtPanel.setTheme (onB ? themeForModel (ampBModelOf ((int) value ("ampBModel"))) : themeIndex);
@@ -9651,6 +10338,17 @@ void StarterAmpEditor::syncVisibility()
     const bool customWow = (int) value ("wowMode") == 6;
     wowPanel.setHidden (wowHeelKnob, ! customWow);       // Heel and Toe only matter in Custom mode
     wowPanel.setHidden (wowToeKnob, ! customWow);
+    wowPanel.setHidden (wowGritKnob, (int) value ("wowChar") == 0);
+    {   // b79: the octaver shows the controls of the voice set you chose
+        const int om = (int) value ("octMode");
+        octPanel.setHidden (octABox, om != 0);  octPanel.setHidden (octBBox, om != 0);
+        octPanel.setHidden (octKnob[0], om != 0);  octPanel.setHidden (octKnob[1], om != 0);
+        for (int i = 2; i <= 5; ++i) octPanel.setHidden (octKnob[i], om == 0 || (om == 3 && i >= 4));      // b86: the analogue divider has only -2 and -1 octaves
+        for (int i = 6; i <= 9; ++i) octPanel.setHidden (octKnob[i], om != 2);
+        octPanel.setHidden (octGritKnob, (int) value ("octChar") == 0 || om == 3);
+        octPanel.setHidden (octTrackBox, om == 3);  octPanel.setHidden (octCharBox, om == 3);        // b86: the divider has no tracking or character options
+        octPanel.setHidden (octAtkKnob, om == 3);   octPanel.setHidden (octDecKnob, om == 3);
+    }       // b78: Grit only matters for the bad-tracking characters
 
     for (int w = 0; w < 2; ++w)
     {
@@ -9661,8 +10359,8 @@ void StarterAmpEditor::syncVisibility()
         const bool trio = fuzzStyle >= 4 && fuzzStyle <= 6;      // Face, Bender, Factory
         const bool wall = fuzzStyle == 0;
         const bool metal = fuzzStyle == 11;
-        fp.setHidden (c.gate, ! gated && ! metal);
-        fp.setHidden (c.stab, ! gated);
+        fp.setHidden (c.gate, ! gated && ! metal && fuzzStyle != 14);
+        fp.setHidden (c.stab, ! gated && fuzzStyle != 14);
         const bool vrb = fuzzStyle == 12;
         fp.setHidden (c.vProg, ! vrb);  fp.setHidden (c.vOrder, ! vrb);  fp.setHidden (c.vHold, ! vrb);
         fp.setHidden (c.vAmt, ! vrb);   fp.setHidden (c.vDecay, ! vrb);  fp.setHidden (c.vMod, ! vrb);
@@ -9682,7 +10380,7 @@ void StarterAmpEditor::syncVisibility()
         fp.setHidden (c.boost, fuzzStyle != 10 && ! metal);
         fp.setHidden (c.tonePass, ! wall);
         fp.setHidden (c.buffer, ! trio);
-        fp.setHidden (c.comp, fuzzStyle != 6);
+        fp.setHidden (c.comp, fuzzStyle != 6 && fuzzStyle != 14);
         fp.setHidden (c.starve, fuzzStyle != 4 && fuzzStyle != 5 && fuzzStyle != 13);
         fp.setHidden (c.squeal, fuzzStyle != 13);
         fp.setHidden (c.oscHz, fuzzStyle != 13);
@@ -9720,17 +10418,29 @@ void StarterAmpEditor::syncVisibility()
     {
         // b31: Bloom, Smack and Clarity belong to the Thump style; the Dyna style ignores the ratio, saturation and detector menus
         const int cs = (int) value ("compStyle");
+        if (cs == 6 && lastCompStyleSeen >= 0 && lastCompStyleSeen != 6)      // b68 (R17): switching to Dyna with Attack and Release still at their shared defaults (5 ms, 250 ms) sets the circuit's own values (10 ms, 1.5 s)
+        {
+            auto* pa = vts.getParameter ("compAttack");  auto* pr = vts.getParameter ("compRelease");
+            if (pa != nullptr && pr != nullptr && std::abs (value ("compAttack") - 5.0f) < 0.05f && std::abs (value ("compRelease") - 250.0f) < 1.0f)
+            {
+                pa->setValueNotifyingHost (pa->convertTo0to1 (10.0f));
+                pr->setValueNotifyingHost (pr->convertTo0to1 (1500.0f));
+            }
+        }
+        lastCompStyleSeen = cs;
         for (auto* k : compThumpKnob) compPanel.setHidden (k, cs != 7);
-        compPanel.setHidden (compRatioBox, cs == 6 || cs == 8 || cs == 10);
-        compPanel.setHidden (compAutoBox, cs == 6 || cs == 8 || cs == 10);      // b35: Dyna has its own fixed behaviour (b58: so does Opto Sustain; b62: and Crush Limiter)
-        compPanel.setHidden (compSatBox, cs == 6 || cs == 8 || cs == 10);
-        compPanel.setHidden (compDetBox, cs == 6 || cs == 8 || cs == 10);
+        compPanel.setHidden (compRatioBox, cs == 6 || cs == 8 || cs == 10 || cs == 11 || cs == 12);
+        compPanel.setHidden (compAutoBox, cs == 6 || cs == 8 || cs == 10 || cs == 11 || cs == 12);      // b35: Dyna has its own fixed behaviour (b58: so does Opto Sustain; b62: and Crush Limiter)
+        compPanel.setHidden (compSatBox, cs == 6 || cs == 8 || cs == 10 || cs == 11 || cs == 12);
+        compPanel.setHidden (compDetBox, cs == 6 || cs == 8 || cs == 10 || cs == 11 || cs == 12);
         compPanel.setHidden (compLlRelBox, cs != 10);
-        for (auto* k : compOptoKnob) compPanel.setHidden (k, cs != 8);
+        compPanel.setHidden (compOptoKnob[0], cs != 8 && cs != 11 && cs != 12);   compPanel.setHidden (compOptoKnob[1], cs != 8);   compPanel.setHidden (compOptoKnob[2], cs != 8 && cs != 11);
+        compPanel.setHidden (compCsKnob, cs != 11 && cs != 12);
         for (auto* k : compLlKnob) compPanel.setHidden (k, cs != 10);
-        for (auto* k : compClassicKnob) compPanel.setHidden (k, cs == 8 || cs == 10);
+        for (auto* k : compClassicKnob) compPanel.setHidden (k, cs == 8 || cs == 10 || cs == 11 || cs == 12);
         if (compMixKnob != nullptr) compMixKnob->setName (cs == 8 ? "Blend" : "Mix");
-        if (compOutKnob != nullptr) compOutKnob->setName (cs == 8 || cs == 10 ? "Volume" : "Output");
+        if (compOptoKnob[2] != nullptr) compOptoKnob[2]->setName (cs == 11 ? "Tone" : "Treble");
+        if (compOutKnob != nullptr) compOutKnob->setName (cs == 8 || cs == 10 ? "Volume" : cs == 11 || cs == 12 ? "Level" : "Output");
     }
     for (int s = 0; s < 4; ++s)
     {
@@ -9739,32 +10449,40 @@ void StarterAmpEditor::syncVisibility()
         auto& pn = mfPanelOf (s);
         pn.setHidden (mfShiftKnob[s], t != 9 && t != 22);
         if (mfShiftKnob[s] != nullptr) mfShiftKnob[s]->setName (t == 9 ? "Feedback Shift" : "Shift");   // not built yet while the Type box makes its first update
-        pn.setHidden (mfFbKnob[s],   ! (t == 0 || t == 1 || t == 3 || t == 7 || t == 9 || (t >= 13 && t <= 19) || t == 21 || t == 22 || t == 23));
+        pn.setHidden (mfFbKnob[s],   ! (t == 0 || t == 1 || t == 3 || t == 7 || t == 9 || (t >= 13 && t <= 19) || t == 21 || t == 22 || t == 23 || t == 24 || t == 25));      // b105: Digital damage's Freeze (Feedback) had been left out
         pn.setHidden (mfManKnob[s],  ! (t == 0 || t == 1 || t == 4 || t == 9 || t >= 13));
-        pn.setHidden (mfToneKnob[s], ! (t <= 4 || t == 9 || t == 12 || t == 14 || t == 20 || t == 22 || t == 23));
+        pn.setHidden (mfToneKnob[s], ! (t <= 4 || t == 9 || t == 12 || t == 14 || t == 20 || t == 22 || t == 23 || t == 24 || t == 25));
         if (mfToneKnob[s] != nullptr) mfToneKnob[s]->setName (t == 23 ? "Top Freq" : "Tone");   // not built yet while the Type box makes its first update
-        if (mfManKnob[s] != nullptr) mfManKnob[s]->setName (t == 22 ? "Delay" : t == 23 ? "Formant" : "Manual");   // not built yet while the Type box makes its first update
-        if (mfFbKnob[s] != nullptr) mfFbKnob[s]->setName (t == 23 ? "Sharpness" : "Feedback");   // not built yet while the Type box makes its first update
+        if (mfManKnob[s] != nullptr) mfManKnob[s]->setName (t == 22 ? "Delay" : t == 23 ? "Formant" : t == 24 ? "Dropouts" : t == 25 ? "Rise" : "Manual");   // not built yet while the Type box makes its first update
+        if (mfFbKnob[s] != nullptr) mfFbKnob[s]->setName (t == 23 ? "Sharpness" : t == 24 ? "Freeze" : t == 25 ? "Tail" : "Feedback");   // not built yet while the Type box makes its first update
         pn.setHidden (mfDepthKnob[s], t == 23);
+        if (mfDepthKnob[s] != nullptr) mfDepthKnob[s]->setName (t == 24 ? "Loss" : t == 25 ? "Layers" : "Depth");
         pn.setHidden (mfFidKnob[s],  t == 7 || t == 13 || t == 14 || t >= 15);
         for (int k = 0; k < 6; ++k)
             pn.setHidden (mfXKnob[s][k], k < 3 ? t != 13 : k < 5 ? t != 14 : (t != 14 && t != 23));
         pn.setHidden (mfXKnob[s][8], t != 23);
         pn.setHidden (mfXKnob[s][9], t != 23);
         pn.setHidden (mfFsModeBox[s], t != 22);
+        pn.setHidden (mfFrameBox[s], t != 24);
         pn.setHidden (mfLoVoiceBox[s], t != 14);
+        pn.setHidden (mfViVoiceBox[s], t != 2);
+        pn.setHidden (mfFlVoiceBox[s], t != 0);
         pn.setHidden (mfPhVoiceBox[s], t != 13);
+        pn.setHidden (mfPhStereoBox[s], t != 13);
         pn.setHidden (mfVocBox[s][0], t != 23);
         pn.setHidden (mfVocBox[s][1], t != 23);
         pn.setHidden (mfVocBox[s][2], t != 23 || (int) value ((juce::String ("mf") + "ABCD"[s] + "VocCar").toRawUTF8()) != 3);
         const int fmode = (int) value ((juce::String ("mf") + "ABCD"[s] + "FMode").toRawUTF8());
         pn.setHidden (mfXKnob[s][6], t != 21 || fmode != 4);                      // the vowel: Formant mode of the all-modes Filter
         pn.setHidden (mfXKnob[s][7], t != 8);                                     // Pick Response: Tremolo
+        pn.setHidden (mfXKnob[s][10], t != 14 || (int) value ((juce::String ("mf") + "ABCD"[s] + "LoVoice").toRawUTF8()) != 1);    // b120: Breathing: Cassette voicing only
+        pn.setHidden (mfXKnob[s][11], t != 14 && t != 24);                       // b120: Bit Mangle: Lo-Fi and Digital damage
         pn.setHidden (mfChModeBox[s], t != 12);
         pn.setHidden (mfFModeBox[s], t != 21);
         pn.setHidden (mfFMotionBox[s], t != 21);
         pn.setHidden (mfFlipBox[s], t != 21);
-        pn.setHidden (mfRateKnob[s], t == 19 || t == 23);
+        pn.setHidden (mfRateKnob[s], t == 19 || t == 23 || t == 25);
+        pn.setHidden (mfHoldBox[s], t != 25);
     }
     reverbPanel.setHidden (shimmerPitchBox, ! shimmer);
     reverbPanel.setHidden (shimmerAmountKnob, ! shimmer);
@@ -9809,7 +10527,7 @@ void StarterAmpEditor::syncVisibility()
 // Shows the Transparent or Tight controls to match the Style menu.
 void StarterAmpEditor::syncOverdrivePage()
 {
-    overdrivePanel.setPage (juce::jlimit (0, 11, (int) std::lround (processorRef.apvts.getRawParameterValue ("odStyle")->load())));
+    overdrivePanel.setPage (juce::jlimit (0, 12, (int) std::lround (processorRef.apvts.getRawParameterValue ("odStyle")->load())));
     drive2Panel.setPage (juce::jlimit (0, 11, (int) std::lround (processorRef.apvts.getRawParameterValue ("od2Style")->load())));
 }
 
@@ -9872,7 +10590,7 @@ void StarterAmpEditor::tapTempo()
 // off and on positions; the third is new.
 static std::vector<const char*> voicingNamesFor (int model)
 {
-    static const std::array<const char*, 4> names[41] = {
+    static const std::array<const char*, 4> names[46] = {
         { "Sparkly", "Edge push", "Boutique", "Studio" },        // 0 Clean
         { "Chime", "Treble boost", "Normal", "Jangle" },         // 1 Chime Thirty
         { "Tight", "Heavy", "Brown", "Mid push" },                 // 2 Hot-Rod
@@ -9903,7 +10621,7 @@ static std::vector<const char*> voicingNamesFor (int model)
         { "Clean", "Crunch", "Lead", "Extreme" },                 // 27 Marque Five (v0.2): the channels
         { "Channel 1", "Channel 2", "Pushed", "Cut" },            // 28 Dual Thirty (v0.2)
         { "Hybrid Hi-Gain", "Hybrid Classic OD", "JFET Lead", "JFET Crunch" },   // 29 Solid Metal (v0.2)
-        { "Blackface", "Spanky", "Cranked", "Silverface" },               // 30 Cedar Spring (v0.2; Blackface = Deluxe-style, Big Spring = Vibroverb-style, and in b63 a fifth, Quad Ten, after it)
+        { "Blackface", "Bright", "Cranked", "Silverface" },               // 30 Cedar Spring (v0.2; Blackface = Deluxe-style, Big Spring = Vibroverb-style, and in b63 a fifth, Quad Ten, after it)
         { "Three-in-One", "Warm", "Open", "Singing" },                  // 31 Triple Blend (v0.2)
         { "Jazz", "Archtop", "Dark Room", "Pushed" },                   // 32 Jazz Box (b14)
         { "Clean", "Crunch", "Cranked", "Brilliant" },                  // 33 Brit Eighteen (b14)
@@ -9912,9 +10630,14 @@ static std::vector<const char*> voicingNamesFor (int model)
         { "Big Spring", "Brownface", "Cranked", "Bright" },             // 36 Cedar Grand (b66): the 6L6 reverb combo
         { "Clean", "Pushed", "Drive", "Lead" },                         // 37 Cedar Ten (b66): the 4x10 combo with a gain channel
         { "Normal", "Bright", "Cranked", "Pushed" },                    // 38 Brit Forty-Five (b66): the KT66 head
-        { "Champ", "Princeton", "Cranked", "Edge" },                    // 39 Tweedle Mini (b66): the 5 W single-ended tweed
-        { "Clean", "Rhythm", "Lead", "Lead Hi" } };                     // 40 Jubilant (b66): cascaded clipping stages
-    const auto& four = names[juce::jlimit (0, 40, model)];
+        { "Starter", "Small", "Cranked", "Edge" },                    // 39 Tweedle Mini (b66): the 5 W single-ended tweed
+        { "Clean", "Rhythm", "Lead", "Lead Hi" },                       // 40 Jubilant (b66): cascaded clipping stages
+        { "Clear", "Lead", "Thick", "Edge" },                           // 41 Clarion (b69): the idealized high-gain amp
+        { "Glass", "Air", "Body", "Pushed" },                          // 42 Prism (b70): the idealized clean amp
+        { "Lead", "Edge", "Bite", "Extreme" },                      // 43 Ember (b73): the idealized lead amp
+        { "Chime", "Crunch", "Push", "Warm" },                      // 44 Kindle (b80): the idealized low / mid gain amp
+        { "Treble", "Bass", "Linked", "Fifty" } };                  // 45 Ironside (b84): the 1969 British 100 W head
+    const auto& four = names[juce::jlimit (0, 45, model)];
     std::vector<const char*> out (four.begin(), four.end());
     for (int k = 0; k < AmpExtras::count (model); ++k)      // b63/b65: Cedar Spring's fifth voicing and the other extra voicings (AmpExtras.h)
         out.push_back (AmpExtras::name (model, k));
@@ -10424,6 +11147,7 @@ void StarterAmpEditor::syncUsed()
     }
     boostEqPanel.setContentDimmed (idMap.count ("bsEqOn") ? idMap["bsEqOn"] : nullptr, pv ("bsEqOn") < 0.5f || pv ("bsOn") < 0.5f);
 
+    setUsed ("repHold", (int) std::lround (processorRef.apvts.getRawParameterValue ("repAuto")->load()) == 0, "the Trigger menu is set to follow the beat; set it to Repeat Now switch to use this.");        // b120
     setUsed ("tremPick", PatchGraph::laneOf (processorRef.getPatch(), 14) == 2, "put the Tremolo in the amp's FX loop first (pedalboard window, or drag it on the chain strip).");
 
     // ---- Delays
@@ -10454,27 +11178,49 @@ void StarterAmpEditor::syncUsed()
     {
         const std::string p = std::string ("mf") + "ABCD"[s];
         const int type = (int) pv ((p + "Type").c_str());
-        setUsed ((p + "Feedback").c_str(), type == 0 || type == 1 || type == 3 || type == 7 || type == 9 || (type >= 13 && type <= 19) || type == 21 || type == 22 || type == 23, "only the flangers, the Uni-V, the Phaser, the Lo-Fi warble (as dirt), the filters (as resonance), the Wobble (as its drift), the shifter (shifted repeats) and the Vocoder (as sharpness) use Feedback.");
+        setUsed ((p + "Feedback").c_str(), type == 0 || type == 1 || type == 3 || type == 7 || type == 9 || (type >= 13 && type <= 19) || type == 21 || type == 22 || type == 23 || type == 24 || type == 25, "only the flangers, the Uni-V, the Phaser, the Lo-Fi warble (as dirt), the filters (as resonance), the Wobble (as its drift), the shifter (shifted repeats) and the Vocoder (as sharpness) use Feedback.");
         setUsed ((p + "Manual").c_str(),   type == 0 || type == 1 || type == 4 || type == 9 || type >= 13, "this type does not use Manual.");
-        setUsed ((p + "Shape").c_str(),    type != 4 && type != 7 && type != 12 && type != 19 && type != 20 && type != 21 && type != 23, "the Vocoder, the rotary / chorus speaker, the wobble, the auto-wah, the slicer and the all-modes Filter (see its Motion menu) have their own motion, so the LFO shape is not used.");
-        setUsed ((p + "Tone").c_str(),     type <= 4 || type == 9 || type == 12 || type == 14 || type == 20 || type == 22 || type == 23, "this type has no tone filter.");
+        setUsed ((p + "Shape").c_str(),    type != 4 && type != 7 && type != 12 && type != 19 && type != 20 && type != 21 && type != 23 && type != 24 && type != 25, "Digital damage, the Vocoder, the rotary / chorus speaker, the wobble, the auto-wah, the slicer and the all-modes Filter (see its Motion menu) have their own motion, so the LFO shape is not used.");
+        setUsed ((p + "Tone").c_str(),     type <= 4 || type == 9 || type == 12 || type == 14 || type == 20 || type == 22 || type == 23 || type == 24 || type == 25, "this type has no tone filter.");
         setUsed ((p + "Depth").c_str(), type != 23, "the Vocoder has no sweep.");
     }
 
-    // ---- Harmonizer
-    const bool scaleMode = (int) pv ("hmMode") == 1;
-    setUsed ("hmAInt", ! scaleMode, "Scale mode uses the Step knob instead.");
-    setUsed ("hmBInt", ! scaleMode, "Scale mode uses the Step knob instead.");
-    setUsed ("hmADeg", scaleMode, "Interval mode uses the Interval knob instead.");
-    setUsed ("hmBDeg", scaleMode, "Interval mode uses the Interval knob instead.");
+    // ---- Harmonizer (b115: four voices, MIDI mode, arpeggiator). Interval / Step knobs that the mode does not use are hidden so the rest spread out.
+    const int hmModeV = (int) pv ("hmMode");
+    const bool scaleMode = hmModeV == 1, midiMode = hmModeV == 2;
+    {
+        static const char* intId[4] = { "hmAInt", "hmBInt", "hmCInt", "hmDInt" };
+        static const char* degId[4] = { "hmADeg", "hmBDeg", "hmCDeg", "hmDDeg" };
+        for (int v = 0; v < 4; ++v)
+        {
+            if (auto it = idMap.find (intId[v]); it != idMap.end()) harmPanel.setHidden (it->second, hmModeV != 0);
+            if (auto it = idMap.find (degId[v]); it != idMap.end()) harmPanel.setHidden (it->second, hmModeV != 1);
+        }
+        const bool arpOn = pv ("hmArp") > 0.5f;
+        if (auto it = idMap.find ("hmArpGate");  it != idMap.end()) harmPanel.setHidden (it->second, ! arpOn);
+        if (auto it = idMap.find ("hmArpLevel"); it != idMap.end()) harmPanel.setHidden (it->second, ! arpOn);
+        setUsed ("hmArpPattern", arpOn, "switch the arpeggiator on to use the pattern.");
+        setUsed ("hmArpRate",    arpOn, "switch the arpeggiator on to use the rate.");
+    }
     setUsed ("hmKey", scaleMode, "only Scale mode needs a key.");
     {
         const int track = (int) pv ("hmTrack");
-        setUsed ("hmGlide", track == 0 && scaleMode, track != 0 ? "Chords mode changes pitch at once; Glide only works in Single note mode." : "Interval mode never changes the interval, so there is nothing to glide.");
+        setUsed ("hmGlide", track == 0 && hmModeV != 0, track != 0 ? "Chords mode changes pitch at once; Glide only works in Single note mode." : "Interval mode never changes the interval, so there is nothing to glide.");
         const uint64_t heard = processorRef.harmHeardNotes();
         static const char* names[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
         juce::String t;
-        if (! scaleMode) t = "Interval mode: the harmony moves with whatever you play.";
+        if (midiMode)
+        {
+            int n = 0;
+            for (int w = 0; w < 2; ++w)
+            {
+                const uint64_t bits = processorRef.midiHeldNotes (w);
+                for (int i = 0; i < 64; ++i)
+                    if (bits & (uint64_t (1) << i)) { const int m = w * 64 + i; t << (n++ ? " " : "") << names[m % 12] << juce::String (m / 12 - 1); }
+            }
+            t = n == 0 ? "MIDI: hold keys on a MIDI keyboard" : "MIDI keys: " + t;
+        }
+        else if (! scaleMode) t = "Interval mode: the harmony moves with whatever you play.";
         else if (heard == 0) t = "Hearing: nothing yet";
         else
         {
@@ -10494,9 +11240,19 @@ void StarterAmpEditor::syncUsed()
     const bool afterCab = (int) pv ("hmPos") == 1;
     setUsed ("hmAPan", afterCab, "before the amp the harmony is mono. Choose After the cab for stereo.");
     setUsed ("hmBPan", afterCab, "before the amp the harmony is mono. Choose After the cab for stereo.");
+    setUsed ("hmCPan", afterCab, "before the amp the harmony is mono. Choose After the cab for stereo.");
+    setUsed ("hmDPan", afterCab, "before the amp the harmony is mono. Choose After the cab for stereo.");
+
+    setUsed ("octTrack", (int) pv ("octChar") == 0, "the lo-fi Characters have their own simple shifter. Tracking applies to the Clean character.");     // b79
+    setUsed ("octGrit",  (int) pv ("octChar") != 0, "Grit scales how bad the Grainy Sweep, Glitchy, Abrasive and Noisy characters get, and sets how fast Warble wobbles. The Clean character has none.");
+    setUsed ("wowTrack", (int) pv ("wowChar") == 0, "the lo-fi Characters have their own simple shifter. Tracking applies to the Clean character.");     // b78
+    setUsed ("wowGrit",  (int) pv ("wowChar") != 0, "Grit scales how bad the Grainy Sweep, Glitchy, Abrasive and Noisy characters get, and sets how fast Warble wobbles. The Clean character has none.");
 
     // ---- Wah: each mode uses different controls
     const int wahMode = (int) pv ("wahMode");
+    const int wahVoiceSel = (int) pv ("wahVoice");
+    setUsed ("wahFuzz",  wahVoiceSel == 7, "only the Optical with fuzz voicing has a fuzz.");
+    setUsed ("wahRange", wahVoiceSel >= 1 && wahMode != 3, "Range moves the sweep of the circuit voicings (not Generic, not the Envelope Filter).");
     setUsed ("wahSens",  wahMode == 1 || wahMode == 3, "only the Envelope modes follow how hard you play.");
     setUsed ("wahDecay", wahMode == 1 || wahMode == 3, "only the Envelope modes have a decay.");
     setUsed ("wahEnvDir",   wahMode == 3, "only the Envelope Filter mode has a direction.");
@@ -10505,6 +11261,15 @@ void StarterAmpEditor::syncUsed()
     setUsed ("wahRate",  wahMode == 2, "only the LFO mode sweeps by itself.");
     setUsed ("wahDepth", wahMode == 2, "only the LFO mode sweeps by itself.");
     setUsed ("reverbDrive", (int) pv ("reverbType") == 6 || (int) pv ("reverbType") == 17, "only the Spring reverb types have a driver. Pick Spring or Spring (tank).");
+    {   // b112: the saturator's Easy mode and Feedback
+        const bool easy = pv ("msEasy") > 0.5f;
+        setUsed ("msAmount", easy, "Easy mode is off. Switch EASY on to set the drive with Amount and Focus.");
+        setUsed ("msFocus", easy, "Easy mode is off. Switch EASY on to set the drive with Amount and Focus.");
+        for (int k = 1; k <= 4; ++k) setUsed (("msDrive" + juce::String (k)).toRawUTF8(), ! easy, "Easy mode is on: the Amount and Focus knobs set every band's drive. Switch EASY off to use this.");
+        const bool anyFb = pv ("msFb1") > 0.001f || pv ("msFb2") > 0.001f || pv ("msFb3") > 0.001f || pv ("msFb4") > 0.001f;
+        setUsed ("msFbPitch", anyFb, "No band has Feedback. Turn up a Fdbk knob on this page.");
+    }
+    setUsed ("reverbSpringFb", (int) pv ("reverbType") == 17, "only the Spring (tank) reverb type has a spring to feed back. Pick Spring (tank).");
     setUsed ("reverbReturn", (int) pv ("reverbType") == 6 || (int) pv ("reverbType") == 17, "only the Spring reverb types have a spring return. Pick Spring or Spring (tank).");
     setUsed ("wahNote",  wahMode == 2, "only the LFO mode sweeps by itself.");
 
@@ -10513,6 +11278,16 @@ void StarterAmpEditor::syncUsed()
     const bool fdn = (int) pv ("reverbType") > 0 && ! irRev && (int) pv ("reverbType") != 17;
     for (const char* id : { "reverbDiffuse", "reverbSpace", "reverbDrag", "reverbDragMode" })
         setUsed (id, fdn, irRev ? "the IR Reverb plays an impulse response, so this does not apply." : "the Classic reverb does not have this. Pick another reverb type.");
+    for (const char* pre : { "reverb", "rev2" })      // b81: Bass Decay, its crossover and the Clock work on every reverb that has a delay-line tail
+    {
+        const juce::String ty = juce::String (pre) + "Type";
+        const int tv = (int) pv (ty.toRawUTF8());
+        const bool net = tv > 0 && tv != 12 && tv != 17;
+        const juce::String bd = juce::String (pre) + "BassDecay";
+        setUsed (bd.toRawUTF8(), net, tv == 0 ? "the Classic reverb does not have this. Pick another reverb type." : "this reverb type is not a delay-line reverb.");
+        setUsed ((juce::String (pre) + "Cross").toRawUTF8(), net && std::abs (pv (bd.toRawUTF8()) - 1.0f) > 0.01f, "move Bass Decay away from 1 first; the crossover is where the bass band starts.");
+        setUsed ((juce::String (pre) + "Clock").toRawUTF8(), net, tv == 0 ? "the Classic reverb does not have this. Pick another reverb type." : "this reverb type is not a delay-line reverb.");
+    }
     for (const char* id : { "reverbIrSource", "reverbIrReverse", "reverbIrStretch" })
         setUsed (id, irRev, "only the IR Reverb type uses this. Pick IR Reverb as the Reverb type.");
     setUsed ("reverbGravity", (int) pv ("reverbType") == 13, "only the Black Hole reverb type has Gravity. Pick Black Hole.");
@@ -10525,6 +11300,7 @@ void StarterAmpEditor::syncUsed()
     }
     setUsed ("rev2Gravity", (int) pv ("rev2Type") == 13, "only the Black Hole reverb type has Gravity. Pick Black Hole.");
     setUsed ("rev2Drive", (int) pv ("rev2Type") == 6 || (int) pv ("rev2Type") == 17, "only the Spring reverb types have a driver. Pick Spring or Spring (tank).");
+    setUsed ("rev2SpringFb", (int) pv ("rev2Type") == 17, "only the Spring (tank) reverb type has a spring to feed back. Pick Spring (tank).");
     setUsed ("rev2Return", (int) pv ("rev2Type") == 6 || (int) pv ("rev2Type") == 17, "only the Spring reverb types have a spring return. Pick Spring or Spring (tank).");
     {
         const bool fdn2 = (int) pv ("rev2Type") > 0 && (int) pv ("rev2Type") != 17;
@@ -10551,6 +11327,7 @@ void StarterAmpEditor::syncUsed()
             hideId (pre + "Drive",     type != 6 && type != 17);
             hideId (pre + "Return",    type != 6 && type != 17);
             hideId (pre + "Gravity",   type != 13);
+            hideId (pre + "GateShape", type != 11);
             hideId (pre + "EchoTime",  type != 15);
             hideId (pre + "EchoFb",    type != 15);
             hideId (pre + "Mangle",    type != 16);
@@ -10901,7 +11678,7 @@ void StarterAmpEditor::layoutFlow (bool force)
                 sig << (pv (it.extraId) > 0.5f ? 'm' : 'n');
     for (auto& fp : flowPages)
         for (auto& it : fp->items)
-            if (it.extraWithAdv)
+            if (it.extraWithAdv || it.tallWithAdv)
                 sig << (it.main->isAdvancedShown() ? 'a' : 'b');
     if (! force && sig == flowSignature)
         return;
@@ -10953,6 +11730,13 @@ void StarterAmpEditor::layoutFlow (bool force)
             else if (it.lane >= 0)          lane = it.lane;
             else if (scroll)                lane = x[0] <= x[1] ? 0 : 1;
             else                            lane = (x[0] + total <= Wp || (pass == 1 && x[0] + (int) (0.7 * total) <= Wp)) ? 0 : 1;
+            if (it.tallWithAdv && it.main->isAdvancedShown() && x[1 - lane] <= x[lane])     // b113: with ADV on it takes both lanes when nothing sits under it
+            {
+                const int wTall = scroll ? it.w : std::min (it.w, Wp - x[lane]);
+                it.main->setBounds (x[lane], 0, wTall, y1 + hB);
+                x[0] = x[1] = x[lane] + wTall + gap;
+                continue;
+            }
             const double scale = scroll || x[lane] + total <= Wp ? 1.0 : std::max (0.6, (double) (Wp - x[lane]) / (double) total);
             const int wMain = (int) std::floor (it.w * scale), wExtra = (int) std::floor (it.wExtra * scale);
             const int y = lane == 0 ? 0 : y1, h = lane == 0 ? h0 : hB;
@@ -11118,6 +11902,14 @@ void StarterAmpEditor::openLoopWindow()
         loopWindow = std::make_unique<ToolWindow> ("Looper", std::make_unique<LooperPanel> (processorRef), lookAndFeel);
     loopWindow->setVisible (true);
     loopWindow->toFront (true);
+}
+
+void StarterAmpEditor::openModsWindow()
+{
+    if (modsWindow == nullptr)
+        modsWindow = std::make_unique<ToolWindow> ("Modulators", std::make_unique<ModSourcePanel> (processorRef), lookAndFeel);
+    modsWindow->setVisible (true);
+    modsWindow->toFront (true);
 }
 
 void StarterAmpEditor::openMetroWindow()

@@ -15,14 +15,14 @@ The long version, with the numbers and schematic notes behind each line, is in M
 
 ---
 
-## Amps (32 amps; voicing-level detail is in AMP_SOURCES.md)
+## Amps (46 amps, numbered 0 to 45; voicing-level detail is in AMP_SOURCES.md)
 
 | # | Amp | Based on | Provenance |
 |---|---|---|---|
 | 0 | Twin Sparkle | Fender Twin Reverb-style clean | You asked; schematic (1972 Twin) |
 | 1 | Chime Thirty | Vox AC30-style | You asked; schematic (1978 AC30) |
 | 2 | Brown Eye | Friedman BE-100 / HBE-style | You asked; captures + schematic |
-| 3 | Slow Burn | Soldano SLO-100-style | You asked; schematic |
+| 3 | Slow Burn | Soldano SLO-100-style | You asked; schematic; b68: cold clipper from the SLO-100 sheet |
 | 4 | Modern Maul | Dual Rectifier-style | You asked; schematic + captures |
 | 5 | Acoustic | Piezo / magnetic acoustic amp (the acoustic amps in Neural DSP's Tim Henson and Petrucci plugins) | You asked; own design |
 | 6 | Club Crunch | Plexi-style, pushed voicing toward Orange | You asked (the blend is my reading); schematic |
@@ -50,14 +50,21 @@ The long version, with the numbers and schematic notes behind each line, is in M
 | 28 | Dual Thirty | Matchless DC30-style | You asked; schematic |
 | 29 | Solid Metal | 90s hybrid and all-JFET metal heads | You asked; schematic |
 | 30 | Cedar Spring | Small blackface-style combo | Own design; Twin-based estimates |
-| 31 | Triple Blend | Three amps in parallel (Cedar Spring + Bumble Lead + Hi-Wat parts as placeholders) | You asked; placeholder parts |
+| 31 | Triple Blend | Three amps in parallel (Cedar Spring Big Spring + Bumble Lead Rock + Hi-Wat Headroom Normal voicings) | You asked; the three parts are stand-ins for a real three-amp rig, with the balance fitted to a three-amp capture (b87); Warm and Open retuned in b90 (designed) |
+| 32 | Jazz Box | Big, dark, solid-state jazz amps (Polytone-style idea) | You asked about the idea; my reading (b14) |
+| 33 | Brit Eighteen | Small 18 W British EL84 combos | My reading (b14) |
 | 34 | Tweedle Dum | 5F6-A Bassman-style tweed bass amp | You asked (split from Tweedle Dee); schematic + captures |
 | 35 | Marque One | Mesa Mark I-style single-channel head | You asked (split from Marque Dream); schematic + captures |
-| 36 | Cedar Grand | 40 W two-6L6 reverb combo with a 15-inch speaker | You asked (split from Cedar Spring); captures |
+| 36 | Cedar Grand | 40 W two-6L6 reverb combo with a 15-inch speaker | You asked (split from Cedar Spring); captures; b68: Vibroverb AB763 and 6G16 sheets for the Circuit-derived values and power sections |
 | 37 | Cedar Ten | 4x10 combo with a clean and a gain channel (Blues DeVille-style) | You asked (split from Cedar Spring); captures |
-| 38 | Brit Forty-Five | JTM45-style KT66 45 W head | You asked (split from Plex Appeal); schematic + captures |
+| 38 | Brit Forty-Five | JTM45-style KT66 45 W head | You asked (split from Plex Appeal); schematic + captures; b68: voiced apart from Plex Appeal |
 | 39 | Tweedle Mini | 5 W single-ended tweed (Champ / Princeton-style) | You asked (split from Tweedle Dee); my reading |
 | 40 | Jubilant | Silver-jubilee-style cascaded-clipping head | You asked (split from Marmalade); my reading |
+| 41 | Clarion | Idealized high-gain design (clarity at extreme gain, tight but thick, bright but not fizzy) | You asked for it (b69); my design, not based on a real amp |
+| 42 | Prism | Idealized clean design (super bright, glassy, full range, works with or without a cab) | You asked for it (b71); my design, not based on a real amp |
+| 43 | Ember | Idealized lead design (Marque Dream weight and smoothness, Brown Eye bite and touch, wide gain range) | You asked for it (b73); my design, not based on a real amp |
+| 44 | Kindle | Idealized low / mid gain design (the chime and jangle of a class-A British combo over Ember's weight and touch, clean to light lead) | You asked for it (b80); my design, built on the Chime Thirty's voicings, not based on a real amp |
+| 45 | Ironside | 1969 British 100 W head | You asked (b84); schematic (preamp, power amp and supply sheets); gain range fitted to captures (b87) |
 
 Amp-wide controls (Bright, Tube type, Rectifier, Bias, Power Drive, Resonance, Sag, Feel, Deep, Tone Stack) are generic amp-design ideas, my own simple models. The Tone Stack menu holds passive stacks taken from the schematics you sent. Power tube names (EL34, 6L6, 6V6, EL84, KT88) are my rough reading of each tube's reputation.
 
@@ -132,7 +139,12 @@ Multiband Comp (b15, b55 four-band): generic, Linkwitz-Riley crossovers, not mat
 | Chorus (I, II, I+II) | Roland Juno-60 / Juno-106 chorus | You asked |
 | Chorus: Dimension, Tri-chorus, Ensemble, Detune | Generic chorus types | Own design |
 | Chorus: Small Clone (low and high depth) | Electro-Harmonix Small Clone-style chorus (single slow sweep, dark BBD) | My reading; schematic requested |
+| Chorus: CE-2 / CE-1 | Boss CE-2 and CE-1 | CE-2: the ElectroSmash analysis (line, LFO rate, filters, mix); sweep depth and the CE-1 modes are my estimates |
 | Drive: Metal Zone | Boss MT-2 Metal Zone | S-part (service notes read) with estimated tone ranges |
+| Octaver bank (POG-style and HOG-style voices, envelope, filter) | EHX POG2 and HOG2 | Ideas from public descriptions; my own engine |
+| Drive: Timmy | Paul Cochrane Timmy | My estimate from published descriptions; no schematic |
+| Pitch pedal Character (Old Whammy, Glitchy, Abrasive, Noisy) | Early digital pitch pedals, in general | Own design, not measured |
+| Drive: Metal Zone Custom mode | Boss MT-2W Custom | My estimate of Boss's description (more gain, tighter lows, broader mids) |
 | Flanger, Through-zero | Tape flanging; analog through-zero flangers | My reading |
 | Uni-V | Japanese phase-vibrato pedal from the late 1960s | My reading |
 | Rotary | Rotating-speaker cabinet (horn and drum) | Own design |
@@ -148,7 +160,7 @@ Multiband Comp (b15, b55 four-band): generic, Linkwitz-Riley crossovers, not mat
 
 | Part | Based on | Provenance |
 |---|---|---|
-| Pitch pedal (Position, Octave, Dive bomb, Bend, Custom) | DigiTech Whammy-style, and the "Wow" pedal in Neural DSP's Gojira plugin | You asked |
+| Pitch pedal (Position, Octave, Dive bomb, Bend, Custom; Tracking choices are my own, mirroring the Harmonizer) | DigiTech Whammy-style, and the "Wow" pedal in Neural DSP's Gojira plugin | You asked |
 | Octaver | The octave pedal in Neural DSP's Gojira plugin; analog octavers | My reading |
 | Harmonizer (Interval / Scale) | Intelligent-harmony pitch pedals | Own design |
 | Chord-following harmonizer | Polyphonic harmonizers (spectral shifter, multi-note detector) | Own design |
@@ -169,6 +181,8 @@ Multiband Comp (b15, b55 four-band): generic, Linkwitz-Riley crossovers, not mat
 | Studio Tape | Clean studio tape slap / echo | My reading |
 | Dub Echo | Classic dub tape and tube echoes | My reading |
 | Memory Man | Electro-Harmonix Deluxe Memory Man (analog bucket-brigade echo with chorus/vibrato) | My reading; schematic and/or sound sample requested |
+| DM-2 / DM-2 Custom (delay) | Boss DM-2 / DM-2W analog delay | My estimates of the published character |
+| Vibrato: VB-2 / VB-2 Custom voicing, Rise Time | Boss VB-2 / VB-2W | My estimates of the published character |
 | Duck, Hold (Freeze / Infinite), Multi-tap | Ducking delays; freeze footswitch modes; multi-head and tap patterns | My reading |
 | Groove / Feel / Accent | Soundtoys EchoBoy-style controls | My reading |
 | Echo EQ with Decay | Three-band echo tone control (in the loop or at the output) | My reading |
@@ -259,3 +273,8 @@ Djent rhythm: Meshuggah, Periphery, Animals as Leaders, Monuments. Singing leads
 | Frequency shifter / ring mod (Mod FX, b62) | Electro-Harmonix Ring Thing, Catalinbread Bicycle-style shifters | You asked (gap survey); standard single-sideband method |
 | Vocoder (Mod FX, b62) | Electro-Harmonix V256 and Iron Lung-style vocoders | You asked (gap survey); standard band-pass-bank vocoder |
 | Feral (fuzz style, b62) | Self-oscillating bias-modulated fuzzes (Antichthon, Teaser Stallion-style) | You asked (gap survey); my own circuit idea, no schematic |
+| Comp: CS-3 | Boss CS-3 Compression Sustainer | S-part (service notes read); gain law and ranges estimated |
+| Wah: Dimebag / 535Q (Range, Boost) | Dunlop DB01B and 535Q | Ranges and 15 dB published; Q estimated |
+| Wah: Clyde McCoy | Dunlop CM95 | Sweep and gain published; Q estimated |
+| Wah: Morley optical, Bad Horsie, Cliff Burton fuzz wah | Morley optical wahs, PWF1 | My estimates (mechanism published) |
+| Wah: Petrucci JP95 | Dunlop JP95 | Manual's rough sweep and gain; EQ not modelled |

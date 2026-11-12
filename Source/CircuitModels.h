@@ -698,7 +698,7 @@ namespace Circuit
         void reset()
         {
             for (auto* b : { &hp1, &hp2, &bp, &ge, &sh1, &sh2, &sh3, &lpOut, &bp2, &ge2, &tLp, &pk, &lpS2, &nbLpIn, &nbDiv, &nbLp7, &nbHp5, &nbBp2, &nbLpOut, &nbEqLo, &nbEqMid, &nbEqHi,
-                            &mzHp, &mzHp2, &mzA, &mzB, &mzC, &mzD, &mzS1lp, &mzLp, &mzShelf, &mzLo, &mzMid, &mzHi }) b->reset();
+                            &mzHp, &mzHp2, &mzA, &mzB, &mzC, &mzD, &mzS1lp, &mzLp, &mzShelf, &mzLo, &mzMid, &mzHi, &tmLp, &tmBass }) b->reset();
             for (auto& b : nbLeg) b.reset();
             nbClip.reset();
             rail.reset();  rail2.reset();  vNode = xPrev = env = 0.0f;
@@ -846,18 +846,21 @@ namespace Circuit
         //   Tone: HIGH and LOW are +/-15 dB shelves (the printed panel range; corners 4.5 kHz and 105 Hz, the LOW corner read from the Sallen-Key network), and the
         //   MIDDLE band is a peak with its centre swept 200 Hz to 5 kHz (the printed MID FREQ range). Estimates, because the sheet does not give them: the MIDDLE
         //   range (+/-12 dB here), the peak's width (Q 0.9), the shelf corners of HIGH, and the two transistor cells of stage 4b (read as plain legs).
-        void setupMetalZone (float dist, float high, float low, float mid, float midFreq)
+        void setupMetalZone (float dist, float high, float low, float mid, float midFreq, int custom = 0)
         {
             kind = 7;
             const float k = std::min (1.0f, std::max (0.0f, dist));
             auto cl = [] (float v) { return std::min (1.0f, std::max (0.0f, v)); };
-            mzHp.set (highPass1 (fs, 106.0));
+            // b75 MT-2W: Standard is the MT-2 as before. Custom (the Waza's second mode) is MY ESTIMATE of Boss's description (more gain, a tighter low end, a broader mid
+            // band): the DIST range doubles (500k), both low-cut corners rise (106 -> 150 Hz and 48 -> 110 Hz) and the MIDDLE peak is wider (Q 0.9 -> 0.65). Boss does not publish it.
+            const bool cu = custom != 0;
+            mzHp.set (highPass1 (fs, cu ? 150.0 : 106.0));
             const auto g1 = designGainStage (fs, 12200.0f, 27.0e-9f, 220000.0f, 100.0e-12f, 2.5e6f, 0.0f);
             mzA.set (g1.bandPass);  ge.set (g1.gbwAndEdge);  peak = g1.peakGain;
             mzS1lp.set (lowPass1 (fs, 340.0));
             mzLp.set (bilinear (fs, 0, 0, 0.5, 0, 2.35e-4, 1.0));
-            mzHp2.set (highPass1 (fs, 48.0));
-            const float vr = 250000.0f * audioTaper (k);
+            mzHp2.set (highPass1 (fs, cu ? 110.0 : 48.0));
+            const float vr = (cu ? 500000.0f : 250000.0f) * audioTaper (k);
             const auto g2 = designGainStage (fs, 1000.0f, 10.0e-6f, 1000.0f + vr, 47.0e-12f, 2.5e6f, 0.0f);
             mzB.set (g2.bandPass);  ge2.set (g2.gbwAndEdge);  peak2g = g2.peakGain;
             rail.setRail (3.3f);  rail2.setRail (3.3f);
@@ -870,7 +873,29 @@ namespace Circuit
             mzD.set (g4.bandPass);  mzPeakD = g4.peakGain;
             mzLo.set (lowShelf (fs, 105.0, std::pow (10.0, (cl (low) - 0.5) * 30.0 / 20.0)));
             mzHi.set (highShelf (fs, 4500.0, std::pow (10.0, (cl (high) - 0.5) * 30.0 / 20.0)));
-            mzMid.set (peak2 (fs, std::min (0.45 * fs, 200.0 * std::pow (25.0, (double) cl (midFreq))), 0.9, std::pow (10.0, (cl (mid) - 0.5) * 24.0 / 20.0)));
+            mzMid.set (peak2 (fs, std::min (0.45 * fs, 200.0 * std::pow (25.0, (double) cl (midFreq))), cu ? 0.65 : 0.9, std::pow (10.0, (cl (mid) - 0.5) * 30.0 / 20.0)));
+        }
+        // b78 Timmy-style overdrive (kind 8). THIS IS MY ESTIMATE, not a schematic: I found no public Timmy schematic. It follows the published descriptions of the pedal: one
+        //   op-amp gain stage with the clipping diodes in its feedback (so the clipping is soft and the gain stays low), a flat response with no mid hump (the ground leg is 2.2k with
+        //   2.2 uF, so only below about 33 Hz does it fall to unity), and then two cut-only controls after the clipper: Treble (a low-pass that is flat at full) and Bass (a low shelf cut that is flat at full).
+        //   Every value below is a guess of that shape: the gain pot 75k (about 3 to 31 dB), 220 pF across the feedback, a 3 MHz op-amp, Treble corner 0.9 kHz to 18 kHz, Bass cut up to 18 dB below 200 Hz.
+        //   The clipping menu (Silicon, LED, Germanium, Asymmetric, None) stands in for the pedal's clipping switch, whose exact positions I could not confirm.
+        void setupTimmy (float gain, float treble, float bass, const DiodeSpec& pos, const DiodeSpec& neg)
+        {
+            kind = 8;  dp = pos;  dn = neg;
+            auto cl = [] (float v) { return std::min (1.0f, std::max (0.0f, v)); };
+            const float k = cl (gain);
+            rail.setRail (4.5f);
+            const double rf = 1000.0 + 75000.0 * audioTaper (k);
+            const auto gs = designGainStage (fs, 2200.0f, 2.2e-6f, (float) rf, 0.0f, 3.0e6f, 0.0f);
+            bp.set (gs.bandPass);  peak = gs.peakGain;
+            {   const double fg = std::min (3.0e6 / (1.0 + (double) peak), 0.45 * fs);
+                ge.set (bilinear (fs, 0, 0, 1, 0, 1.0 / (2.0 * 3.14159265358979 * fg), 1)); }
+            hp1.set (highPass1 (fs, 16.0));
+            nodeR = (float) rf;  nodeC = 220.0e-12f;
+            tmLp.set (lowPass1 (fs, std::min (0.45 * fs, 900.0 * std::pow (20.0, (double) cl (treble)))));
+            const double bc = 1.0 - (double) cl (bass);
+            tmBass.set (lowShelf (fs, 200.0, std::pow (10.0, -bc * bc * 18.0 / 20.0)));
         }
         // For the Boost section: the gain is given in dB and the Treble capacitor as a 0..1 knob (kind 0 only)
         void setupBoost (int kind_, float gainDb, float capKnob)
@@ -954,11 +979,20 @@ namespace Circuit
                     v = v + mzC.run (v) * mzPeakC + mzD.run (v) * mzPeakD;               // op-amp 4b
                     return mzHi.run (mzMid.run (mzLo.run (v)));
                 }
+                case 8:
+                {
+                    v = hp1.run (x);
+                    const float vl = ge.run (bp.run (v) * peak);
+                    float o = v + rcNode (vl);                                           // the op-amp stage: the signal plus the voltage across the feedback network, which the diodes limit
+                    o = rail.process (o);
+                    return tmBass.run (tmLp.run (o));
+                }
                 default: return x;
             }
         }
 
     private:
+        Bq tmLp, tmBass;
         // b67: the Metal Zone's own filters
         Bq mzHp, mzHp2, mzA, mzB, mzC, mzD, mzS1lp, mzLp, mzShelf, mzLo, mzMid, mzHi;
         float mzPeakC = 0.5f, mzPeakD = 0.5f;

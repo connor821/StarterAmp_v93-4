@@ -11,14 +11,18 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include "PolyTuner.h"
+#include "InputCalibration.h"
 #include "NamPlayer.h"
 #include "IrLibrary.h"
 #include "NamSlot.h"
 #include "BoostStage.h"
 #include "ModFx.h"
 #include "FxExtra.h"
+#include "PitchRough.h"
+#include "FormantWarp.h"
 #include "DiMatch.h"
 #include "Looper.h"
+#include "ModSource.h"
 #include "LoFi.h"
 #include "CircuitModels.h"
 #include "MetalPedals.h"
@@ -27,6 +31,7 @@
 #include "Adaa.h"
 #include "PassiveStack.h"
 #include "PatchGraph.h"
+#include "ColdClip.h"
 #include "PowerSection.h"
 #include "AmpExtras.h"
 
@@ -235,8 +240,9 @@ private:
         float readPos = (float) writePos - delay;
         if (readPos < 0.0f) readPos += (float) size;
 
-        const int   i0   = (int) readPos;
+        int         i0   = (int) readPos;
         const float frac = readPos - (float) i0;
+        if (i0 >= size) i0 -= size;      // b84: a read position a hair below zero rounds up to exactly 'size' once the length is added; that read one sample past the buffer
         const int   i1   = (i0 + 1) % size;
         return buffer[(size_t) i0] * (1.0f - frac) + buffer[(size_t) i1] * frac;
     }
@@ -355,18 +361,31 @@ public:
     {
         sr = sampleRate;
         windowSamples = (float) (0.028 * sampleRate);
-        size = (int) (0.200 * sampleRate) + 16;
+        size = (int) (0.300 * sampleRate) + 16;                                          // b98: 0.3 s (was 0.2) so the longer search below always fits
         buffer.assign ((size_t) size, 0.0f);
-        searchRange = searchDefault = (int) (0.007 * sampleRate);
-        compareHalf = compareDefault = std::max (32, (int) (0.004 * sampleRate) / 2);       // samples compared, at stride 2
-        refCapacity = std::max (compareHalf, (int) (0.014 * sampleRate) + 8);
-        ref.assign ((size_t) refCapacity, 0.0f);
+        refCapacity = std::max (std::max (32, (int) (0.004 * sampleRate) / 2), (int) (0.014 * sampleRate) + 8);
+        refCapacity = std::max (refCapacity, (int) (0.060 * sampleRate / 4.0) + 8);
+        ref.assign ((size_t) refCapacity, 0.0f);  refW.assign ((size_t) refCapacity, 0.0f);  wt.assign ((size_t) refCapacity, 1.0f);
         smoothCoef = 1.0f - std::exp (-1.0f / (0.015f * (float) sampleRate));
+        applyMode();
         reset();
     }
 
+    // b98: "precise" splicing, used by the Transposer. The splice search used to look only 7 ms either side and compare only the last 4 ms,
+    // which cannot tell the notes of a chord, a low string, or a weak fundamental apart, so splices landed out of step. Precise mode looks
+    // up to 80 ms either side and compares the last 60 ms (every 4th sample; the newest samples count most, fading with a 15 ms time
+    // constant so a new note is not judged by the old one; a jump away from the nominal delay costs 0.3 per full search range, was 0.1; 0.1 when shifting down more than an octave). The search is coarse (every 8th position) and then refined, which costs about
+    // a quarter as much as checking every position. When shifting up, the search only looks at delays at or above the nominal one: a tap
+    // whose delay shrinks while it sweeps must not start near zero. Nothing else changes, and the other users of this class keep the old mode.
+    void setPrecise (bool on) { if (on != precise) { precise = on;  applyMode();  setLowHz (lowHz);  reset(); } }
+
     void setWindowMs (float ms) { windowSamples = (float) (std::min (80.0f, std::max (8.0f, ms)) * 0.001 * sr); }
     float getWindowSamples() const { return windowSamples; }
+    // b101: the farthest a splice may move a tap from its nominal delay, in ms (0 = the whole search range). The delay of the shifted signal is the nominal delay plus
+    // this offset, so a wide search makes the latency change from splice to splice; a limit keeps it near the nominal value. The penalty still counts against the full range.
+    void setSearchLimitMs (float ms) { limitSamples = ms > 0.0f ? std::max (8, (int) (ms * 0.001 * sr)) : (1 << 30); }
+    float penaltyOverride = -1.0f;                  // tests only: >= 0 replaces the hold-near-nominal penalty chosen in setSemitones
+    std::vector<float>* debugOffsets = nullptr;      // tests only: when set, every splice appends the offset it chose (samples)
 
     // The lowest note you play, in Hz (0 = the normal setting, tuned for a six-string guitar). For 7- and 8-string
     // guitars the search for the best splice point has to look back a whole period of the lowest note, and the
@@ -382,24 +401,65 @@ public:
         }
         hz = std::max (35.0f, hz);
         searchRange = std::max (searchDefault, (int) (0.6f / hz * (float) sr));
-        compareHalf = std::min (refCapacity, std::max (compareDefault, (int) (0.45f / hz * (float) sr)));
+        compareHalf = std::min (refCapacity, std::max (compareDefault, (int) (0.45f / hz * (float) sr * 2.0f / (float) stride)));
     }
 
     void reset()
     {
         std::fill (buffer.begin(), buffer.end(), 0.0f);
-        writePos = 0;  phase = 0.0f;
+        writePos = 0;  phase = 0.0f;  env1 = env2 = 0.0f;  sinceOnset = 1 << 20;  hEnv1 = hEnv2 = 0.0f;  sinceAttack = 1 << 20;
         off[0] = off[1] = 0.0f;
         lastP[0] = 0.0f;  lastP[1] = 0.5f;
         ratio = ratioTarget;
     }
 
-    void setSemitones (float semitones) { ratioTarget = std::pow (2.0f, semitones / 12.0f); }
+    void setSemitones (float semitones)
+    {
+        ratioTarget = std::pow (2.0f, semitones / 12.0f);
+        if (precise) penalty = penaltyOverride >= 0.0f ? penaltyOverride : (semitones < -12.5f ? 0.1f : 0.3f);       // b98: deeper than an octave down, chords need the looser hold; elsewhere runs and note changes follow better with the tighter one
+    }
+
+    // b101: onset sync. A delay-line shifter's delay slides between 0 and one window, so a note that starts at a different point of that cycle comes out
+    // earlier or later (3 to 18 ms spread at 12 ms window, measured). With onset sync on, a pick attack (a fast envelope jumping well above a slow one) restarts the
+    // cycle at its middle, so every note starts with the same delay (half the window, which is what the dry path is delayed by). Off by default; the Transposer turns it on (so Transpose, octaver, pitch pedal clean path, harmonizer). It only restarts the cycle after a pause (the slow envelope below -50 dBFS), never inside a run, where it cost fast-run accuracy.
+    void setOnsetSync (bool on, float quiet = 0.003f) { onsetSync = on;  onsetQuiet = quiet; }
+    // b108: attack hold. Right after a pick attack the buffer holds almost nothing of the new note, so a splice that searches 80 ms back can only land on silence or on
+    // the old note, and the new note then comes out that much later (measured on the G2 file: onset delay sd 1.8 ms at -2, 4.3 at -12, 9.7 at -24, worst 37 ms;
+    // HyperTune 3 ms at every interval). For holdMs after an attack (a fast envelope jumping well above a slow one, with or without a pause before it) a splice may
+    // move a tap by no more than reachMs. After that the full search is back, so chords and sustained notes keep their accuracy.
+    void setAttackHold (float holdMs, float reachMs)
+    {
+        attackHold = holdMs > 0.0f;  holdSamples = (int) (holdMs * 0.001 * sr);  holdReach = std::max (8, (int) (reachMs * 0.001 * sr));
+    }
+    // b109: restart the cycle at its middle (the same state the onset sync sets after a pause). The Transposer's second voice uses it at a pick attack.
+    void restartCycle (float extraDelaySamples = 0.0f) { phase = 0.5f;  off[0] = extraDelaySamples;  off[1] = 0.0f;  lastP[0] = 0.5f;  lastP[1] = 0.0f; }
+    int  onsetCount = 0;      // tests only
 
     float process (float x)
     {
         ratio += smoothCoef * (ratioTarget - ratio);
         buffer[(size_t) writePos] = x;
+        if (onsetSync)
+        {
+            const float a = std::abs (x);
+            env1 += (a > env1 ? 0.045f : 0.0035f) * (a - env1) * (44100.0f / (float) sr);      // about 0.5 ms up, 6 ms down
+            env2 += (a > env2 ? 0.0010f : 0.00035f) * (a - env2) * (44100.0f / (float) sr);    // about 23 ms up, 65 ms down
+            ++sinceOnset;
+            if (sinceOnset > (int) (0.040 * sr) && env1 > onsetRatio * env2 + 0.0008f && env2 < onsetQuiet)
+            {
+                sinceOnset = 0;  ++onsetCount;
+                phase = 0.5f;  off[0] = off[1] = 0.0f;  lastP[0] = 0.5f;  lastP[1] = 0.0f;
+            }
+        }
+
+        if (attackHold)
+        {
+            const float a = std::abs (x);
+            hEnv1 += (a > hEnv1 ? 0.045f : 0.0035f) * (a - hEnv1) * (44100.0f / (float) sr);
+            hEnv2 += (a > hEnv2 ? 0.0010f : 0.00035f) * (a - hEnv2) * (44100.0f / (float) sr);
+            ++sinceAttack;
+            if (sinceAttack > (int) (0.040 * sr) && hEnv1 > holdRatio * hEnv2 + 0.0008f)  sinceAttack = 0;
+        }
 
         float out = 0.0f;
         for (int tap = 0; tap < 2; ++tap)
@@ -425,6 +485,18 @@ public:
     }
 
 private:
+    void applyMode()
+    {
+        stride = precise ? 4 : 2;
+        cstep = precise ? 8 : 1;
+        penalty = precise ? 0.3f : 0.1f;                                                  // how strongly a splice is held near its nominal delay
+        searchRange = searchDefault = precise ? (int) (0.080 * sr) : (int) (0.007 * sr);
+        compareHalf = compareDefault = precise ? std::max (32, (int) (0.060 * sr / 4.0)) : std::max (32, (int) (0.004 * sr) / 2);
+        compareHalf = compareDefault = std::min (compareHalf, refCapacity);
+        for (int k = 0; k < refCapacity; ++k)
+            wt[(size_t) k] = precise ? std::exp (-(float) (k * stride) / (0.015f * (float) sr)) : 1.0f;
+    }
+
     float at (int delay) const        // the sample 'delay' samples ago (integer)
     {
         int i = writePos - delay;
@@ -443,37 +515,59 @@ private:
 
         const int refD = (int) std::lround (refDelay);
         for (int k = 0; k < compareHalf; ++k)
-            ref[(size_t) k] = at (std::max (2, refD) + 2 * k);
+        {
+            ref[(size_t) k] = at (std::max (2, refD) + stride * k);
+            refW[(size_t) k] = ref[(size_t) k] * wt[(size_t) k];
+        }
 
-        const int lo = std::max (4, (int) std::lround (nominal) - searchRange);
-        const int hi = std::min (size - 2 * compareHalf - 8, (int) std::lround (nominal) + searchRange);
+        int reach = std::min (searchRange, limitSamples);
+        if (attackHold && sinceAttack < holdSamples) reach = std::min (reach, holdReach);
+        const int lo = (precise && ratio >= 1.0f) ? std::max (4, (int) std::lround (nominal))
+                                                  : std::max (4, (int) std::lround (nominal) - reach);
+        const int hi = std::min (size - stride * compareHalf - 8, (int) std::lround (nominal) + reach);
 
         float bestScore = -1.0e30f;
-        int   best = (int) std::lround (nominal);
-        for (int c = lo; c <= hi; ++c)
+        int   best = std::max (lo, std::min (hi, (int) std::lround (nominal)));
+        auto scoreAt = [&] (int c)
         {
             float dot = 0.0f, energy = 1.0e-6f;
             for (int k = 0; k < compareHalf; ++k)
             {
-                const float v = at (c + 2 * k);
-                dot += ref[(size_t) k] * v;
-                energy += v * v;
+                const float v = at (c + stride * k);
+                dot += refW[(size_t) k] * v;
+                energy += wt[(size_t) k] * v * v;
             }
             const float distance = std::abs ((float) c - nominal) / (float) searchRange;
-            const float score = dot / std::sqrt (energy) * (1.0f - 0.1f * distance);
-            if (score > bestScore) { bestScore = score; best = c; }
+            return dot / std::sqrt (energy) * (1.0f - penalty * distance);
+        };
+        for (int c = lo; c <= hi; c += cstep)
+        {
+            const float sc = scoreAt (c);
+            if (sc > bestScore) { bestScore = sc; best = c; }
+        }
+        if (cstep > 1)
+        {
+            const int c0 = best;
+            for (int c = std::max (lo, c0 - cstep + 1); c <= std::min (hi, c0 + cstep - 1); ++c)
+            {
+                if (c == c0) continue;
+                const float sc = scoreAt (c);
+                if (sc > bestScore) { bestScore = sc; best = c; }
+            }
         }
         off[tap] = (float) best - nominal;
+        if (debugOffsets != nullptr) debugOffsets->push_back (off[tap]);
     }
 
     // Cubic (Hermite) interpolation of the delay line
     float readDelayed (float delay) const
     {
-        delay = std::max (2.0f, delay);
+        delay = std::max (2.0f, std::min (delay, (float) size - 8.0f));
         float readPos = (float) writePos - delay;
         if (readPos < 0.0f) readPos += (float) size;
-        const int   i1 = (int) readPos;
+        int         i1 = (int) readPos;
         const float t  = readPos - (float) i1;
+        if (i1 >= size) i1 -= size;      // b84: the same rounding as above: a position just below zero became exactly 'size' and read one sample past the buffer (a pop, or garbage fed into the reverb's shimmer and symphony loops)
         const int   i0 = i1 > 0 ? i1 - 1 : size - 1;
         const int   i2 = i1 + 1 < size ? i1 + 1 : i1 + 1 - size;
         const int   i3 = i2 + 1 < size ? i2 + 1 : i2 + 1 - size;
@@ -484,8 +578,15 @@ private:
         return ((c3 * t + c2) * t + c1) * t + y1;
     }
 
-    std::vector<float> buffer, ref;
+    std::vector<float> buffer, ref, refW, wt;
+    bool  precise = false;
+    int   stride = 2, cstep = 1;
+    float penalty = 0.1f;
+    int   limitSamples = 1 << 30;
+    bool  onsetSync = false;  float env1 = 0.0f, env2 = 0.0f, onsetRatio = 2.5f, onsetQuiet = 0.003f;  int sinceOnset = 1 << 20;
+    bool  attackHold = false;  float holdRatio = 2.5f;  int holdSamples = 0, holdReach = 0, sinceAttack = 1 << 20, holdLock = 0;      // b108: see setAttackHold
     int   size = 8, writePos = 0, searchRange = 100, compareHalf = 64, searchDefault = 100, compareDefault = 64, refCapacity = 64;
+    float hEnv1 = 0.0f, hEnv2 = 0.0f;
     float lowHz = 0.0f;
     float phase = 0.0f, ratio = 1.0f, ratioTarget = 1.0f, windowSamples = 1.0f, smoothCoef = 0.01f;
     float off[2] { 0.0f, 0.0f }, lastP[2] { 0.0f, 0.5f };
@@ -502,20 +603,57 @@ class Transposer
 public:
     void prepare (double sampleRate)
     {
-        shifter.prepare (sampleRate);
+        sr = sampleRate;
+        for (auto* v : { &shifter, &voiceB })
+        {
+            v->prepare (sampleRate);
+            v->setPrecise (true);                                                      // b98
+            v->setOnsetSync (true);                                                    // b101: a note after a pause starts at the middle of the cycle, so its delay is always half the window (see GuitarShifter::setOnsetSync); every user of the Transposer gets it
+        }
         dry.assign ((size_t) (0.09 * sampleRate) + 8, 0.0f);
         reset();
     }
-    void setLowHz (float hz) { shifter.setLowHz (hz); }
-    void reset() { shifter.reset(); std::fill (dry.begin(), dry.end(), 0.0f); pos = 0; }
-    void setWindowMs (float ms) { shifter.setWindowMs (ms); }
+    void setLowHz (float hz) { shifter.setLowHz (hz);  voiceB.setLowHz (hz); }
+    void setSearchLimitMs (float ms) { shifter.setSearchLimitMs (ms);  voiceB.setSearchLimitMs (ms); }
+    void setPenaltyOverride (float p) { shifter.penaltyOverride = p;  voiceB.penaltyOverride = p; }
+    void setAttackHold (float holdMs, float reachMs) { shifter.setAttackHold (holdMs, reachMs);  voiceB.setAttackHold (holdMs, reachMs); }
+    void setOnsetSync (bool on, float quiet = 0.003f) { shifter.setOnsetSync (on, quiet);  voiceB.setOnsetSync (on, quiet); }
+    int  onsetCount() const { return shifter.onsetCount; }
+    void setDebugOffsets (std::vector<float>* v) { shifter.debugOffsets = v; }
+    void reset()
+    {
+        shifter.reset();  voiceB.reset();  std::fill (dry.begin(), dry.end(), 0.0f);  pos = 0;
+        active = 0;  xfPos = xfLen;  eFast = eSlow = lp1 = lp2 = eBroad = eMid = 0.0f;  sinceAttack = 1 << 20;  switches = 0;
+    }
+    void setWindowMs (float ms) { shifter.setWindowMs (ms);  voiceB.setWindowMs (ms); }
     int  latencySamples() const { return (int) (shifter.getWindowSamples() * 0.5f); }
+
+    // b109: two voices. Both shifters run on the same input all the time. At a pick attack inside a run the voice that is not playing restarts its
+    // cycle at the middle (so the new note starts with the same delay as a note after a pause) and the output cross-fades to it over a few ms; the voice
+    // that was playing is left alone until then, so a ringing note is not cut or jumped. Before this a note inside a run started anywhere from 0 to
+    // about 50 ms late (sd 15 to 18 ms at -3 to -12 on the G2 runs); re-syncing the one voice at every attack fixed the timing but broke the notes and
+    // clicked (hundreds of steps), because it moved the read position under a ringing note. Off unless setDualVoice is called (costs a second shifter).
+    // b110: the cross-fade is 8 ms for a clear pick click and stretches up to 20 ms for one that only just passes the detector (those are the likely false triggers, on a
+    // held or ringing note, where a short fade between two voices that are not aligned sounds phasey); the restarted voice starts within +-1 ms of the nominal delay so the
+    // notes of a run are not all identical. Measured on the G2 runs at -9: fade 8 ms and jitter +-1 ms cost nothing (sd 4.1 ms, worst 13.6 to 13.7); a stricter detector did
+    // (ratio 3.2 with 5 percent: worst 34 to 43 ms, 90th percentile up to 25), so the detector stays as in b109.
+    void setDualVoice (bool on, float ratio = 3.0f, float fadeMs = 8.0f, float jitterMs = 1.0f)
+    {
+        hpK = 1.0f - std::exp (-2.0f * juce::MathConstants<float>::pi * 2500.0f / (float) sr);
+        dual = on;  attackRatioSet = ratio;  xfLenClear = std::max (8, (int) (fadeMs * 0.001 * sr));  xfLenSoft = std::max (xfLenClear, (int) (0.020 * sr));
+        jitterSamples = jitterMs * 0.001f * (float) sr;  xfLen = xfLenClear;
+    }
+    void setImpulse (float r) { impulse = r; }         // tests only
+    void setDoubtfulGap (float sec) { doubtfulGap = sec; }     // tests only: a click that only just passes the detector must come this long after the last switch
+    void setClickShare (float g) { clickShare = g; }     // tests only: the pick click must carry at least this share of the signal level
+    int switchCount() const { return switches; }      // tests only
 
     // wetInOut: the input on the way in, the shifted signal on the way out.
     // dryOut: filled with the input delayed by latencySamples().
     void process (float* wetInOut, float* dryOut, int n, float semitones)
     {
         shifter.setSemitones (semitones);
+        if (dual) voiceB.setSemitones (semitones);
         const int size = (int) dry.size();
         const int d = std::min (latencySamples(), size - 2);
         for (int i = 0; i < n; ++i)
@@ -523,15 +661,50 @@ public:
             const float in = wetInOut[i];
             dry[(size_t) pos] = in;
             dryOut[i] = dry[(size_t) ((pos - d + size) % size)];
-            wetInOut[i] = shifter.process (in);
+            const float a = shifter.process (in);
+            if (! dual) wetInOut[i] = a;
+            else
+            {
+                const float b = voiceB.process (in);
+                // the pick click only: two one-pole high-passes at about 2.5 kHz, so the pitch of a low note cannot ride the follower within its own cycle (an envelope of the whole signal did, and fired on sustained notes)
+                lp1 += hpK * (in - lp1);  const float h1 = in - lp1;
+                lp2 += hpK * (h1 - lp2);  const float x = std::abs (h1 - lp2);
+                eFast += (x > eFast ? 0.15f : 0.0026f) * (x - eFast) * (44100.0f / (float) sr);       // about 0.15 ms up, 8 ms down
+                eSlow += (x > eSlow ? 0.0010f : 0.00026f) * (x - eSlow) * (44100.0f / (float) sr);    // about 23 ms up, 85 ms down
+                ++sinceAttack;
+                eMid += (x > eMid ? 0.012f : 0.0017f) * (x - eMid) * (44100.0f / (float) sr);               // about 1.7 ms up, 12 ms down: a beating chord rises as fast as this follows it, a pick click does not
+                eBroad += (std::abs (in) > eBroad ? 0.02f : 0.002f) * (std::abs (in) - eBroad) * (44100.0f / (float) sr);
+                const float strength = eFast / (attackRatioSet * eSlow + 0.0003f);                          // 1 at the detector's threshold, larger for a clearer click
+                const bool clear = strength >= 2.0f;
+                if (sinceAttack > (int) ((clear ? 0.040 : doubtfulGap) * sr) && strength > 1.0f && eFast > clickShare * eBroad && eFast > impulse * eMid)
+                {
+                    sinceAttack = 0;
+                    xfLen = clear ? xfLenClear : xfLenClear + (int) ((float) (xfLenSoft - xfLenClear) * (2.0f - strength));
+                    GuitarShifter& next = (active == 0) ? voiceB : shifter;
+                    rng = rng * 1664525u + 1013904223u;                                                         // b110: a clear click restarts the voice within +-jitter of the nominal delay, so the notes of a run are not all identical
+                    next.restartCycle (clear ? jitterSamples * ((float) (rng >> 8) / 8388608.0f - 1.0f) : 0.0f);
+                    prev = active;  active = 1 - active;  xfPos = 0;  ++switches;
+                }
+                const float cur = active == 0 ? a : b, old = prev == 0 ? a : b;
+                if (xfPos < xfLen)
+                {
+                    const float g = 0.5f - 0.5f * std::cos (juce::MathConstants<float>::pi * (float) xfPos / (float) xfLen);
+                    wetInOut[i] = old * (1.0f - g) + cur * g;  ++xfPos;
+                }
+                else wetInOut[i] = cur;
+            }
             if (++pos >= size) pos = 0;
         }
     }
 
 private:
-    GuitarShifter shifter;
+    GuitarShifter shifter, voiceB;
     std::vector<float> dry;
-    int pos = 0;
+    int pos = 0, active = 0, prev = 0, xfPos = 0, xfLen = 384, xfLenClear = 384, xfLenSoft = 960, sinceAttack = 1 << 20, switches = 0;
+    bool dual = false;
+    float eFast = 0.0f, eSlow = 0.0f, attackRatioSet = 2.0f, lp1 = 0.0f, lp2 = 0.0f, hpK = 0.3f, eBroad = 0.0f, eMid = 0.0f, impulse = 0.0f, doubtfulGap = 0.090f, clickShare = 0.04f, jitterSamples = 0.0f;
+    unsigned rng = 12345u;
+    double sr = 48000.0;
 };
 
 //==============================================================================
@@ -679,6 +852,7 @@ private:
 // The amp uses two of these (one before the amp, one after).
 //==============================================================================
 #include "Harmonizer.h"
+#include "OctaverBank.h"
 #include "GuitarSynth.h"
 #include "CabRealism.h"
 #include "RiffRecorder.h"
@@ -739,7 +913,7 @@ public:
         for (int sg = 0; sg < 2; ++sg)
             for (int ch = 0; ch < 2; ++ch)
             {
-                lowpass[sg][ch] = lowpass2[sg][ch] = hpLp[sg][ch] = satDc[sg][ch] = satPrev[sg][ch] = 0.0f;
+                bbdIn[sg][ch][0] = bbdIn[sg][ch][1] = 0.0f;  lowpass[sg][ch] = lowpass2[sg][ch] = hpLp[sg][ch] = satDc[sg][ch] = satPrev[sg][ch] = 0.0f;
                 held[sg][ch] = 0.0f;
                 holdCounter[sg][ch] = 0;
             }
@@ -790,7 +964,7 @@ public:
         //   Studio Tape  : bright, clean tape: a little saturation, very little wobble
         //   Dub Echo     : dark, heavily saturated, bass cut hard in the loop so repeats thin out as they swirl
         struct ModeSet { float cutoffHz, drive, lofiBase, warbleBase; bool linear; float hpHz, modFloor; };
-        static const ModeSet modes[12] = { { 16000.0f, 1.0f, 0.0f, 0.00f, true,    0.0f, 0.0f },
+        static const ModeSet modes[14] = { { 16000.0f, 1.0f, 0.0f, 0.00f, true,    0.0f, 0.0f },
                                            {  4500.0f, 1.8f, 0.0f, 0.12f, false,   0.0f, 0.0f },
                                            {  3200.0f, 2.6f, 0.0f, 0.50f, false,   0.0f, 0.0f },
                                            {  2600.0f, 2.0f, 0.55f, 0.15f, false,  0.0f, 0.0f },
@@ -801,11 +975,17 @@ public:
                                            {  3800.0f, 1.6f, 0.0f, 0.05f, false,   0.0f, 0.25f },  // Chorus Bucket
                                            {  9500.0f, 1.5f, 0.0f, 0.10f, false,  40.0f, 0.0f },   // Studio Tape
                                            {  3000.0f, 3.2f, 0.0f, 0.42f, false, 220.0f, 0.0f },   // Dub Echo
-                                           {  3300.0f, 2.2f, 0.0f, 0.04f, false,  70.0f, 0.45f } };// b67 Memory Man (estimate): dark bucket-brigade echo, a touch of grit, always-on chorus/vibrato movement
+                                           {  3700.0f, 2.2f, 0.0f, 0.04f, false,  70.0f, 0.45f },  // b67 Memory Man (b82: cutoff 3.7 kHz from the schematic's filters)
+                                           {  3600.0f, 1.8f, 0.0f, 0.05f, false,  80.0f, 0.0f },   // b75 DM-2 (estimate): warm, dark bucket-brigade repeats, little movement
+                                           {  7000.0f, 1.3f, 0.0f, 0.03f, false,  60.0f, 0.0f } };// b75 DM-2 Custom (estimate): the same line with a wider, clearer top end and less grit
+        // b75 DM-2W: the Boss DM-2 analog delay (and its Waza Custom mode). Boss does not publish the Waza circuit; the cutoffs and drive are my estimates of the published character. Time range is not limited (the original reached 300 ms; the Waza Custom longer).
         // b67, Memory Man: the idea of an Electro-Harmonix Deluxe Memory Man (analog bucket-brigade echo, dark repeats that smear as they build, a chorus/vibrato
         // sweep on the delay line). Cutoff, drive and the always-on movement are estimates; the real unit's chorus/vibrato switch, Speed and Depth ranges and the
         // repeat darkening are not yet taken from a schematic or a recording.
-        const int   modeIdx = juce::jlimit (0, 11, p.mode);
+        // b82: the Deluxe Memory Man schematics (original, Rev A, Rev D) arrived. Read from them: two MN3005 bucket-brigade lines (4096 stages each) and a 4047 clock, an NE570 compander
+        // around the line (NOT modelled), and fixed filters either side of the line: a Sallen-Key low-pass at 3.7 kHz (Q 1.0) ahead of it and two at 3.7 kHz (Q 1.6) and 3.8 kHz (Q 0.6) after it.
+        // So the cutoff moved from 3.3 to 3.7 kHz. Still estimates: the drive, the modulation floor, and the chorus / vibrato LFO speeds (the LFO's values are not legible enough to read).
+        const int   modeIdx = juce::jlimit (0, 13, p.mode);
         const auto& mode   = modes[modeIdx];
         const float lofi   = mode.lofiBase + p.lofi   * (1.0f - mode.lofiBase);
         const float warble = mode.warbleBase + p.warble * (1.0f - mode.warbleBase);
@@ -973,7 +1153,7 @@ public:
             lineB.reset();
             for (int ch = 0; ch < 2; ++ch)
             {
-                lowpass[1][ch] = lowpass2[1][ch] = hpLp[1][ch] = satDc[1][ch] = satPrev[1][ch] = held[1][ch] = 0.0f;
+                bbdIn[1][ch][0] = bbdIn[1][ch][1] = 0.0f;  lowpass[1][ch] = lowpass2[1][ch] = hpLp[1][ch] = satDc[1][ch] = satPrev[1][ch] = held[1][ch] = 0.0f;
                 holdCounter[1][ch] = 0;
             }
             for (int k = 0; k < 2; ++k) { aaF[1][k].reset();  reconF[1][k].reset();  reconO[1][k].reset(); }
@@ -1079,6 +1259,12 @@ public:
             // Write one value into a channel's delay line (sg 0 = the main line, 1 = the second half of a split loop), through the lo-fi stages.
             auto writeTo = [&] (int sg, int ch, float w)
             {
+                if (modeIdx >= 12)       // b75 DM-2: every pass through the bucket-brigade line, the first one too, loses the top (two poles at the mode's cutoff)
+                {
+                    bbdIn[sg][ch][0] += lpCoef * (w - bbdIn[sg][ch][0]);
+                    bbdIn[sg][ch][1] += lpCoef * (bbdIn[sg][ch][0] - bbdIn[sg][ch][1]);
+                    w = bbdIn[sg][ch][1];
+                }
                 if (satOn) w = satProcess (sg, ch, w);
                 if (diffOn)
                 {
@@ -1241,6 +1427,7 @@ private:
     int   numChannels = 2;
     float lastMix = 0.0f;
     // State is [segment][channel]: segment 1 is only used while the loop is split in two (Groove / Accent)
+    float bbdIn[2][2][2] = {};                       // b75: the DM-2 modes' bucket-brigade bandwidth on the way in (the other modes darken only the repeats)
     float lowpass[2][2] = {}, lowpass2[2][2] = {}, hpLp[2][2] = {}, satDc[2][2] = {}, satPrev[2][2] = {};
     float held[2][2]    = {};
     int   holdCounter[2][2] = {};
@@ -1745,7 +1932,7 @@ public:
         float verbMix = 0.4f, verbDecay = 4.0f, verbMod = 0.3f; int verbProgram = 0, verbOrder = 0; bool verbHold = false;
         float lCut = 0.3f, lEq0 = 0.5f, lEq1 = 0.5f, lEq2 = 0.5f, lEq3 = 0.5f, lEq4 = 0.5f, lDepth = 0.5f;
         float sub = 0.0f;                       // all styles: an octave-down (flip-flop divider) square in front, 0 = off
-        // ---- b62: style 13 (Feral, a self-oscillating fuzz with a wandering bias) ----
+        // ---- b62: style 13 (Feral, a self-oscillating fuzz with a wandering bias); b105: style 14 (Arc, a gas-discharge fuzz; reuses Gate, Stab, Comp and Octave Up) ----
         float squeal = 0.0f, oscHz = 900.0f, action = 0.4f, actSpeed = 0.5f;
     };
 
@@ -1765,6 +1952,7 @@ public:
             f->reset();
         subEnv = 0.0f;  subState = 1.0f;  subArmed = true;  subCut = 450.0f;  subF = 300.0f;  subCount = 0;
         feralHp = feralEnv = feralPh = feralFb = feralLp = feralDc = feralZ1 = feralZ2 = 0.0f;  feralFs = 0.0f;
+        arcFs = 0.0f;  arcOn = false;  arcOffCnt = 0;
 
         lpIc1 = lpIc2 = dcLow = holdCnt = heldV = 0.0f;
         yPrev = 0.0f;
@@ -1979,6 +2167,7 @@ private:
         else if (p.style == 6) for (int i = 0; i < m; ++i) d[i] = factory2 (d[i], p);
         else if (p.style == 7) nuke (d, m, p);
         else if (p.style == 13) feral (d, m, p);
+        else if (p.style == 14) arc (d, m, p);
         else if (p.style == 8) crusher (d, m, p);
         else
         {
@@ -2029,6 +2218,67 @@ private:
     }
     float feralHp = 0.0f, feralEnv = 0.0f, feralPh = 0.0f, feralFb = 0.0f, feralLp = 0.0f, feralDc = 0.0f, feralZ1 = 0.0f, feralZ2 = 0.0f, feralFs = 0.0f;
     static constexpr float kFeralTrim = 0.5f;
+
+    // ---- b105: Arc: a gas-discharge fuzz, designed from published descriptions of high-voltage tube distortion pedals (a transformer drives a tube; an arc strikes only when the
+    //      drive passes a threshold, holds until it falls to a lower one, and the output is picked up from the discharge). My own model, NOT measured on any unit.
+    //      The signal drives the "arc": it strikes when |drive| passes the strike voltage and goes out when it falls below a lower hold voltage (hysteresis), once per half cycle, so a
+    //      quiet note is pinched into narrow pulses and finally gated out, and a loud one gives a wide, flat-topped square with a gap at each zero crossing. While the arc burns its output
+    //      level hardly follows the input (flat dynamics). Stability sets how much the thresholds jitter, how often the arc flickers out and how many sparks crackle. Gate = the strike voltage
+    //      (the pedal's Voltage knob turned down), Comp = the sustain circuit ahead of the tube (a slow compressor), the general Octave Up knob = the overtone / octave switch.
+    void arc (float* d, int m, const Params& p)
+    {
+        if (std::fabs (arcFs - osRate) > 0.5f)
+        {
+            arcFs = osRate;  arcHp = arcLp = arcDc = arcEnvC = arcNs = arcNh = arcC = arcSpark = 0.0f;  arcOn = false;  arcOffCnt = 0;  arcGc = 1.0f;  arcTick = 0;
+        }
+        const float fs = osRate;
+        const float g = 1.0f + 60.0f * p.gain * p.gain;
+        const float hpC = 1.0f - std::exp (-6.2831853f * 80.0f / fs);
+        const float gt = juce::jlimit (0.0f, 1.0f, p.gate);
+        const float vStrike = 0.04f + 7.0f * gt * gt, vHold = 0.45f * vStrike;
+        const float unst = 1.0f - juce::jlimit (0.0f, 1.0f, p.stab);
+        const float jit = 0.015f + 0.35f * unst;
+        const float flickP = (15.0f + 2400.0f * unst * unst) / fs, sparkP = (100.0f + 5000.0f * unst) / fs;
+        const float atk = 1.0f - std::exp (-1.0f / (0.00004f * fs)), rel = 1.0f - std::exp (-1.0f / (0.00015f * fs));
+        const float cN = 1.0f - std::exp (-6.2831853f * 1500.0f / fs), nNorm = std::sqrt ((2.0f - cN) / (3.0f * cN));
+        const float envA = 1.0f - std::exp (-1.0f / (0.003f * fs)), envR = 1.0f - std::exp (-1.0f / (0.25f * fs));
+        const float compExp = 0.8f * juce::jlimit (0.0f, 1.0f, p.comp);
+        const float toneC = 1.0f - std::exp (-6.2831853f * (1200.0f + 9000.0f * std::pow (juce::jlimit (0.0f, 1.0f, p.tone), 1.5f)) / fs);
+        const float sparkDecay = std::exp (-1.0f / (0.00006f * fs));
+        const float kMag = 2.5f / (0.3f + 0.6f * vStrike);
+        for (int i = 0; i < m; ++i)
+        {
+            arcHp += hpC * (d[i] - arcHp);
+            const float x = d[i] - arcHp;
+            const float a0 = std::fabs (x);
+            arcEnvC += (a0 > arcEnvC ? envA : envR) * (a0 - arcEnvC);
+            if ((arcTick++ & 7) == 0)
+                arcGc = compExp > 0.0f ? juce::jlimit (1.0f, 12.0f, std::pow (0.4f / std::max (arcEnvC, 0.005f), compExp)) : 1.0f;      // only ever lifts a fading note, never cuts a loud one
+            const float v = g * arcGc * x, a = std::fabs (v);
+            arcNs += cN * ((2.0f * random.nextFloat() - 1.0f) - arcNs);
+            arcNh += cN * ((2.0f * random.nextFloat() - 1.0f) - arcNh);
+            const float thrS = vStrike * (1.0f + jit * juce::jlimit (-2.0f, 2.0f, nNorm * arcNs));
+            const float thrH = vHold * (1.0f + 0.5f * jit * juce::jlimit (-2.0f, 2.0f, nNorm * arcNh));
+            if (arcOffCnt > 0) --arcOffCnt;
+            if (arcOn)
+            {
+                if (a < thrH) arcOn = false;
+                else if (random.nextFloat() < flickP) { arcOn = false;  arcOffCnt = (int) (fs * (0.00002f + 0.0003f * random.nextFloat())); }
+            }
+            else if (a > thrS && arcOffCnt == 0) arcOn = true;
+            arcC += ((arcOn ? 1.0f : 0.0f) - arcC) * (arcOn ? atk : rel);
+            const float mag = std::max (0.0f, std::tanh (kMag * (a - 0.6f * vHold)));
+            if (arcOn && random.nextFloat() < sparkP) arcSpark += (random.nextFloat() < 0.5f ? -1.0f : 1.0f) * (0.15f + 0.45f * random.nextFloat());
+            const float y = (v >= 0.0f ? 1.0f : -1.0f) * arcC * mag + arcC * arcSpark;
+            arcSpark *= sparkDecay;
+            arcLp += toneC * (y - arcLp);
+            arcDc += 0.0004f * (arcLp - arcDc);
+            d[i] = kArcTrim * (arcLp - arcDc);
+        }
+    }
+    float arcHp = 0.0f, arcLp = 0.0f, arcDc = 0.0f, arcEnvC = 0.0f, arcNs = 0.0f, arcNh = 0.0f, arcC = 0.0f, arcSpark = 0.0f, arcGc = 1.0f, arcFs = 0.0f;
+    bool arcOn = false;  int arcOffCnt = 0, arcTick = 0;
+    static constexpr float kArcTrim = 0.65f;
 
     // ---- v66: Nuke: a wave-shaper fuzz. Drive, then the signal is mapped through a curve (a "wavetable" of five
     //      families, with Shape morphing between neighbours: soft, sine-fold, odd-harmonic, staircase, asymmetric fold),
@@ -2759,11 +3009,12 @@ public:
         // FET: fast, hard. A published attack range for this kind of unit is 20 to 800 microseconds and the release 50 ms to 1.1 s, so the
         // detector is a fast peak follower (50 us up, 2 ms down; the 0.6 ms averaging window it replaces was slower than the shortest attack),
         // and the attack floor is 5 us, below the shortest published value, so the Attack knob (0.05 to 50 ms, times 0.25) spans 12.5 us to 12.5 ms.
-        if (style == 1)      { knee = push ? 0.0f : 2.0f;  attackScale = 0.25f; attackFloorMs = 0.005f; levelMs = 0.6f; }
+        // b86: the 4:1 button's knee is much rounder on the real unit (the factory test defines its threshold at 3 dB of limiting, not 1 dB), so the low ratios get 4 dB.
+        if (style == 1)      { knee = push ? 0.0f : (ratioIndex >= 1 && ratioIndex <= 3 ? 4.0f : 2.0f);  attackScale = 0.25f; attackFloorMs = 0.005f; levelMs = 0.6f; }
         // opto: soft, slow to grab. A published average attack for this kind of unit is 10 ms, so the default Attack knob (5 ms) times 2 gives it;
         // the floor of 1.5 ms and the 50 ms top end (100 ms) put the real value well inside the range. The 1966 manual calls the attack "essentially
         // instantaneous" and a vendor page says 10 ms, so only the vendor figure is used as the centre.
-        else if (style == 2) { knee = push ? 0.0f : 14.0f; attackScale = 2.0f;  attackFloorMs = 1.5f; levelMs = 3.0f; }
+        else if (style == 2) { knee = push ? 0.0f : 10.0f;      /* b68 (R15): the LA-2A text gives about 10 dB of rounding (was 14) */ attackScale = 2.0f;  attackFloorMs = 0.25f; levelMs = 3.0f; /* b86: the floor was 1.5 ms; the 1966 manual says 10 us, so the knob now reaches well below the 10 ms default */ }
         // b59: variable-mu (Fairchild-type). The 660/670 bulletin gives 0.2 ms attack (0.4 ms on three positions) and a 0.3 to 5 s release, with
         // longer automatic releases (to 10 s and 25 s) after a long squeeze. The attack floor was 3 ms; it is now 0.2 ms, and the Attack knob (times 0.4)
         // gives 2 ms at its default and reaches the real 0.2 to 0.4 ms at the bottom of its range. The release keeps stretching with how long it has been squeezing.
@@ -2791,12 +3042,17 @@ public:
         const float fixedReleaseCoef = std::exp (-1.0f / (baseRelease * 0.001f * sampleRate));
         const float levelCoef   = 1.0f - std::exp (-1.0f / ((style == 0 ? 0.0015f : levelMs * 0.001f) * sampleRate));   // 1.5 ms level detector (style 0)
         const float memCoef     = 1.0f - std::exp (-1.0f / (1.2f * sampleRate));          // slow memory of how long it has been squeezing
-        const float optoFastCoef = std::exp (-1.0f / (0.020f * (baseRelease * (1.0f / 250.0f)) * sampleRate));   // first stage: 95 % of its half in 60 ms at the default
+        const float optoFastCoef = std::exp (-1.0f / (0.040f * (baseRelease * (1.0f / 250.0f)) * sampleRate));   // first stage (b86: 40 ms, was 20): the half-release after a short squeeze is about 60 ms, as both LA-2A documents say
         const float fetUpCoef   = 1.0f - std::exp (-1.0f / (0.00005f * sampleRate));       // FET peak follower: 50 us up, 2 ms down
         const float fetDownCoef = 1.0f - std::exp (-1.0f / (0.002f * sampleRate));
 
         const float detHz   = hpHz[juce::jlimit (0, 3, p.detectorHp)];
         const float detCoef = detHz > 0.0f ? 1.0f - std::exp (-twoPi * detHz / sampleRate) : 0.0f;
+
+        // b86: the 1176's threshold moves with the ratio button (the ratio divider and the diode bias ladder change together): 1 dB of limiting starts about
+        // 6 dB lower in input level at 4:1 than at 20:1, 2 dB lower at 8:1 and 1 dB lower at 12:1 (derived from Rev K). Applied to the plug-in's ratio list.
+        static const float fetThrOffsetDb[8] = { 0.0f, -6.0f, -6.0f, -5.0f, -3.5f, -1.5f, 0.0f, 0.0f };
+        const float thrEffDb = p.thresholdDb + (style == 1 ? fetThrOffsetDb[ratioIndex] : 0.0f);
 
         const float makeup = juce::Decibels::decibelsToGain (p.makeupDb);
         const bool  dist2  = (p.saturation == 1 || p.saturation == 3 || p.saturation == 6 || p.saturation == 7);
@@ -2852,7 +3108,7 @@ public:
             const float levelDb = 3.0103f * fastLog2 (squared + 1.0e-9f) - (style == 1 ? 3.0103f : 0.0f);
 
             // Gain computer: how many dB of gain reduction this level calls for
-            const float over = levelDb - p.thresholdDb;
+            const float over = levelDb - thrEffDb;
             float target = 0.0f;
             if (knee > 0.0f && 2.0f * over < -knee)
                 target = 0.0f;
@@ -3156,7 +3412,8 @@ public:
     {
         static const float rates[3]   = { 0.513f, 0.863f, 9.75f };
         static const float swingMs[3] = { 1.845f, 1.845f, 0.2f };   // how far each line sweeps either side of the centre (I and II share one range; I+II is nearly static)
-        const int mode = std::min (8, std::max (0, p.mode));
+        const int mode = std::min (11, std::max (0, p.mode));
+        if (mode >= 9) { processCe (x, numSamples, p, mode); return; }
         if (mode >= 7) { processClone (x, numSamples, p, mode == 8); return; }
         if (mode >= 3) { processMulti (x, numSamples, p, mode); return; }
         const int m = mode;
@@ -3204,11 +3461,60 @@ public:
     }
 
 private:
-    // b67 Small Clone (modes 7 and 8): the single-bucket-brigade chorus with one Rate knob and a Low / High Depth switch. One line of delay (the MN3007
-    // driven by a CD4047 clock that a triangle LFO sweeps), summed with the dry signal, no feedback. The wet path is dark: a three-pole filter ahead of the line
-    // and another after it. NOT from a schematic (it is not in the EHX book, and the notes I found give parts but not the sweep): the figures are my estimates of
-    // the published character: centre delay 5.2 ms, sweep +/-1.1 ms (Low) or +/-2.6 ms (High), LFO 0.9 Hz at Rate 1 (so the Rate knob covers 0.2 to 3.6 Hz),
-    // wet top end near 5 kHz, a little soft clipping at the line's input.
+    // b75 Boss CE-2 / CE-1 voicings (modes 9 to 11). Boss does not publish the Waza (CE-2W) circuit; the CE-2 figures come from the ElectroSmash analysis of the original
+    // CE-2 (MN3007 1024-stage bucket-brigade line, 5 to 40 ms of delay available, a triangle LFO of about 3.5 Hz at full Rate, anti-alias and reconstruction filters with poles near
+    // 6.6 kHz, dry and wet mixed 50 / 50, mono); where the analysis gives no number the figure is MY ESTIMATE.
+    //   9  CE-2: centre delay 7.5 ms and sweep +/-2.5 ms at Depth 1 (my estimate, inside the line's 5.12 ms floor), LFO 0.9 Hz at Rate 1 (so the Rate knob's top reaches 3.6 Hz, as the analysis gives);
+    //      top end 6.6 kHz; dry and wet summed at the Mix. Not modelled: the 15 dB pre-emphasis and matching de-emphasis around the line (flat for a linear signal).
+    //   10 CE-1 Chorus (preamp): the CE-1 had an input preamp that warmed and compressed the signal. Here a soft clip (2.2x) ahead of ONE swept line (b82: the 1976 sheet shows a
+    //      single MN3002, so the two opposed lines of b75 were wrong; centre 5.0 ms, +/-1.7 ms), a darker top (5.5 kHz), LFO 1.1 Hz at Rate 1. All still estimated except the single line and the delay range.
+    //   11 CE-1 Vibrato (no dry): the CE-1's Vibrato switch sent the wet line alone. Centre 4.0 ms, +/-1.9 ms, LFO 4.5 Hz at Rate 1; the Mix knob is ignored (always 100% wet). Estimated.
+    void processCe (float* x, int numSamples, const Params& p, int mode)
+    {
+        const float sr = (float) sampleRate;
+        const bool ce1 = mode >= 10, vib = mode == 11;
+        const float toneCap = ce1 ? 5500.0f : 6600.0f;
+        const float tone = std::min (std::min (p.toneHz, toneCap), 0.45f * sr);
+        if (std::abs (tone - lastTone) > 0.5f)
+        {
+            for (auto& f : lp)
+                *f.coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass (sampleRate, tone);
+            lastTone = tone;
+        }
+        const float baseRate = vib ? 4.5f : (ce1 ? 1.1f : 0.9f);
+        const float centreMs = mode == 9 ? 7.5f : 5.0f;      // b82: CE-1 centre 5.0 ms (was 4.2 / 4.0): the sheet's clock pulse width of 5 to 16 us (waveform G) puts the 512-stage line between about 2.6 and 8.3 ms
+        const float swing    = mode == 9 ? 2.5f : (vib ? 1.9f : 1.7f);
+        const float targetRate = baseRate * p.rateScale, targetSwing = swing * p.depth;
+        for (int i = 0; i < numSamples; ++i)
+        {
+            rateSm  += 0.001f * (targetRate - rateSm);
+            swingSm += 0.001f * (targetSwing - swingSm);
+            phase += rateSm / sr;  if (phase >= 1.0f) phase -= 1.0f;
+            const float tri = phase < 0.5f ? 4.0f * phase - 1.0f : 3.0f - 4.0f * phase;
+            const float dry = x[i];
+            const float inp = ce1 ? std::tanh (2.2f * dry) * (1.0f / 2.2f) : dry;
+            buf[(size_t) writePos] = inp;
+            noiseState = noiseState * 1664525u + 1013904223u;
+            const float nzA = ((float) ((noiseState >> 8) & 0xFFFFu) / 32768.0f - 1.0f) * 0.004f * p.hiss;
+            noiseState = noiseState * 1664525u + 1013904223u;
+            const float nzB = ((float) ((noiseState >> 8) & 0xFFFFu) / 32768.0f - 1.0f) * 0.004f * p.hiss;
+            // b82: the CE-1 sheet (1976, version D) shows ONE bucket-brigade line (a single MN3002), so this is one swept line like the CE-2, not two opposed ones
+            float wet = lp[0].processSample (readDelayed ((centreMs + swingSm * tri) * 0.001f * sr) + nzA);
+            (void) nzB;
+            x[i] = vib ? wet : dry * (1.0f - p.mix) + p.mix * wet;
+            writePos = (writePos + 1) & (size - 1);
+        }
+    }
+
+    // b67 Small Clone (modes 7 and 8), refitted in b82 from the Lithium build document's schematic (the MN3007 Small Clone): the single-bucket-brigade chorus with one Rate
+    // knob and a Low / High Depth switch. One line of delay (the MN3007, 1024 stages, driven by a CD4047 clock whose timing network is a 39k resistor and the 100 pF vintage
+    // capacitor, swept by a triangle LFO), summed with the dry signal, no feedback; a soft-clipping transistor stage ahead of the line.
+    //   Read from the schematic: clock 1 / (4.4 x 39k x 100 pF) = 58 kHz, so the line's delay is 1024 / (2 x 58 kHz) = 8.8 ms at rest (the 150 pF reissue capacitor would give
+    //     13.2 ms; not offered). The LFO is an integrator (2.2 uF with 47k plus the 1M Rate pot) and a Schmitt trigger (120k / 470k): 9.5 Hz with the pot at zero and 0.43 Hz at full,
+    //     so the Rate knob here runs 0.6 to 9.6 Hz (base 2.4 Hz at Rate 1, my knob's range of 0.25 to 4 times).
+    //   Still my estimates: the sweep (+/-1.1 ms Low, +/-2.6 ms High: the schematic gives the injection network but not the clock-pin swing, so I kept the b67 figures), the
+    //     wet top end (about 5 kHz) and the amount of soft clipping. The passive filters around the line work out (unloaded, my reading of the drawing) to a corner near 1 kHz
+    //     with the pre- and de-emphasis stages around them; I did NOT apply that, it would make the wet far darker than the b67 voicing and I am not sure of my reading.
     void processClone (float* x, int numSamples, const Params& p, bool deep)
     {
         const float sr = (float) sampleRate;
@@ -3219,7 +3525,7 @@ private:
                 *f.coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass (sampleRate, tone);
             lastTone = tone;
         }
-        const float targetRate = 0.9f * p.rateScale, targetSwing = (deep ? 2.6f : 1.1f) * p.depth, centreMs = 5.2f;
+        const float targetRate = 2.4f * p.rateScale, targetSwing = (deep ? 2.6f : 1.1f) * p.depth, centreMs = 8.8f;
         for (int i = 0; i < numSamples; ++i)
         {
             rateSm  += 0.001f * (targetRate - rateSm);
@@ -3304,6 +3610,134 @@ private:
 };
 
 //==============================================================================
+// b104 Stereo chorus (modes 12 to 18 of the Chorus Mode menu, in the old Chorus block and in the Mod FX Chorus type).
+// Every voice is a delay line swept by a sine LFO and every side (left, right) has its own voices, so the two sides move differently. A mono input gives a
+// stereo output; after the cab a stereo input keeps its own image (each side is delayed from its own channel). Before the amp or in the FX loop the signal is mono, so
+// the two sides are summed back into one channel.
+//   Spatial and Vintage are fitted to six captures of a rack chorus (Mix at max, Rate and Depth moved together to min / noon / max), measured from the comb notches of a -24 dBFS sweep
+//   (about +-15%: the delay moves while the sweep passes). Spatial: centre delay 13 / 17 / 27 ms and swing +-4 / +-7.5 / +-11.5 ms at min / noon / max, LFO 0.3 / 0.9 / 3 Hz, the two sides'
+//   modulation correlated at 0.35 to 0.55 (a 65 degree offset here). Vintage: 3.2 / 8.5 / 14.5 ms, swing +-0.8 / +-3 / +-5.5, nearly mono (25 degrees), the wet a little louder than the dry
+//   and a touch darker. At Mix max the capture is dry and wet at equal level (-3 dB each); Mix here follows that law (equal power, so Mix 1 is the captured unit's maximum).
+//   Depth 1 is the capture's noon, 1.5 about its maximum; Rate 1 is the noon speed (0.25 to 4 covers its min to max).
+//   The other five modes are my own variations on the Spatial design, not measured on anything: wide (opposite LFOs), four voices, a fast shimmer, a slow drift (two LFOs that never
+//   line up), and a stereo Dimension (very short, opposite sides).
+//==============================================================================
+class StereoChorus
+{
+public:
+    struct Params { int mode; float mix, rateScale, depth, toneHz, hiss; };
+    static constexpr int firstMode = 12, lastMode = 18;
+    static bool isStereoMode (int mode) { return mode >= firstMode && mode <= lastMode; }
+
+    void prepare (double sr)
+    {
+        sampleRate = sr;
+        size = 1;
+        while (size < (int) (0.09 * sr) + 8) size <<= 1;
+        bufL.assign ((size_t) size, 0.0f);  bufR.assign ((size_t) size, 0.0f);
+        reset();
+    }
+
+    void reset()
+    {
+        std::fill (bufL.begin(), bufL.end(), 0.0f);  std::fill (bufR.begin(), bufR.end(), 0.0f);
+        writePos = 0;  ph = 0.0f;  ph2 = 0.0f;  rateSm = 1.0f;  depthSm = 1.0f;  lastTone = -1.0f;
+        for (auto& f : lpTone) f.reset();
+        for (auto& f : lpVint) f.reset();
+        noiseState = 33333u;
+    }
+
+    // l and r are the two channels; r may be null (a mono signal): the output is then both sides summed into l
+    void process (float* l, float* r, int numSamples, const Params& p)
+    {
+        const Mode& m = modes[std::min (lastMode, std::max (firstMode, p.mode)) - firstMode];
+        const float sr = (float) sampleRate;
+        const float tone = std::min (p.toneHz, 0.45f * sr);
+        if (std::abs (tone - lastTone) > 0.5f)
+        {
+            for (auto& f : lpTone) *f.coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass (sampleRate, tone);
+            for (auto& f : lpVint) *f.coefficients = juce::dsp::IIR::ArrayCoefficients<float>::makeFirstOrderLowPass (sampleRate, std::min (m.vintageLpHz > 0.0f ? m.vintageLpHz : 20000.0f, 0.45f * sr));
+            lastTone = tone;
+        }
+        const float angle = juce::jlimit (0.0f, 1.0f, p.mix) * 0.78539816f;       // equal power: Mix 1 is dry and wet at 0.707 each
+        const float dryG = std::cos (angle), wetG = std::sin (angle) * m.wetGain;
+        const float targetRate = std::min (25.0f, m.rateHz * p.rateScale);
+        const float twoPi = juce::MathConstants<float>::twoPi;
+        const float minD = 0.0007f * sr, maxD = (float) (size - 8);
+        for (int i = 0; i < numSamples; ++i)
+        {
+            rateSm  += 0.001f * (targetRate - rateSm);
+            depthSm += 0.001f * (p.depth - depthSm);
+            ph  += rateSm / sr;          if (ph  >= 1.0f) ph  -= 1.0f;
+            ph2 += rateSm * 1.618f / sr; if (ph2 >= 1.0f) ph2 -= 1.0f;
+            const float inL = l[i], inR = r != nullptr ? r[i] : l[i];
+            bufL[(size_t) writePos] = inL;  bufR[(size_t) writePos] = inR;
+
+            const float D = depthSm;
+            const float centre = m.centre + (D <= 1.0f ? m.centreK1 : m.centreK2) * (D - 1.0f);
+            const float swing  = m.swing * D;
+            float wet[2] = { 0.0f, 0.0f };  int cnt[2] = { 0, 0 };
+            for (int v = 0; v < m.numVoices; ++v)
+            {
+                const Voice& vo = m.voices[v];
+                float lfo = std::sin (twoPi * (ph + vo.phase));
+                if (m.lfo2 > 0.0f) lfo = (lfo + m.lfo2 * std::sin (twoPi * (ph2 + vo.phase2))) / (1.0f + m.lfo2);
+                const float d = juce::jlimit (minD, maxD, (std::max (0.7f, centre * vo.centreScale) + swing * lfo) * 0.001f * sr);
+                wet[vo.side] += read (vo.side == 0 ? bufL : bufR, d);
+                ++cnt[vo.side];
+            }
+            for (int s = 0; s < 2; ++s)
+            {
+                noiseState = noiseState * 1664525u + 1013904223u;
+                const float nz = ((float) ((noiseState >> 8) & 0xFFFFu) / 32768.0f - 1.0f) * 0.004f * p.hiss;
+                float w = wet[s] / (float) std::max (1, cnt[s]) + nz;
+                if (m.vintageLpHz > 0.0f) w = lpVint[s].processSample (w);
+                wet[s] = lpTone[s].processSample (w);
+            }
+            if (r != nullptr) { l[i] = inL * dryG + wetG * wet[0];  r[i] = inR * dryG + wetG * wet[1]; }
+            else              { l[i] = inL * dryG + wetG * 0.5f * (wet[0] + wet[1]); }
+            writePos = (writePos + 1) & (size - 1);
+        }
+    }
+
+private:
+    struct Voice { int side; float phase, phase2, centreScale; };
+    struct Mode
+    {
+        float rateHz, centre, centreK1, centreK2, swing, wetGain, vintageLpHz, lfo2;
+        int numVoices;  Voice voices[4];
+    };
+    //                          rate   centre k1   k2   swing wet    vintageLp lfo2
+    inline static const Mode modes[7] = {
+        /* 12 Spatial       */ { 0.90f, 17.0f, 6.0f, 20.0f, 7.5f, 1.0f,   0.0f, 0.0f, 2, { { 0, 0.00f, 0.0f, 1.0f }, { 1, 0.18f, 0.0f, 1.0f } } },
+        /* 13 Vintage       */ { 1.00f,  8.5f, 8.2f, 12.0f, 3.0f, 1.45f, 13000.0f, 0.0f, 2, { { 0, 0.00f, 0.0f, 1.0f }, { 1, 0.07f, 0.0f, 1.0f } } },
+        /* 14 Spatial wide  */ { 0.60f, 20.0f, 6.0f, 14.0f, 8.5f, 1.0f,   0.0f, 0.0f, 2, { { 0, 0.00f, 0.0f, 1.0f }, { 1, 0.50f, 0.0f, 1.0f } } },
+        /* 15 Four voices   */ { 0.75f, 16.0f, 5.0f, 16.0f, 6.5f, 1.0f,   0.0f, 0.0f, 4, { { 0, 0.00f, 0.0f, 1.0f }, { 0, 0.50f, 0.0f, 1.35f }, { 1, 0.25f, 0.0f, 1.0f }, { 1, 0.75f, 0.0f, 1.35f } } },
+        /* 16 Shimmer       */ { 4.50f,  6.5f, 2.0f,  4.0f, 1.1f, 1.0f,   0.0f, 0.0f, 2, { { 0, 0.00f, 0.0f, 1.0f }, { 1, 0.25f, 0.0f, 1.0f } } },
+        /* 17 Drift         */ { 0.35f, 15.0f, 5.0f, 15.0f, 6.5f, 1.0f,   0.0f, 0.8f, 2, { { 0, 0.00f, 0.00f, 1.0f }, { 1, 0.37f, 0.61f, 1.0f } } },
+        /* 18 Dimension     */ { 0.31f,  4.5f, 0.5f,  1.0f, 0.35f, 1.0f,  0.0f, 0.0f, 2, { { 0, 0.00f, 0.0f, 1.0f }, { 1, 0.50f, 0.0f, 1.0f } } } };
+
+    // four-point cubic (Hermite) read, delay in samples
+    static float read (const std::vector<float>& b, float delay, int writePos, int size)
+    {
+        const float pos = (float) writePos - delay;
+        const float fl = std::floor (pos), t = pos - fl;
+        const int i1 = ((int) fl) & (size - 1), i0 = (i1 - 1) & (size - 1), i2 = (i1 + 1) & (size - 1), i3 = (i1 + 2) & (size - 1);
+        const float y0 = b[(size_t) i0], y1 = b[(size_t) i1], y2 = b[(size_t) i2], y3 = b[(size_t) i3];
+        const float c1 = 0.5f * (y2 - y0), c2 = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3, c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
+        return ((c3 * t + c2) * t + c1) * t + y1;
+    }
+    float read (const std::vector<float>& b, float delay) const { return read (b, delay, writePos, size); }
+
+    double sampleRate = 44100.0;
+    std::vector<float> bufL, bufR;
+    int size = 1, writePos = 0;
+    float ph = 0.0f, ph2 = 0.0f, rateSm = 1.0f, depthSm = 1.0f, lastTone = -1.0f;
+    juce::dsp::IIR::Filter<float> lpTone[2], lpVint[2];
+    uint32_t noiseState = 33333u;
+};
+
+//==============================================================================
 // Phaser with more options than the classic one.
 // A classic phaser is four all-pass stages, swept together by one LFO (one Speed knob), mixed
 // 50/50 with the dry sound. Here the same idea has more to adjust: 2 to 12 stages, rate,
@@ -3321,10 +3755,10 @@ private:
 class Wah
 {
 public:
-    struct Params { int mode; float pos, heelHz, toeHz, q, mix, sens, decayMs, rate, depth; int envDir = 0, envShape = 0; int circuit = 0; };   // v0.2: envDir 0 = up, 1 = down; envShape 0 = band-pass, 1 = low-pass, 2 = high-pass (Envelope Filter mode); circuit 1 = Classic circuit voice (heelHz / toeHz / q are then the knobs, scaled around the published values)
+    struct Params { int mode; float pos, heelHz, toeHz, q, mix, sens, decayMs, rate, depth; int envDir = 0, envShape = 0; int circuit = 0; int range = 0; float boostDb = 0.0f, fuzz = 0.0f; };   // v0.2: envDir 0 = up, 1 = down; envShape 0 = band-pass, 1 = low-pass, 2 = high-pass (Envelope Filter mode); circuit 1 = Classic circuit voice (heelHz / toeHz / q are then the knobs, scaled around the published values)
 
     void prepare (double sr) { sampleRate = sr; reset(); }
-    void reset() { ic1 = ic2 = 0.0f; env = 0.0f; lfoPhase = 0.0f; posSmooth = 0.5f; first = true; }
+    void reset() { ic1 = ic2 = 0.0f; env = 0.0f; lfoPhase = 0.0f; posSmooth = 0.5f; first = true; fzHp = fzLp = 0.0f; cz1 = cz2 = 0.0f; flS = 0.0f; for (auto& b : mb) b.z1 = b.z2 = 0.0f; }
 
     void process (float* x, int numSamples, const Params& p)
     {
@@ -3342,15 +3776,68 @@ public:
         //   the peak is +18 dB at the heel and scales with T0 / sqrt (1 + T0) (about +1 dB at the toe); the pot is an audio taper (x^1.8).
         // The Heel and Toe knobs scale the published 450 Hz and 1.6 kHz by (knob / default), Resonance scales the real Q by (knob / 5),
         // so the defaults give the real pedal and the knob ranges reach well past it on both ends.
-        const bool  circuitOn = p.circuit != 0 && p.mode != 3;
-        constexpr float kT0Toe = 0.98f, kQ0 = 1.777f, kTaper = 1.8f, kPeakHeel = 7.943f;
-        const float heelEff = 450.0f * std::max (50.0f, p.heelHz) / 400.0f;
-        const float toeEff  = 1600.0f * std::max (50.0f, p.toeHz) / 2200.0f;
+        // b76 voicings (wahVoice 2 and up; 1 is the classic circuit above). Each is the classic circuit with its own heel and toe, Q, heel peak and pot law:
+        //   2 Dimebag / 535Q: the Range selector's 6 positions (heel 250 to 440 Hz, toe 1.2 to 2.2 kHz, published in the DB01B manual), peak up to 15 dB (published), Q and Boost knobs
+        //   3 Clyde McCoy: 410 Hz to 2.2 kHz, +18 dB (published for the CM95); the Q (x0.8) is my estimate of "smooth and vocal"
+        //   4 Morley optical: no pot, an LED and a light-dependent resistor, so a smoother, more linear sweep; the range (440 Hz to 1.7 kHz) and Q are my estimates
+        //   5 Bad Horsie (Steve Vai): the optical wah with a Contour-style mid lift (+4 dB near 1 kHz) and a slightly higher Q, all my estimates
+        //   6 Petrucci JP95 (b101): MEASURED, not the classic circuit. A pedal captured at treadle 0 / 50 / 100 % (three sweeps, 1/6-octave smoothing) was fitted with a
+        //     resonant band-pass (f0 211 / 430 / 1200 Hz, Q 3.4 / 1.7 / 1.2, peak +15 / +20 / +21 dB before the shared stages; the peak gain at 25 and 75 percent is solved so the finished peak stays on a smooth curve) plus a first-order low-pass "floor" path (-5 dB, 720 Hz)
+        //     and five shared stages (three bumps and cuts, a 59 Hz high-pass, a 6.7 kHz low-pass) that carry the pedal's own EQ trimpots. The three anchors are joined by a quadratic law in
+        //     position, so the two in-between positions are interpolated, not measured. The fitted peaks are +11.1 / +16.4 / +18.6 dB at 216 / 415 / 1281 Hz, with 1.8 to 2.5 dB RMS error
+        //     elsewhere. Heel and Toe re-range the sweep (log-linear around the measured ends), Resonance scales Q, Boost scales the level.
+        //   7 Cliff Burton fuzz wah (after the Morley PWF1): the optical wah behind a fuzz (assumed to sit BEFORE the wah, as in the Fuzz-Wah Face; the PWF1 page does not say)
+        struct VoiceSet { float heel, toe, qMul, peakDb, taper; };
+        static const VoiceSet voices[8] = { { 450, 1600, 1.0f, 18, 1.8f }, { 450, 1600, 1.0f, 18, 1.8f }, { 400, 1600, 1.0f, 15, 1.8f }, { 410, 2200, 0.8f, 18, 1.8f },
+                                            { 440, 1700, 0.9f, 16, 1.2f }, { 400, 2000, 1.1f, 17, 1.2f }, { 217, 1267, 1.0f, 18.6f, 1.8f }, { 420, 1800, 0.9f, 15, 1.2f } };   // voice 6: measured peak frequencies at 0 % and 100 % (see above)
+        static const float rangeHeel[7] = { 0, 440, 400, 375, 345, 295, 250 }, rangeToe[7] = { 0, 1850, 1600, 1500, 1300, 1075, 1200 };      // the DB01B manual's windows, toe at the middle
+        const int  voiceIdx = juce::jlimit (0, 7, p.circuit);
+        VoiceSet vs = voices[voiceIdx];
+        if (p.range >= 1 && p.range <= 6 && voiceIdx != 0 && voiceIdx != 6) { vs.heel = rangeHeel[p.range];  vs.toe = rangeToe[p.range]; }
+        const bool  circuitOn = voiceIdx != 0 && p.mode != 3;
+        constexpr float kT0Toe = 0.98f, kQ0 = 1.777f;
+        const float kTaper = vs.taper, kPeakHeel = std::pow (10.0f, vs.peakDb / 20.0f);
+        const float heelEff = vs.heel * std::max (50.0f, p.heelHz) / 400.0f;
+        const float toeEff  = vs.toe * std::max (50.0f, p.toeHz) / 2200.0f;
+        const float boostLin = std::pow (10.0f, juce::jlimit (-12.0f, 24.0f, p.boostDb) / 20.0f);
+        const bool  fuzzOn = voiceIdx == 7 && p.fuzz > 0.001f;
+        const float fzHpC = 1.0f - std::exp (-2.0f * juce::MathConstants<float>::pi * 25.0f / sr), fzLpC = 1.0f - std::exp (-2.0f * juce::MathConstants<float>::pi * 6500.0f / sr);
+        const float fzGain = 1.0f + 60.0f * p.fuzz * p.fuzz;
+        float cb0 = 1.0f, cb1 = 0.0f, cb2 = 0.0f, ca1 = 0.0f, ca2 = 0.0f;
+        const bool  contour = voiceIdx == 5;
+        if (contour)       // RBJ peaking filter: +4 dB at 1 kHz, Q 0.8
+        {
+            const float A = std::pow (10.0f, 4.0f / 40.0f), w0 = 2.0f * juce::MathConstants<float>::pi * 1000.0f / sr, al = std::sin (w0) / (2.0f * 0.8f), cw = std::cos (w0);
+            const float a0 = 1.0f + al / A;
+            cb0 = (1.0f + al * A) / a0;  cb1 = -2.0f * cw / a0;  cb2 = (1.0f - al * A) / a0;  ca1 = -2.0f * cw / a0;  ca2 = (1.0f - al / A) / a0;
+        }
         const float f0c     = toeEff * 1.40712f;         // sqrt (1 + kT0Toe)
         const float rHeel   = f0c / heelEff;
         const float t0Heel  = std::max (kT0Toe + 0.05f, rHeel * rHeel - 1.0f);
         const float pkHeel  = t0Heel / std::sqrt (1.0f + t0Heel);
-        const float qMul    = std::max (0.05f, p.q) * 0.2f;
+        const float qMul    = std::max (0.05f, p.q) * 0.2f * (circuitOn ? vs.qMul : 1.0f);
+
+        // b101 Petrucci JP95: measured voice (anchors at position 0, 0.5, 1; quadratic law in position for ln f0, ln Q and the peak gain)
+        const bool measured = circuitOn && voiceIdx == 6;
+        float mLf[3] = {}, mLq[3] = {};     // quadratic coefficients y = c0 + c1 x + c2 x^2 for ln f0 and ln Q
+        // peak gain of the band-pass (dB) at position 0, 0.25, 0.5, 0.75, 1, joined by a Catmull-Rom curve. The three measured anchors (0, 0.5, 1) are 15.41, 20.08 and 21.15 dB before the shared stages;
+        // 0.25 and 0.75 are solved so the finished peak follows a quadratic through the measured +11.1 / +16.4 / +18.6 dB (the shared 677 Hz cut would otherwise dip the peak at 75 percent to 14.6 dB)
+        static const float mGtab[5] = { 15.441f, 17.243f, 20.034f, 24.467f, 21.178f };
+        float mFloorG = 0.0f, mFloorC = 0.0f;
+        if (measured)
+        {
+            const double ay[2][3] = { { std::log (211.208), std::log (430.0), std::log (1200.0) }, { std::log (3.42888), std::log (1.71484), std::log (1.2) } };
+            float* out[2] = { mLf, mLq };
+            for (int j = 0; j < 2; ++j)
+            {
+                const double c2 = 2.0 * ay[j][0] - 4.0 * ay[j][1] + 2.0 * ay[j][2], c1 = ay[j][2] - ay[j][0] - c2;
+                out[j][0] = (float) ay[j][0];  out[j][1] = (float) c1;  out[j][2] = (float) c2;
+            }
+            const float gF = std::tan (juce::MathConstants<float>::pi * 722.5f / sr);
+            mFloorC = gF / (1.0f + gF);
+            mFloorG = std::pow (10.0f, -5.0f / 20.0f);
+            designMeasuredStages (sr);
+        }
 
         // The exp / sin / pow / tan below only need to be refreshed every few samples (the sweep is
         // slow and smoothed), so they run once per 8 samples instead of every sample.
@@ -3358,7 +3845,15 @@ public:
 
         for (int i = 0; i < numSamples; ++i)
         {
-            const float in = x[i];
+            float in = x[i];
+            if (fuzzOn)        // b76: the fuzz ahead of the wah (an asymmetric clip, high-passed and rolled off, level brought back down)
+            {
+                const float u = in * fzGain;
+                float y = 0.5f * (std::tanh (u + 0.25f) - 0.2449f);
+                fzHp += fzHpC * (y - fzHp);  y -= fzHp;
+                fzLp += fzLpC * (y - fzLp);
+                in = in * (1.0f - std::min (1.0f, 4.0f * p.fuzz)) + fzLp * std::min (1.0f, 4.0f * p.fuzz);
+            }
             const bool  control = (i & 7) == 0;
             float target = p.pos;
 
@@ -3384,14 +3879,32 @@ public:
             if (control)
             {
                 float f;
-                if (circuitOn)
+                if (measured)
+                {
+                    const float x  = juce::jlimit (0.0f, 1.0f, posSmooth);
+                    const float f0 = std::exp (mLf[0] + x * (mLf[1] + x * mLf[2]));
+                    const float xs = juce::jlimit (0.0f, 1.0f, (mLf[0] + x * (mLf[1] + x * mLf[2]) - mLf[0]) / (std::log (1200.0f) - mLf[0]));    // how far along the sweep, in log frequency
+                    const float sc = std::pow (heelEff / 217.0f, 1.0f - xs) * std::pow (toeEff / 1267.0f, xs);   // Heel / Toe knobs re-range the sweep (1 at the defaults)
+                    f      = std::min (0.45f * sr, f0 * sc);
+                    k      = 1.0f / std::max (0.3f, std::exp (mLq[0] + x * (mLq[1] + x * mLq[2])) * qMul);
+                    const float u = x * 4.0f;  const int ci = juce::jmin (3, (int) u);  const float ct = u - (float) ci;
+                    const float c0 = mGtab[juce::jmax (ci - 1, 0)], c1 = mGtab[ci], c2 = mGtab[ci + 1], c3 = mGtab[juce::jmin (ci + 2, 4)];
+                    const float gdb = 0.5f * (2.0f * c1 + (c2 - c0) * ct + (2.0f * c0 - 5.0f * c1 + 4.0f * c2 - c3) * ct * ct + (3.0f * c1 - c0 - 3.0f * c2 + c3) * ct * ct * ct);
+                    gainBp = std::pow (10.0f, gdb / 20.0f);
+                }
+                else if (circuitOn)
                 {
                     const float t  = std::pow (std::max (0.0f, 1.0f - posSmooth), kTaper);    // 0 at the toe, 1 at the heel
                     const float t0 = kT0Toe + (t0Heel - kT0Toe) * t;                          // loop gain of the resonant feedback
                     const float sq = std::sqrt (1.0f + t0);
                     f      = std::min (0.45f * sr, f0c / sq);
                     k      = 1.0f / std::max (0.3f, kQ0 * sq * qMul);
-                    gainBp = kPeakHeel * (t0 / sq) / pkHeel;
+                    {   // heel gain = the voicing's peak; toe gain stays near +1 dB (no source gives a toe figure for the other voicings), the classic's law in between
+                        const float r = (t0 / sq) / pkHeel;
+                        const float rToeDb = std::max (1.0f, -20.0f * std::log10 ((kT0Toe / 1.40712f) / pkHeel));       // 16.8 dB for the classic
+                        const float fr = std::max (0.0f, -20.0f * std::log10 (std::max (r, 1.0e-4f)) / rToeDb);
+                        gainBp = std::pow (10.0f, (vs.peakDb - fr * (vs.peakDb - 1.2f)) / 20.0f);
+                    }
                 }
                 else
                     f = std::min (0.45f * sr, p.heelHz * std::pow (ratio, posSmooth));
@@ -3409,12 +3922,42 @@ public:
             float wet = gainBp * k * v1;   // band-pass, 1.0 at its peak times gainBp (generic: 1.6, a little make-up; classic circuit: +18 dB at the heel down to about +1 dB at the toe)
             if (p.mode == 3 && p.envShape == 1)      wet = 0.6f * v2;                // low-pass (a resonant peak is loud, so a little less)
             else if (p.mode == 3 && p.envShape == 2) wet = 0.6f * (in - k * v1 - v2); // high-pass
+            if (measured)       // floor path (first-order low-pass, -5 dB at 720 Hz) added to the band-pass, then the five shared stages
+            {
+                const float vf = mFloorC * (in - flS);  const float lpf = vf + flS;  flS = lpf + vf;
+                wet += mFloorG * lpf;
+                for (auto& b : mb) { const float y = b.b0 * wet + b.z1;  b.z1 = b.b1 * wet - b.a1 * y + b.z2;  b.z2 = b.b2 * wet - b.a2 * y;  wet = y; }
+            }
+            wet *= boostLin;
+            if (contour) { const float yc = cb0 * wet + cz1;  cz1 = cb1 * wet - ca1 * yc + cz2;  cz2 = cb2 * wet - ca2 * yc;  wet = yc; }
             x[i] = in * (1.0f - p.mix) + wet * p.mix;
         }
     }
 
 private:
+    // b101 measured voice: five shared biquads (RBJ cookbook, transposed direct form II): bump, cut, cut, 59 Hz high-pass, 6.7 kHz low-pass
+    struct Bq { float b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0, z1 = 0, z2 = 0; };
+    Bq mb[5];
+    float flS = 0.0f;
+    void designMeasuredStages (float sr)
+    {
+        const float pi = juce::MathConstants<float>::pi;
+        auto set = [] (Bq& b, float b0, float b1, float b2, float a0, float a1, float a2) { b.b0 = b0 / a0;  b.b1 = b1 / a0;  b.b2 = b2 / a0;  b.a1 = a1 / a0;  b.a2 = a2 / a0; };
+        auto peak = [&] (Bq& b, float f, float Q, float gDb)
+        {
+            const float A = std::pow (10.0f, gDb / 40.0f), w = 2.0f * pi * f / sr, al = std::sin (w) / (2.0f * Q), c = std::cos (w);
+            set (b, 1.0f + al * A, -2.0f * c, 1.0f - al * A, 1.0f + al / A, -2.0f * c, 1.0f - al / A);
+        };
+        peak (mb[0], 88.225f, 0.8624f, -14.901f);
+        peak (mb[1], 677.17f, 1.3192f, -6.728f);
+        peak (mb[2], 4700.72f, 0.9241f, -7.823f);
+        {   const float w = 2.0f * pi * 58.838f / sr, al = std::sin (w) / (2.0f * 0.6f), c = std::cos (w);          // high-pass
+            set (mb[3], (1.0f + c) * 0.5f, -(1.0f + c), (1.0f + c) * 0.5f, 1.0f + al, -2.0f * c, 1.0f - al); }
+        {   const float w = 2.0f * pi * 6711.57f / sr, al = std::sin (w) / (2.0f * 0.7071f), c = std::cos (w);     // low-pass
+            set (mb[4], (1.0f - c) * 0.5f, 1.0f - c, (1.0f - c) * 0.5f, 1.0f + al, -2.0f * c, 1.0f - al); }
+    }
     double sampleRate = 44100.0;
+    float fzHp = 0.0f, fzLp = 0.0f, cz1 = 0.0f, cz2 = 0.0f;
     float ic1 = 0.0f, ic2 = 0.0f, env = 0.0f, lfoPhase = 0.0f, posSmooth = 0.5f;
     bool first = true;
 };
@@ -3586,8 +4129,8 @@ public:
                 d = std::min ((float) (len - 4), std::max (1.0f, d));
                 float rp = (float) pos - d;
                 if (rp < 0.0f) rp += (float) len;
-                const int i0 = (int) rp, i1 = (i0 + 1) % len;
-                const float fr = rp - (float) i0;
+                int i0 = (int) rp;  const float fr = rp - (float) i0;  if (i0 >= len) i0 -= len;      // b84: see GuitarShifter::readDelayed
+                const int i1 = (i0 + 1) % len;
                 const float wet = buf[c][(size_t) i0] * (1.0f - fr) + buf[c][(size_t) i1] * fr;
                 ch[c][i] = ch[c][i] * (1.0f - p.mix) + wet * p.mix;
             }
@@ -3643,7 +4186,7 @@ private:
     int sinceOnset = 100000;
 };
 
-// Granular cloud: records the sound into a 4-second loop and plays back lots of tiny, overlapping,
+// Granular cloud: records the sound into a 30-second memory (b81; it was a 4-second loop) and plays back lots of tiny, overlapping,
 // windowed pieces ("grains"), each with its own position, pitch, direction and pan.
 class Granular
 {
@@ -3651,14 +4194,14 @@ public:
     // scale: 0 free, 1 octaves, 2 fifths, 3 major pentatonic, 4 minor pentatonic, 5 major, 6 minor, 7 whole tone (random pitches land on its notes)
     // shape: 0 smooth, 1 swell (slow rise, quick fall), 2 pluck (quick rise, slow fall), 3 flat (short fades)
     struct Params { float sizeMs, density, posMs, spray, pitch, pitchRand, reverse, width, feedback, mix; bool freeze;
-                    int scale = 0, shape = 0; float scan = 0.0f, toneHz = 20000.0f; };
+                    int scale = 0, shape = 0; float scan = 0.0f, toneHz = 20000.0f; float recall = 0.0f; };
 
     void prepare (double sr)
     {
         sampleRate = sr;
-        bufLen = (int) (4.0 * sr);
+        bufLen = (int) (30.0 * sr);
         for (auto& b : buf) b.assign ((size_t) bufLen, 0.0f);
-        writePos = 0; spawnAcc = 0.0f; rng = 987654321u;
+        writePos = 0; recorded = 0; spawnAcc = 0.0f; rng = 987654321u;
         for (auto& g : grains) g.active = false;
         fbL = fbR = 0.0f;
     }
@@ -3666,7 +4209,7 @@ public:
     void reset()      // clears the loop without allocating (safe on the audio thread)
     {
         for (auto& b : buf) std::fill (b.begin(), b.end(), 0.0f);
-        writePos = 0; spawnAcc = 0.0f;
+        writePos = 0; recorded = 0; spawnAcc = 0.0f;
         for (auto& g : grains) g.active = false;
     }
 
@@ -3714,6 +4257,7 @@ public:
                 g.pos += g.inc;
                 if (g.pos >= (float) bufLen) g.pos -= (float) bufLen;
                 if (g.pos < 0.0f) g.pos += (float) bufLen;
+                if (g.pos >= (float) bufLen) g.pos -= (float) bufLen;     // b95: a tiny negative position plus bufLen rounds to exactly bufLen in float, one sample past the end
                 if (++g.age >= g.length) g.active = false;
             }
 
@@ -3732,6 +4276,7 @@ public:
                 buf[0][(size_t) writePos] = inL + p.feedback * fastTanh (outL);
                 buf[1][(size_t) writePos] = inR + p.feedback * fastTanh (outR);
                 writePos = (writePos + 1) % bufLen;
+                if (recorded < bufLen) ++recorded;
             }
 
             l[i] = inL * mixDry + outL * mixWet;
@@ -3790,12 +4335,25 @@ private:
         float d = p.posMs * 0.001f * sr + p.spray * rand01() * 1.5f * sr + p.scan * 1.2f * sr * (0.5f + 0.5f * std::sin (6.2831853f * scanPhase));
         d = std::min (std::max (d, dMin), std::max (dMin, dMax));
 
+        // b81 Recall: some grains reach far back into the memory (anything from about a second to everything recorded so far), so old phrases come
+        // back among the new ones. At 0 the cloud works from the last few seconds as before.
+        if (p.recall > 0.001f && rand01() < p.recall)
+        {
+            const float lo = std::max (dMin, 1.0f * sr), hi = std::min (dMax, (float) recorded - 64.0f);
+            if (hi > lo + 1.0f)
+            {
+                const float u = rand01();
+                d = lo + (hi - lo) * u * u;                                   // squared: more of the recent past, still reaching all the way back
+            }
+        }
+
         if (glitch)                                                  // stutter: often replay the same spot as the last grain
         {
             if (rand01() < 0.45f) d = lastD; else lastD = d;
         }
         float start = (float) writePos - d;
         while (start < 0.0f) start += (float) bufLen;
+        if (start >= (float) bufLen) start -= (float) bufLen;      // b95: same rounding edge as in process
 
         const float pan = p.width * (rand01() * 2.0f - 1.0f);
         const float ang = (pan + 1.0f) * juce::MathConstants<float>::pi * 0.25f;
@@ -3809,7 +4367,7 @@ private:
     }
 
     double sampleRate = 44100.0;
-    int bufLen = 1, writePos = 0;
+    int bufLen = 1, writePos = 0, recorded = 0;
     std::vector<float> buf[2];
     Grain grains[48];
     float lastD = 4800.0f;
@@ -3871,8 +4429,8 @@ public:
                 d = std::min ((float) (len - 4), std::max (1.0f, d));
                 float rp = (float) pos - d;
                 if (rp < 0.0f) rp += (float) len;
-                const int i0 = (int) rp, i1 = (i0 + 1) % len;
-                const float fr = rp - (float) i0;
+                int i0 = (int) rp;  const float fr = rp - (float) i0;  if (i0 >= len) i0 -= len;      // b84: see GuitarShifter::readDelayed
+                const int i1 = (i0 + 1) % len;
                 const float x = buf[(size_t) i0] * (1.0f - fr) + buf[(size_t) i1] * fr;
                 lp[v] += lpCoef[v] * (x - lp[v]);
                 voice[v] = lp[v];
@@ -4004,11 +4562,12 @@ public:
     struct Params { int stages, shape; float rate, depth, centreHz, feedback, mix, envAmount, lagMs = 0.0f; int voice = 0; };   // voice: 0 the four-stage JFET pedal, 1 Small Stone (OTA), 2 Small Stone with Color, 3 Uni-Vibe (four unequal lamp-driven stages)
 
     void prepare (double sr) { sampleRate = sr; lagBuf.assign ((size_t) (0.012 * sr) + 8, 0.0f); lagPos = 0; reset(); }
+    void setStartPhase (float turns) { startPhase = turns - std::floor (turns); }       // b106: where the LFO starts after a reset (the stereo phaser's right side)
 
     void reset()
     {
         for (auto& v : z) v = 0.0f;
-        phase = 0.0f; fbState = 0.0f; env = 0.0f; lampV = 0.5f;
+        phase = startPhase; fbState = 0.0f; env = 0.0f; lampV = 0.5f;
         rndCur = rndTarget = 0.0f;
         noiseState = 777u;
         std::fill (lagBuf.begin(), lagBuf.end(), 0.0f); lagPos = 0;
@@ -4168,7 +4727,7 @@ private:
     std::vector<float> lagBuf;
     int lagPos = 0;
     float lampV = 0.5f;
-    float phase = 0.0f, fbState = 0.0f, env = 0.0f, rndCur = 0.0f, rndTarget = 0.0f;
+    float phase = 0.0f, fbState = 0.0f, env = 0.0f, rndCur = 0.0f, rndTarget = 0.0f, startPhase = 0.0f;
     uint32_t noiseState = 777u;
 };
 
@@ -4185,7 +4744,7 @@ class FdnReverb
 {
 public:
     static constexpr int N = 8;
-    static constexpr int kTypes = 16;
+    static constexpr int kTypes = 17;      // b81: 17 = Studio 78
 
     void prepare (double sr)
     {
@@ -4205,6 +4764,8 @@ public:
         pos = 0; phase = 0.0f;
         outLp[0] = outLp[1] = 0.0f;
         lenInit = false;
+        for (int i = 0; i < N; ++i) { lowSt[i] = 0.0f;  held[i] = 0.0f; }
+        holdCtr = 0;  ckLp[0][0] = ckLp[0][1] = ckLp[1][0] = ckLp[1][1] = 0.0f;
     }
 
     // v51: extra shaping (all neutral by default, which gives exactly the sound of earlier versions)
@@ -4212,7 +4773,10 @@ public:
     //   space   x    : scales the size of the space (the delay lengths) on top of the decay time
     //   dragSemis    : the delay lengths glide to a new scale (a pitch glide while they move), in semitones (+ = shorter)
     //   mod     0..1 : more movement in the tail (depth and speed of the line modulation)
-    struct Extra { float diffuse = 0.5f, space = 1.0f, dragSemis = 0.0f, mod = 0.0f; };
+    //   b81 bassMul  x   : how long the bass lasts compared with the rest of the tail (1 = the same; below 1 the lows die first, above 1 they hang on),
+    //                      split at crossHz; clock 0..3: the vintage digital grit (0 clean, 1 24 kHz / 14-bit, 2 12 kHz / 10-bit and saturated, 3 6 kHz / 8-bit),
+    //                      applied to what is written back into the delay lines, so it builds up round the tail
+    struct Extra { float diffuse = 0.5f, space = 1.0f, dragSemis = 0.0f, mod = 0.0f, bassMul = 1.0f, crossHz = 500.0f; int clock = 0; int gateShape = 0; };
 
     // type 1..11 (0 is the classic reverb, handled elsewhere): 10 Chorale (vowel formants sweep through the tail), 11 Nonlinear (gated); size, damp 0..1
     // decaySeconds: the time for the tail to fall by 60 dB. Longer decays also use longer delay
@@ -4234,10 +4798,27 @@ public:
             else if (std::abs (target - lenSamples[i]) > 0.05f) lenMoving = true;
             const float g = std::pow (10.0f, -3.0f * (target / sampleRate) / std::max (0.05f, rt60));
             fbGain[i] = freezeOn ? 0.9995f : std::min (0.9995f, g);
+            // b81: the low band's loop gain relative to the rest (decay time x bassMul): ratio = gBass / gMid, never past 0.9995 overall
+            const float bm = juce::jlimit (0.25f, 2.0f, ex.bassMul);
+            bassRatio[i] = std::min (std::pow (10.0f, -3.0f * (target / sampleRate) / std::max (0.05f, rt60) * (1.0f / bm - 1.0f)), 0.9995f / std::max (1.0e-4f, fbGain[i]));
+        }
+        splitOn = ! freezeOn && std::abs (ex.bassMul - 1.0f) > 0.01f;
+        crossCoef = 1.0f - std::exp (-6.2831853f * juce::jlimit (60.0f, 2000.0f, ex.crossHz) / sampleRate);
+        clockMode = juce::jlimit (0, 3, ex.clock);
+        if (clockMode > 0)
+        {
+            static const float rateHz[4] = { 0.0f, 24000.0f, 12000.0f, 6000.0f }, lpHz[4] = { 0.0f, 10000.0f, 5000.0f, 2600.0f };
+            static const int bits[4] = { 0, 14, 10, 8 };
+            holdN = std::max (1, (int) std::lround (sampleRate / rateHz[clockMode]));
+            qLevels = (float) (1 << (bits[clockMode] - 1));
+            satK = clockMode == 2 ? 1.4f : 0.0f;
+            ckCoef = 1.0f - std::exp (-6.2831853f * lpHz[clockMode] / sampleRate);
         }
         lenInit = true;
         lenCoef = 1.0f - std::exp (-1.0f / (0.12f * sampleRate));
-        const float hz = c.dampMaxHz * std::pow (c.dampMinHz / c.dampMaxHz, damp);
+        // b123: Damp now runs from -1 to 1. 0..1 is exactly the old range; below 0 the loop filter opens further (the same curve continued), so a
+        // plate or hall can ring bright like the reference plates (their 8 kHz decay is about as long as the mids). Capped below Nyquist.
+        const float hz = std::min (0.45f * sampleRate, c.dampMaxHz * std::pow (c.dampMinHz / c.dampMaxHz, juce::jlimit (-1.0f, 1.0f, damp)));
         dampCoef = freezeOn ? 1.0f : 1.0f - std::exp (-6.2831853f * hz / sampleRate);
         diff = ex.diffuse == 0.5f ? c.diff
              : ex.diffuse < 0.5f ? c.diff * ex.diffuse * 2.0f
@@ -4247,8 +4828,10 @@ public:
         early = c.early;
         chorale = type == 10;
         gated = type == 11;
+        gateShape = ex.gateShape;                                                   // b106: 0 fade (as before), 1 chop, 2 reverse swell
+        chopCoef = 1.0f - std::exp (-1.0f / (0.0015f * (float) sampleRate));
         gateHold = (int) (sampleRate * std::min (0.9f, 0.12f + 0.22f * rt60));
-        static const float trims[kTypes] = { 0.55f, 0.65f, 0.45f, 0.60f, 0.75f, 0.60f, 0.50f, 0.65f, 0.60f, 0.42f, 0.55f, 0.42f, 0.38f, 0.60f, 0.60f, 0.55f };   // roughly equal loudness
+        static const float trims[kTypes] = { 0.55f, 0.65f, 0.45f, 0.60f, 0.75f, 0.60f, 0.50f, 0.65f, 0.60f, 0.42f, 0.55f, 0.42f, 0.38f, 0.60f, 0.60f, 0.55f, 0.55f };   // roughly equal loudness
         trim = trims[std::max (1, std::min (kTypes, type)) - 1];
         for (int i = 0; i < 4; ++i)
             apLen[i] = std::max (1, std::min ((int) (c.apMs[i] * 0.001f * sampleRate), (int) ap[i].buf.size() - 2));
@@ -4296,7 +4879,13 @@ public:
             const int i1 = (i0 + 1) % mask;
             const float v = line[i][(size_t) (i0 % mask)] * (1.0f - fr) + line[i][(size_t) i1] * fr;
             lp[i] += dampCoef * (v - lp[i]);
-            y[i] = lp[i] * fbGain[i];
+            float yi = lp[i];
+            if (splitOn)                                          // b81: the bass band loses (or keeps) level at its own rate
+            {
+                lowSt[i] += crossCoef * (yi - lowSt[i]);
+                yi = (yi - lowSt[i]) + lowSt[i] * bassRatio[i];
+            }
+            y[i] = yi * fbGain[i];
             sum += y[i];
         }
 
@@ -4306,14 +4895,30 @@ public:
         {
             const float sign = (i & 2) ? -1.0f : 1.0f;
             const float fbv = y[i] - k * sum;                   // Householder mixing
-            line[i][(size_t) pos] = fbv + x * (0.5f * sign);
+            float wv = fbv + x * (0.5f * sign);
+            if (clockMode > 0)                                    // b81: write back through a slower, coarser "clock"
+            {
+                if (holdCtr == 0)
+                {
+                    if (satK > 0.0f) wv = std::tanh (satK * wv) / satK;
+                    held[i] = std::trunc (wv * qLevels) / qLevels;          // toward zero, so a decaying tail reaches silence instead of sticking at one step
+                }
+                wv = held[i];
+            }
+            line[i][(size_t) pos] = wv;
             if (i & 1) r += sign * y[i]; else l += sign * y[i];
         }
         pos = (pos + 1) % mask;
+        if (++holdCtr >= holdN) holdCtr = 0;
 
         // a little of the diffused input straight out (early reflections), then width
         const float e = early * x;
         l = 0.55f * l + e; r = 0.55f * r + e;
+        if (clockMode > 0)                                    // b81: the converter's own band limit (two one-pole stages)
+        {
+            ckLp[0][0] += ckCoef * (l - ckLp[0][0]);  ckLp[0][1] += ckCoef * (ckLp[0][0] - ckLp[0][1]);  l = ckLp[0][1];
+            ckLp[1][0] += ckCoef * (r - ckLp[1][0]);  ckLp[1][1] += ckCoef * (ckLp[1][0] - ckLp[1][1]);  r = ckLp[1][1];
+        }
         const float mid = 0.5f * (l + r), side = 0.5f * (l - r) * wideness;
         outL = (mid + side) * trim;
         outR = (mid - side) * trim;
@@ -4349,9 +4954,23 @@ public:
         else if (gated)
         {
             // a gated tail: it holds at full level for a while after the last loud note, then drops away quickly
-            if (std::abs (in) > 0.02f) gateTimer = gateHold;
-            if (gateTimer > 0) { --gateTimer; gateGain += 0.01f * (1.0f - gateGain); }
-            else gateGain *= 0.9990f;
+            if (gateShape == 0)
+            {
+                if (std::abs (in) > 0.02f) gateTimer = gateHold;
+                if (gateTimer > 0) { --gateTimer; gateGain += 0.01f * (1.0f - gateGain); }
+                else gateGain *= 0.9990f;
+            }
+            else
+            {
+                // b106 Chop: the gate closes in about 1.5 ms (the abrupt cut of the 80s programs). Reverse swell: after a hit the gate opens
+                // linearly over the whole hold time, so the tail builds up and is then chopped at its loudest.
+                if (std::abs (in) > 0.02f) { if (gateTimer <= 0) gateAge = 0;  gateTimer = gateHold; }
+                const bool open = gateTimer > 0;
+                if (open) { --gateTimer;  ++gateAge; }
+                float target = open ? 1.0f : 0.0f;
+                if (gateShape == 2 && open) target = std::min (1.0f, (float) gateAge / (float) std::max (1, gateHold));
+                gateGain += (target - gateGain) * (target > gateGain ? 0.03f : chopCoef);
+            }
             outL *= gateGain;  outR *= gateGain;
         }
     }
@@ -4365,11 +4984,11 @@ private:
             //   baseMs rt60 dampMax dampMin diff  modMs modHz early   all-pass lengths (ms)
             {  7.0f, 0.55f,  9000.0f, 2500.0f, 0.55f, 0.05f, 0.30f, 0.30f, { 1.7f, 2.9f, 4.3f, 6.1f } },   // 1 Room
             { 22.0f, 2.20f,  7500.0f, 1800.0f, 0.65f, 0.25f, 0.25f, 0.10f, { 3.1f, 5.3f, 7.9f, 11.3f } },  // 2 Hall
-            { 12.0f, 1.60f, 14000.0f, 4000.0f, 0.75f, 0.12f, 0.45f, 0.00f, { 2.3f, 3.7f, 5.9f, 8.3f } },   // 3 Plate
+            { 12.0f, 1.60f, 14000.0f, 4000.0f, 0.75f, 0.12f, 0.45f, 0.06f, { 2.3f, 3.7f, 5.9f, 8.3f } },   // 3 Plate
             { 33.0f, 4.20f,  8500.0f, 2200.0f, 0.70f, 0.90f, 0.33f, 0.00f, { 4.1f, 6.7f, 9.7f, 13.9f } },  // 4 Ambient
             { 48.0f, 6.50f,  5500.0f, 1200.0f, 0.68f, 0.40f, 0.18f, 0.05f, { 5.3f, 8.9f, 12.1f, 17.3f } }, // 5 Cathedral
             {  9.0f, 1.80f,  4200.0f, 1500.0f, 0.78f, 0.06f, 1.10f, 0.15f, { 1.1f, 1.9f, 2.9f, 3.9f } },   // 6 Spring
-            { 14.0f, 2.40f, 11000.0f, 3000.0f, 0.80f, 0.35f, 0.60f, 0.00f, { 2.0f, 3.3f, 5.1f, 7.7f } },   // 7 Soft Plate: dense and moving
+            { 14.0f, 2.40f, 11000.0f, 3000.0f, 0.80f, 0.35f, 0.60f, 0.06f, { 2.0f, 3.3f, 5.1f, 7.7f } },   // 7 Soft Plate: dense and moving
             { 18.0f, 2.00f,  6500.0f, 1800.0f, 0.12f, 0.60f, 0.25f, 0.12f, { 3.7f, 6.1f, 8.9f, 12.7f } },  // 8 Tumble: echoes that tumble over each other
             { 55.0f, 9.00f,  6000.0f,  900.0f, 0.75f, 1.10f, 0.15f, 0.00f, { 6.1f, 9.3f, 13.7f, 19.0f } }, // 9 Abyss: huge, dark, drifting
             { 28.0f, 3.20f,  9000.0f, 3000.0f, 0.72f, 0.40f, 0.35f, 0.00f, { 3.7f, 6.3f, 9.1f, 13.3f } },  // 10 Chorale: a lush hall that sings vowels
@@ -4379,6 +4998,7 @@ private:
             { 14.0f,  1.20f, 12000.0f, 4000.0f, 0.78f, 0.08f, 0.35f, 0.45f, { 2.3f, 3.7f, 5.9f, 8.3f } },  // 14 Reverse: a short dense plate that smooths the reversed grains
             { 26.0f, 2.80f,  8500.0f, 2500.0f, 0.72f, 0.45f, 0.30f, 0.00f, { 3.5f, 5.9f, 8.7f, 12.3f } },  // 15 ModEcho: a lush hall behind the echoes
             { 30.0f, 3.50f,  7000.0f, 1500.0f, 0.80f, 0.70f, 0.50f, 0.00f, { 4.3f, 7.1f, 10.3f, 14.9f } }, // 16 Mangled: dense and dark, the mangling happens around it
+            { 30.0f, 2.80f, 10500.0f, 2600.0f, 0.74f, 0.35f, 0.30f, 0.06f, { 3.3f, 5.5f, 8.3f, 12.1f } },  // 17 Studio 78 (b81): a smooth 1970s digital hall, gently chorused; pair it with the Clock menu
         };
         return table[std::max (1, std::min (kTypes, type)) - 1];
     }
@@ -4395,11 +5015,14 @@ private:
     float lenSamples[N] {}, targetLen[N] {}, fbGain[N] {}, lp[N] {};
     float lenCoef = 0.001f;
     bool lenInit = false, lenMoving = false;
+    float lowSt[N] {}, bassRatio[N] {}, held[N] {}, crossCoef = 0.05f, qLevels = 8192.0f, satK = 0.0f, ckCoef = 0.5f, ckLp[2][2] {};
+    bool splitOn = false;
+    int clockMode = 0, holdN = 1, holdCtr = 0;
     float dampCoef = 0.5f, diff = 0.6f, modDepth = 0.0f, modInc = 0.0f, phase = 0.0f, early = 0.0f, inGain = 1.0f, wideness = 1.0f, trim = 0.5f;
     float outLp[2] {};
     bool chorale = false, gated = false;
-    float fPhase = 0.0f, gateGain = 0.0f;
-    int gateTimer = 0, gateHold = 1;
+    float fPhase = 0.0f, gateGain = 0.0f, chopCoef = 0.01f;
+    int gateTimer = 0, gateHold = 1, gateAge = 0, gateShape = 0;
     struct Formant { float lo = 0.0f, bd = 0.0f; } fs[2][2];
 };
 
@@ -4626,7 +5249,7 @@ struct ReverbUnit
 inline bool ampIsHighGain (int m)
 {
     return m == 2 || m == 3 || m == 4 || m == 8 || m == 11 || m == 12 || m == 13 || m == 14 || m == 15 || m == 16
-        || (m >= 17 && m <= 20) || m == 24 || m == 25 || m == 26 || m == 27 || m == 29 || m == 35 || m == 40;      // (b66: Marque One and Jubilant)
+        || (m >= 17 && m <= 20) || m == 24 || m == 25 || m == 26 || m == 27 || m == 29 || m == 35 || m == 40 || m == 41;      // (b66: Marque One and Jubilant; b69: Clarion)
 }
 
 class StarterAmpProcessor : public juce::AudioProcessor,
@@ -4653,7 +5276,7 @@ public:
     bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    double getTailLengthSeconds() const override { return 0.0; }
+    double getTailLengthSeconds() const override;       // b114: from the delays and reverbs that are switched on
 
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
@@ -4700,6 +5323,10 @@ public:
     bool isAuditionActive() const { return auditionOn.load(); }
     // Puts a file into a cab block: sets the block to "IR file", switches it on, and loads the file.
     void sendIRToBlock (const juce::File& file, int slot);
+    int suggestedCabAmp() const;                             // b70: the amp the cab suggestion follows (Amp A when on, else Amp B)
+    static juce::String suggestedCabText (int model);        // b70: "cabinet, speaker, mic" for an amp model, or empty
+    juce::String applySuggestedCab();                        // b70: set cab block A to that suggestion; returns the text
+    void applyPendingUpdates() { handleAsyncUpdate();  syncBoardToControls(); }       // b70: run the queued cab / reverb rebuilds now (the host does this from a timer; offline renders and tests call it)
     // The smoothed curves of the built-in speakers (Flat mic, 4x12 Closed, Position 0.3), on the library's grid.
     static const std::vector<irlib::Curve>& builtinSpeakerCurves();
     static juce::StringArray builtinSpeakerNames();
@@ -4709,11 +5336,13 @@ public:
 
     // A copy of the last few thousand output samples (mono mix) for the spectrum display.
     // The audio thread writes, the display thread reads; a rare torn read only shows as a
-    // tiny glitch in the picture, never in the sound.
+    // tiny glitch in the picture, never in the sound. (b102: the samples are relaxed atomics, so the two threads sharing them is defined behaviour rather than a data
+    // race; a reader can still see a mix of old and new samples while the writer is wrapping around, which is the same harmless glitch. On x86 and ARM a relaxed
+    // float load and store compile to a plain move, so this costs nothing.)
     struct AnalyserTap
     {
         static constexpr int size = 8192;
-        std::array<float, size> data {};
+        std::array<std::atomic<float>, size> data {};
         std::atomic<int> pos { 0 };
 
         void push (const juce::AudioBuffer<float>& b, int numSamples)
@@ -4725,7 +5354,7 @@ public:
                 float s = 0.0f;
                 for (int c = 0; c < channels; ++c)
                     s += b.getReadPointer (c)[i];
-                data[(size_t) w] = channels > 0 ? s / (float) channels : 0.0f;
+                data[(size_t) w].store (channels > 0 ? s / (float) channels : 0.0f, std::memory_order_relaxed);
                 w = (w + 1) & (size - 1);
             }
             pos.store (w, std::memory_order_release);
@@ -4735,15 +5364,15 @@ public:
         {
             const int w = pos.load (std::memory_order_acquire);
             for (int i = 0; i < n; ++i)
-                dest[i] = data[(size_t) ((w - n + i) & (size - 1))];
+                dest[i] = data[(size_t) ((w - n + i) & (size - 1))].load (std::memory_order_relaxed);
         }
     };
     // A longer tap for the polyphonic tuner (it needs about a third of a second of input). Filled only while the tuner is open.
     struct LongTap
     {
         static constexpr int size = 65536;
-        LongTap() : data ((size_t) size, 0.0f) {}
-        std::vector<float> data;
+        LongTap() : data (new std::atomic<float>[(size_t) size]) { for (int i = 0; i < size; ++i) data[(size_t) i].store (0.0f, std::memory_order_relaxed); }
+        std::unique_ptr<std::atomic<float>[]> data;       // b102: relaxed atomics, see AnalyserTap
         std::atomic<int> pos { 0 }, filled { 0 };
         void reset() { filled.store (0, std::memory_order_relaxed); }
         void push (const juce::AudioBuffer<float>& b, int numSamples)
@@ -4755,7 +5384,7 @@ public:
                 float s = 0.0f;
                 for (int c = 0; c < channels; ++c)
                     s += b.getReadPointer (c)[i];
-                data[(size_t) w] = channels > 0 ? s / (float) channels : 0.0f;
+                data[(size_t) w].store (channels > 0 ? s / (float) channels : 0.0f, std::memory_order_relaxed);
                 w = (w + 1) & (size - 1);
             }
             pos.store (w, std::memory_order_release);
@@ -4765,7 +5394,7 @@ public:
         {
             const int w = pos.load (std::memory_order_acquire);
             for (int i = 0; i < n; ++i)
-                dest[i] = data[(size_t) ((w - n + i) & (size - 1))];
+                dest[i] = data[(size_t) ((w - n + i) & (size - 1))].load (std::memory_order_relaxed);
         }
     };
     LongTap tunerLong;
@@ -4775,6 +5404,8 @@ public:
     std::atomic<bool> diLearn { false };          // set by the DI Match panel; the audio thread clears it again after about 25 seconds
     std::atomic<int>  diFrames { 0 };             // frames measured so far in this learning run
     std::atomic<int>  diStatus { 0 };             // DiMatch::Status of the current settings
+    // b99: the correction DI Match is asking for right now, per band (dB). For the tests; read it when audio is not running.
+    DiMatch::Shape diCurrentCurve() const { return diEngine.curve(); }
     bool diGetSource (DiMatch::Shape& s, float& lvl) const { const juce::SpinLock::ScopedLockType l (diLock); s = diSrc; lvl = diSrcLvl; return diHaveSrc; }
     bool diGetReference (DiMatch::Shape& s, float& lvl, juce::String& name) const { const juce::SpinLock::ScopedLockType l (diLock); s = diRef; lvl = diRefLvl; name = diRefName; return diHaveRef; }
     void diSetReference (const DiMatch::Shape& s, float lvl, const juce::String& name)
@@ -4790,6 +5421,7 @@ public:
     // The tuner is a display mode, not a saved setting, so a session never loads muted.
     std::atomic<float> meterIn { 0.0f }, meterOut { 0.0f };
     std::atomic<bool>  tunerActive { false };
+    InputCalibrator    inputCal;                    // b94: the input calibration wizard's measurement (idle unless the wizard is open and started)
     // b53: CPU readout. cpuLoad is the processing time of a call divided by the time its samples last (1.0 = the limit
     // for glitch-free audio), smoothed; cpuPeak is the worst call since the display last asked (it reads and resets it).
     std::atomic<float> cpuLoad { 0.0f }, cpuPeak { 0.0f };
@@ -4810,6 +5442,11 @@ private:
     void parameterChanged (const juce::String& id, float) override;
     void handleAsyncUpdate() override;
     void timerCallback() override;
+    // b115: keeps the pedalboard in step with the controls (Mod FX Position menus changed by the host, a MIDI mapping or a preset; a pedal switched on from its own page while it is off the board)
+    void syncBoardToControls();
+    int boardLastMenu[4] = { -1, -1, -1, -1 };
+    unsigned boardLastOn = 0xffffffffu, boardLastVer = 0u;
+    bool boardSyncInit = false;
     // The audio thread must not call triggerAsyncUpdate() (it can block on the message system), so it sets a flag
     // and a message-thread timer picks it up.
     void requestAsync() noexcept { asyncWanted.store (true, std::memory_order_release); }
@@ -4844,19 +5481,39 @@ private:
         for (const char* c = id; *c != 0; ++c) hv = (hv ^ (std::uint8_t) *c) * 16777619u;
         Entry& e = table[hv & 511u];
         if (e.owner == paramCacheId && e.p != nullptr && std::strcmp (e.name, id) == 0)
-            return e.p->load();
+            return (modN > 0 && modAudioThread) ? applyMod (hv, id, e.p->load()) : e.p->load();
         auto* raw = apvts.getRawParameterValue (id);
         if (std::strlen (id) < sizeof (e.name))
         {
             e.owner = paramCacheId;  e.key = id;  e.p = raw;
             std::strcpy (e.name, id);
         }
-        return raw->load();
+        return (modN > 0 && modAudioThread) ? applyMod (hv, id, raw->load()) : raw->load();
+    }
+    float applyMod (std::uint32_t hv, const char* id, float v) const       // b107: adds the modulators' offsets to a knob, in the knob's own travel
+    {
+        for (int i = 0; i < modN; ++i)
+            if (modTab[i].hash == hv && std::strcmp (modTab[i].name, id) == 0)
+                v = modTab[i].par->convertFrom0to1 (juce::jlimit (0.0f, 1.0f, modTab[i].par->convertTo0to1 (v) + modTab[i].off));
+        return v;
+    }
+    // b68 (R19): the all-JFET Solid Metal voicings have a 5 ohm output (damping factor 1.5), so the speaker's resonance shows: about 3 dB at 100 Hz, ampReso 0.5 on top of the knob
+    float ampResoEffective() const
+    {
+        const float k = param ("ampReso");
+        return ((int) param ("ampModel") == 29 && (int) param ("ampVoicing") >= 2) ? juce::jmin (1.0f, k + 0.5f) : k;
     }
 
     // The global Mode (Normal / Low Latency / High Quality) decides the quality settings that the
     // individual menus would otherwise pick. In Normal the menus apply as before.
     int perfMode() const { return juce::jlimit (0, 2, (int) param ("perfMode")); }
+    // b99: the window of the delay-line pitch shifters (Transpose, and the clean octaver, pitch pedal and harmonizer): 12 ms Fast, 28 ms Smooth;
+    // performance modes 10 and 40 ms; the 7- and 8-string floors follow the lowest note. Half of it is the delay.
+    int cleanWindowMs (float lowHz) const
+    {
+        const int base = perfMode() == 1 ? 10 : (perfMode() == 2 ? 40 : ((int) param ("tpQuality") == 1 ? 28 : 12));
+        return lowHz > 0.0f ? std::max (base, (int) std::ceil (1100.0f / lowHz)) : base;
+    }
     int wantedAmpQuality() const
     {
         const int m = perfMode();
@@ -4942,6 +5599,22 @@ private:
     bool tsWasMulti = false;
     bool filtWasOn = false, vpWasOn = false, mbWasOn = false, msWasOn = false, gxWasOn = false, tsWasOn = false;
     Looper looper;                         // b16
+    // b107: the two modulators. updateModulation() runs once per block on the audio thread, before the block's knobs are read; it fills modTab with
+    // the knobs that are being moved, and param() adds the modulation to those (on the audio thread only, so the editor always sees the real knob).
+    struct ModEntry { std::uint32_t hash = 0; char name[40] {}; juce::RangedAudioParameter* par = nullptr; float off = 0.0f; };
+    mutable ModEntry modTab[ModSource::kModulators * ModSource::kDestinations];
+    mutable int modN = 0;
+    ModSource::Modulator modSrc[ModSource::kModulators];
+    juce::RangedAudioParameter* modPar[ModSource::kNumTargets] {};
+    static inline thread_local bool modAudioThread = false;
+    std::atomic<int> modStepShown[ModSource::kModulators] { 0, 0 };                // b120: the step the Step sequence is on
+    double beatPos = 0.0, beatFree = 0.0, beatBpm = 120.0;  bool beatLocked = false;  // b120: where we are in the beat (quarter notes) at the start of this block
+    std::atomic<float> modShown[ModSource::kModulators] { 0.0f, 0.0f };      // what each modulator is putting out now, for the window's meter
+    void updateModulation (const juce::AudioBuffer<float>& buffer);
+public:
+    int getModulatorStep (int m) const { return modStepShown[m & 1].load (std::memory_order_relaxed); }
+    float getModulatorValue (int m) const { return modShown[m & 1].load (std::memory_order_relaxed); }
+private:
     float loopInPk = 0.0f, loopPrev[4] = {};
     bool  loopPrimed = false;
     int   loopParamIndex[4] = { -1, -1, -1, -1 };
@@ -4967,6 +5640,7 @@ private:
     bool wahWasOn = false;
     Phaser phaser;                        // before the amp
     BbdChorus chorus;                    // before the amp
+    StereoChorus chorusSt;               // b104: the stereo modes of the same Chorus block
     bool phaserWasOn = false, chorusWasOn = false;
 
     // Shimmer mode: its own reverb (run one sample at a time, so the feedback
@@ -4986,6 +5660,10 @@ private:
 
     // Pitch pedal and octaver (v41)
     Transposer wowT, octV1, octV2;
+    SpectralShifter wowSS;  FixedDelay wowDly;  int wowTrackPrev = -1;  RoughShifter wowRough;  int wowCharPrev = -1;
+    FormantWarp wowForm;  DryLowSplit wowSplit;  FixedDelay wowDly2;  bool wowFormPrev = false, wowLowPrev = false;      // b97
+    FxExtra::FlipFlopOctaverFx octDiv;  bool octDivWasOn = false;     // b86: the analogue divider octave mode
+    OctaverBank octBank;  int octNewPrev = -1;       // b79: the octaver's bank engine (POG/HOG-style voices, Tracking, Character, envelope, resonant filter)       // b77: the pitch pedal's chord tracking
     GuitarSynth synth;  bool synWasOn = false;                // v0.2
 public:
     int synthNote() const { return synth.shownNoteNumber(); }
@@ -4998,11 +5676,14 @@ public:
     void riffPlay()   { riff.play(); }
     void riffStop()   { riff.stop(); }
     void riffClear()  { riff.clear(); }
-    uint64_t harmHeardNotes() const { return harm.heardNotes(); }     // v53: notes the harmonizer hears (bit i = MIDI note 24 + i)
+    uint64_t harmHeardNotes() const { return harm.heardNotes(); }
+    // b115: the MIDI notes being held (bit n of word n >> 6 = note n), for the Harmonizer's MIDI mode and its display
+    uint64_t midiHeldNotes (int word) const { return midiHeldPub[word & 1].load(); }     // v53: notes the harmonizer hears (bit i = MIDI note 24 + i)
 private:
     juce::AudioBuffer<float> harmScratch;
     bool  harmWasOn = false;  int harmWindowMs = 0, harmPosPrev = -1;
     std::atomic<int> harmLatency { 0 };
+    uint64_t midiHeld[2] = { 0, 0 };  std::atomic<uint64_t> midiHeldPub[2] { { 0 }, { 0 } };     // b115 (audio thread / copy for the display)
     juce::AudioBuffer<float> pitchBuf1, pitchBuf2, pitchDry;
     bool  wowWasOn = false, octWasOn = false;
     int   wowWindowMs = 0, octWindowMs = 0;
@@ -5036,7 +5717,9 @@ private:
     StereoFilter metalFizzB, metalFizzB2, metalDepthB;   // b66: the same for Amp B
     ChugGate chugGateB;                   // b66: Amp B's chug gate
     bool chugBWasOn = false;
-    float fmtGainDb = 0.0f;
+    float fmtGainDb = 0.0f;                // (b99: unused; Transpose's formant is the FormantWarpFast below, the old EQ filters stay declared but idle)
+    FormantWarpFast tpForm;  FixedDelay tpDly;  bool tpFormPrev = false;      // b99
+    FormantWarpQuick tpFormQ;  bool tpFormQuick = true;      // b117: the shorter-frame formant move used when Transpose runs a short window (Fast, Low Latency)
     bool  tpWasOn = false, chugWasOn = false;
     int   tpWindowMs = 0;
     std::atomic<int> tpLatency { 0 };
@@ -5241,6 +5924,12 @@ public:
     juce::String namStatus;                                                         // last load message (message thread only)
 private:
     std::atomic<bool> latencyDirty { false };
+    // b114: the cab blocks' Delay (up to 10 ms each) is part of the sound's timing, so the longest one that is switched on is added to the latency
+    // reported to the host. Moves are held back for 0.5 s so turning the knob does not make the host re-sync with every step.
+    std::atomic<int> cabLatency { 0 };
+    int cabLatTarget = 0, cabLatCount = 0;
+    int cabDelayWanted() const;
+    int reportedLatency() const { return osLatencySamples() + cabLatency.load(); }
 
     // ---- NAM model player (v50, four slots from v51)
     void reloadNamFromState();
@@ -5258,11 +5947,18 @@ private:
     bool modWasOn[4] { false, false, false, false };
     Wobble modWobble[4];
     bool modWobWasOn[4] { false, false, false, false };
+    StereoChorus chorusStSlot[4];                    // b104: the stereo modes of the Mod FX Chorus type
     BbdChorus chorusSlot[4];                         // b28: the Chorus, Phaser and Lo-Fi types of a slot have their own processors
-    Phaser phaserSlot[4];
+    Phaser phaserSlot[4], phaserRSlot[4];                 // b106: the right side of the stereo phaser
+    int phaserStMode[4] = { -1, -1, -1, -1 };
     LoFiWarble lofiSlot[4];
+    BitMangle bitMangleSlot[4][2];                  // b120
     FxExtra::FilterFx filterSlot[4];                 // b29: the Filter and Slicer types of a slot
     FxExtra::SlicerFx slicerSlot[4];
+    FxExtra::DigitalDamageFx ddSlot[4];
+    FxExtra::SustainHoldFx holdSlot[4];              // b105: the Sustain hold type of a slot
+    FxExtra::TapeStopFx tapeStop;                    // b81: the output-stage tape stop              // b81: the Digital damage type of a slot
+    FxExtra::RepeaterFx repeater;                       // b120
     int modKind[4] { -1, -1, -1, -1 };
     FxExtra::FreqShiftFx shifterSlot[4];             // b62: the Frequency shifter and Vocoder types of a slot
     FxExtra::VocoderFx vocSlot[4];
@@ -5275,6 +5971,8 @@ private:
     bool scActive = false;
     static constexpr const char* modOnId[4]   = { "mfAOn", "mfBOn", "mfCOn", "mfDOn" };
     static constexpr const char* modTypeId[4] = { "mfAType", "mfBType", "mfCType", "mfDType" };
+    static constexpr const char* chModeIds[4] = { "mfAChMode", "mfBChMode", "mfCChMode", "mfDChMode" };
+    static constexpr const char* phStereoIds[4] = { "mfAPhStereo", "mfBPhStereo", "mfCPhStereo", "mfDPhStereo" };      // b106
 
 
     // Last block's gains, so we can ramp smoothly (no zipper noise).
@@ -5285,6 +5983,10 @@ private:
     FxExtra::OptoSustainFx optoSust;        // b58: Comp style Opto Sustain
     bool optoSustWasOn = false;
     FxExtra::CrushLimiterFx crushLim;       // b62: Comp style Crush Limiter
+    FxExtra::Cs3Fx cs3;                     // b76: Comp style CS-3
+    bool cs3WasOn = false;
+    FxExtra::Cs2Fx cs2;                     // b85: Comp style "Sustainer, early OTA"
+    bool cs2WasOn = false;
     bool crushLimWasOn = false;
     AutoLeveler fuzzLeveler, fuzzLeveler2, eqLeveler;       // the Fuzz and Post EQ "Auto level" options
     // Effect order, A/B, undo
@@ -5394,6 +6096,7 @@ private:
         }
     } jadeDist;
     bool jadeDistWasOn = false;
+    ColdClip coldA;  bool presPreA = false;      // b68: the cold clipper and the pre-power Presence network (Amp A)
     PowerSection::Params psParamsA;  PowerSection::Chain psChainA;  PowerSection::Supply psSupplyA;  float psFbLastA = 0.0f;  PowerSection::LoopTable psLoopAdA;   // v83
     TweedTone tweedA;                     // v93: the tweed combo's single Tone control
     PassiveStack passiveA;                // v81: true passive tone stacks (Amp A)
@@ -5403,7 +6106,7 @@ private:
 
     // Acoustic / piezo model
     StereoFilter acHp, acQuack, acBright, acHollow, acBodyLp, acWarm, acSpark;
-    StereoFilter acBody[5];
+    StereoFilter acBody[7];                 // b102: five body resonances plus a low and a high shelf that the Body Amount knob also moves (indices 5 and 6)
     float acAirLp[2] = { 0.0f, 0.0f };
     Adaa::Prev acAirAd[2];                  // b42: anti-aliasing history of the acoustic air exciter
     std::vector<float> acRoomBuf[2];

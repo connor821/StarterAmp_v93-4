@@ -599,6 +599,7 @@ bool parseArgs (int argc, char** argv, Opts& o)
         else if (a == "--lib") o.libPath = next(); else if (a == "--csv") o.csv = next(); else if (a == "--jobs") o.jobs = std::max (1, std::atoi (next().c_str()));
         else if (a == "--refine") o.refine = std::atoi (next().c_str()); else if (a == "--top") o.top = std::max (1, std::atoi (next().c_str())); else if (a == "--modes") o.modes = next();
         else if (a == "--quality") o.quality = std::atoi (next().c_str());
+        else if (a == "--share") { int m = -1; float x = 0.5f; const std::string v = next(); if (std::sscanf (v.c_str(), "%d=%f", &m, &x) == 2 && m >= 0 && m < 64) StageShaper::hybridShares().v[m] = x; }   // b121: try a Hybrid share, e.g. --share 21=0.5 (repeat the option for more models)
         else if (a == "--save-cap") o.saveCap = next(); else if (a == "--load-cap") o.loadCap = next();      // b65: keep / reuse the capture's own measurement (it takes about 90 s) while a candidate is being tuned
         else if (a == "--di-start") o.diStart = std::atof (next().c_str()); else if (a == "--di-sec") o.diSec = std::atof (next().c_str());
         else if (a == "--screen-sec") o.screenSec = std::atof (next().c_str());

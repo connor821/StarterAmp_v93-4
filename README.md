@@ -1,6 +1,8 @@
 # Starter Amp v0.1 (JUCE, macOS)
 
-A hand-built guitar amp simulator (Standalone, VST3, AU): input and gate, pitch shifting, fuzz, compressor, overdrive, boost, wah, phaser, chorus, modulation, thirty-two amp models (electric amps, a console channel, an acoustic, and the Triple Blend multi-amp), four neural-capture (NAM) slots, four cab blocks, Post EQ, granular and shoegaze effects, delays and reverbs.
+A hand-built guitar amp simulator (Standalone, VST3, AU, plus CLAP; AAX if you supply Avid's SDK): input and gate, pitch shifting, fuzz, compressor, overdrive, boost, wah, phaser, chorus, modulation, forty-six amp models (electric amps, a console channel, an acoustic, and the Triple Blend multi-amp), four neural-capture (NAM) slots, four cab blocks, Post EQ, granular and shoegaze effects, delays and reverbs.
+
+**Names (b96):** menu entries and hover text no longer name real makers or products. MANUAL.md Appendix A2 says what each neutral name is modelled on; older sections of the README and manual still use the earlier names.
 
 This README is organised by section (one section per part of the plugin). Other files: **MANUAL.md** (full user manual and control reference), **QUICKSTART.md** (first ten minutes), **BASED_ON.md** (the short "based on" list for every part), **MODELED_GEAR.md** (the real gear the parts are loosely inspired by, in detail; names appear only in these docs), **DATASHEET_AUDIT_b58.md** (how far the models are from the filed datasheets), **CHANGELOG.md** (old per-version notes), **WINDOWS_BUILD.md** (the Windows beta build).
 
@@ -16,7 +18,7 @@ App: `build/StarterAmp_artefacts/Release/Standalone/Starter Amp v0.1.app`
 Use headphones, and keep Output low while you raise the gain knobs. If the build shows errors, paste them to whoever maintains this project.
 
 ## The interface
-The window has ten pages, chosen with the tabs along the top or the signal-flow strip under them, in the order the signal travels. The open page is remembered with the session.
+The window has nine pages, chosen with the tabs along the top or the signal-flow strip under them, in the order the signal travels. The open page is remembered with the session.
 
 | Tab | What is on it |
 |---|---|
@@ -169,7 +171,7 @@ How it works here (my own simple version of the usual cross-correlation method):
 If a block's best match is weak (below 0.15 on a scale where 1.0 is identical), it tells you and leaves that block's settings alone. That can happen with different speakers or very different mic positions.
 
 Limits:
-- It only changes Delay and Invert, never the IR files. Offsets are measured to the nearest 48 kHz sample; offsets over 5 ms are not searched. The delays can add up to 10 ms of lag, which the plugin does not report to the DAW as latency.
+- It only changes Delay and Invert, never the IR files. Offsets are measured to the nearest 48 kHz sample; offsets over 5 ms are not searched. The delays can add up to 10 ms of lag; since b114 the longest one on an active block is reported to the DAW as latency (held back 0.5 s after you change it).
 - All blocks are compared with the reference, not with each other, so two blocks that each match the reference are assumed to match each other.
 - The best-sounding mix is not always the best-aligned one, so use your ears and the display.
 
@@ -382,7 +384,7 @@ Tips:
 - Previously the reverb had fixed damping and no filters, so the sound with the new defaults is slightly different from v19 even with the new controls untouched.
 
 ## Amp models
-**Amp Model** picks one of five amp models, **listed from least to most gain**. They share the same preamp machinery (cascaded clipping stages, each preceded by a high-pass) but with different numbers, so each has its own character. They are hand-tuned approximations of each amp's general character, **not** circuit models, so don't expect a match to the real amps. Treat them as starting points and adjust by ear.
+**Amp Model** picks one of forty-six amp models (the full list, with every voicing, is in MANUAL.md, Appendix A). The table below describes only the first five, the original amps, **listed from least to most gain**. They share the same preamp machinery (cascaded clipping stages, each preceded by a high-pass) but with different numbers, so each has its own character. They are hand-tuned approximations of each amp's general character, **not** circuit models, so don't expect a match to the real amps. Treat them as starting points and adjust by ear.
 
 | # | Model | Preamp gain at Amp Gain 0.5 | Character | How it's voiced |
 |---|---|---|---|---|
@@ -587,4 +589,4 @@ Everything added after a release defaults to neutral or off, so older sessions l
 
 I have not run or listened to the full plugin on a Mac; parts of the DSP were tested on their own. If the build shows errors, paste them.
 
-There is now a **macOS build and tests** workflow (`.github/workflows/macos.yml`, run it by hand from the Actions tab). It builds the Standalone, VST3 and AU as a universal binary on a Mac runner, runs the same stress and regression tests as the Windows workflow, and uploads the result. It has not been run yet; the plugin has only been compiled with GCC so far, so the first run may show clang-only errors.
+There is now a **macOS build and tests** workflow (`.github/workflows/macos.yml`, run it by hand from the Actions tab). It builds the Standalone, VST3, AU and CLAP as a universal binary on a Mac runner, runs the same stress and regression tests as the Windows workflow, and uploads the result. It has not been run yet; the plugin has only been compiled with GCC so far, so the first run may show clang-only errors.

@@ -21,6 +21,7 @@ public:
         int   beatsPerBar = 4;
         float level = 1.0f;            // playback gain
         double bpm = 120.0;
+        int   mode = 0;                // b106 playback: 0 Normal, 1 Reverse, 2 Half speed, 3 Half speed reverse, 4 Double speed
     };
 
     static constexpr double kMaxSeconds = 40.0;
@@ -59,6 +60,17 @@ public:
         if (state.load() == Armed && inputPeak > 0.01f)       // about -40 dBFS at the input
             beginRecording (p);
 
+        // b106: a changed playback mode carries the position over; overdubbing is only done at normal speed
+        const bool alt = p.mode > 0;
+        if (alt != wasAlt)
+        {
+            if (alt) fp = (double) pos; else pos = std::min (std::max (0, (int) fp), std::max (0, len.load() - 1));
+            wasAlt = alt;
+        }
+        if (alt && state.load() == Overdub) { state.store (Playing);  endOverdub(); }
+        const double rate = (p.mode == 2 || p.mode == 3) ? 0.5 : (p.mode == 4 ? 2.0 : 1.0);
+        const bool rev = (p.mode == 1 || p.mode == 3);
+
         const float fadeStep = 1.0f / 96.0f;
         for (int i = 0; i < n; ++i)
         {
@@ -75,7 +87,21 @@ public:
             else if (st == Playing || st == Overdub || odGain > 0.0f)
             {
                 const int length = len.load (std::memory_order_relaxed);
-                if (length > 0)
+                if (length > 0 && alt)
+                {
+                    odGain = 0.0f;
+                    if (fp >= (double) length || fp < 0.0) fp = std::fmod (fp + (double) length, (double) length);
+                    const int i0 = (int) fp, i1 = (i0 + 1 >= length) ? 0 : i0 + 1;
+                    const float fr = (float) (fp - (double) i0);
+                    const float yl = loop[0][(size_t) i0] + (loop[0][(size_t) i1] - loop[0][(size_t) i0]) * fr;
+                    const float yr = loop[1][(size_t) i0] + (loop[1][(size_t) i1] - loop[1][(size_t) i0]) * fr;
+                    if (st == Playing) { l[i] = dl + yl * gain;  if (r != nullptr) r[i] = dr + yr * gain; }
+                    fp += rev ? -rate : rate;
+                    if (fp >= (double) length) fp -= (double) length;
+                    if (fp < 0.0) fp += (double) length;
+                    pos = std::min (length - 1, (int) fp);
+                }
+                else if (length > 0)
                 {
                     const size_t k = (size_t) pos;
                     const float yl = loop[0][k], yr = loop[1][k];
@@ -116,7 +142,7 @@ private:
     void hardClear()
     {
         state.store (Empty);  len.store (0);  recPos.store (0);  playPos.store (0);
-        pos = 0;  recIdx = 0;  targetLen = 0;  odGain = 0.0f;  ovCount = 0;  ovStart = 0;
+        pos = 0;  fp = 0.0;  recIdx = 0;  targetLen = 0;  odGain = 0.0f;  ovCount = 0;  ovStart = 0;
         ovPending = false;  undoReady.store (false);  undone = false;
         for (int c = 0; c < kCommands; ++c) handled[c] = issued[c].load();
     }
@@ -148,7 +174,7 @@ private:
                 loop[c][(size_t) (length - 1 - i)] *= g;
             }
         len.store (length);
-        pos = 0;  odGain = 0.0f;  ovCount = 0;  ovPending = false;
+        pos = 0;  fp = 0.0;  odGain = 0.0f;  ovCount = 0;  ovPending = false;
         undoReady.store (false);
         state.store (nextState);
     }
@@ -182,9 +208,10 @@ private:
                 if (st == Empty)          { if (p.armOnNote) state.store (Armed); else beginRecording (p); }
                 else if (st == Armed)     beginRecording (p);
                 else if (st == Recording) closeLoop (recIdx, Playing);
+                else if (st == Playing && wasAlt) { /* overdub is off in the non-normal playback modes */ }
                 else if (st == Playing)   { ovStart = pos;  ovCount = 0;  ovPending = false;  undoReady.store (false);  state.store (Overdub); }
                 else if (st == Overdub)   { state.store (Playing);  endOverdub(); }
-                else if (st == Stopped)   { pos = 0;  state.store (Playing); }
+                else if (st == Stopped)   { pos = 0;  fp = 0.0;  state.store (Playing); }
                 break;
             case Stop:
                 if (st == Armed)          hardClear();
@@ -192,7 +219,7 @@ private:
                 else if (st == Playing || st == Overdub)
                 {
                     if (st == Overdub) { odGain = 0.0f;  endOverdub(); }
-                    state.store (Stopped);  pos = 0;
+                    state.store (Stopped);  pos = 0;  fp = 0.0;
                 }
                 break;
             case Undo:
@@ -221,5 +248,7 @@ private:
     int handled[kCommands] = {};
     int pos = 0, recIdx = 0, targetLen = 0, ovCount = 0, ovStart = 0;
     float odGain = 0.0f, gain = 1.0f;
+    double fp = 0.0;            // b106: read position in the non-normal playback modes
+    bool wasAlt = false;
     bool ovPending = false, undone = false;
 };

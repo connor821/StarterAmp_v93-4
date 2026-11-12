@@ -19,7 +19,8 @@ Open `build/StarterAmp_artefacts/Release/Standalone/Starter Amp v0.1.app`. The V
 
 1. Open the app's audio settings (the Options button in the standalone window) and choose your interface and a small buffer (64 or 128 samples).
 2. On the **INPUT** tab, **INPUT & GATE** panel, set the input menu: **Left** or **Right** for a guitar on one input, **Mono** to sum both.
-3. Play. Raise **Gate** (the knob in the INPUT & GATE panel) until the noise between notes disappears, no further. The default (-65 dB) suits most guitars.
+3. Press **CALIBRATE INPUT** (same panel) and follow the two steps: stay quiet for 3 seconds, then play your loudest part for 8. It suggests the Input level, the Gate and the De-Noise setting; press **APPLY** to use them. (You can skip this and set them by hand.)
+4. Play. Raise **Gate** (the knob in the INPUT & GATE panel) until the noise between notes disappears, no further. The default (-65 dB) suits most guitars.
 
 ## 3. Pick a sound in 30 seconds
 
@@ -30,12 +31,12 @@ Open `build/StarterAmp_artefacts/Release/Standalone/Starter Amp v0.1.app`. The V
 
 Open the **AMP** tab.
 
-1. **Pick the amp** (the top menu of the AMP panel). About thirty electric amps, an acoustic model and Triple Blend (three amps in one); the amp list in the menu is the full set. Quick guide:
-   - Clean tones: **Clean**, **Jade Chorus**, **Chime Thirty**
+1. **Pick the amp** (the top menu of the AMP panel). Forty-six amp models: electric amps, a console channel, an acoustic model and Triple Blend (three amps in one); the amp list in the menu is the full set. Quick guide:
+   - Clean tones: **Twin Sparkle**, **Cedar Spring**, **Jade Chorus**, **Chime Thirty**
    - Crunch and classic rock: **Club Crunch**, **Tweedle Dee**, **Bumble Lead**
    - Modern high gain: **Revved Up**, **5555 Block**, **Marque Dream**, **Modern Maul**
    - Extreme styles (thall, industrial, doom, slam): **Digital Dread**, **Citrus Doom**
-2. **Pick the voicing** (the second menu, "Voicing: ..."). Every amp has three. For the two new amps: *Revved Up*: Tight, Lead, Crunch. *Digital Dread*: Thall, Industrial, Cavern.
+2. **Pick the voicing** (the second menu, "Voicing: ..."). Every amp has at least four voicings, and some have more; each one is a different take on that amp (tighter, brighter, more open and so on). Try them with the same riff.
 3. **Set Gain.** 0.4 to 0.6 is the sweet spot for most rhythm playing. Turn **AUTO LEVEL** on so changing amps or gain does not change the loudness.
 4. **Shape the tone** with Bass, Low Mid, High Mid, Treble and Presence. 0 dB is each amp's own neutral point, not flat.
 
@@ -91,7 +92,7 @@ Open the **DELAY** and **POST FX** tabs: a delay and a reverb are ready. Raise t
 Hover over any control for a description. Double-click a knob to reset it. Click the number under a knob to type a value.
 
 ## Finding your way around
-- The ten tabs run in the order the sound travels: INPUT, GAIN, MOD, PITCH, AMP, CAB, EQ, DELAY, SCAPES, POST FX.
+- The nine tabs run in the order the sound travels: INPUT, GAIN, MOD, PITCH, AMP, CAB, EQ, TIME, POST FX (TIME holds the delays, reverbs and the granular cloud).
 - **TIDY VIEW** (top right of the tabs) shrinks any pedal that is switched off into a small tile. Click **SWITCH ON** on a tile to use it. Turn TIDY VIEW off to see everything.
 - **HELP** opens a short guide to the window.
 - To change the order of effects, drag a block in the strip under the tabs.

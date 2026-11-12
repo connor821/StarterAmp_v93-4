@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <memory>
 #include <vector>
 #include "ModFx.h"
 
@@ -430,18 +431,38 @@ namespace FxExtra
             float outDb = 0.0f, mix = 1.0f;
             float loCutHz = 20.0f, hiCutHz = 20000.0f;               // on the block's output; 20 Hz and 20 kHz are off
             bool  autoLevel = false;
+            float fb[kBands] { 0.0f, 0.0f, 0.0f, 0.0f };             // b112: 0 to 1: the band's own sound goes back into it through a delay tuned to the band's centre pitch
+            float fbPitch = 0.0f;                                    // b112: -1 to 1: moves that pitch by up to an octave either way
         };
+        // b112: Easy mode. One Amount (0 to 1) and a Focus (-1 lows, 0 even, +1 highs) give every band its Drive: 30 dB x Amount, scaled across the bands
+        // by 1 + Focus x (the band's place, -1 for the lowest band to +1 for the highest), so Focus +1 leaves the lowest band untouched and doubles the top one.
+        // Amount 0.4 with Focus 0 is 12 dB on every band, the same as the default band settings.
+        static float easyDriveDb (float amount, float focus, int band)
+        {
+            const float place = ((float) band - 1.5f) / 1.5f;
+            const float w = juce::jlimit (0.0f, 2.0f, 1.0f + juce::jlimit (-1.0f, 1.0f, focus) * place);
+            return juce::jlimit (0.0f, 48.0f, 30.0f * juce::jlimit (0.0f, 1.0f, amount) * w);
+        }
         bool adaa = true;                      // (tests switch this off to measure what the ADAA adds)
-        void prepare (double sampleRate) { sr = (float) sampleRate; reset(); }
+        void prepare (double sampleRate)
+        {
+            sr = (float) sampleRate;
+            int n = 1;  while ((double) n < 0.4 * sampleRate) n <<= 1;          // b112: room for the lowest feedback pitch (about 20 Hz, one octave down)
+            fbMask = n - 1;
+            for (int c = 0; c < 2; ++c) for (int b = 0; b < kBands; ++b) fbBuf[c][b].assign ((size_t) n, 0.0f);
+            reset();
+        }
         void reset()
         {
             for (int c = 0; c < 2; ++c)
             {
+                fbW[c] = 0;
+                for (int b = 0; b < kBands; ++b) { std::fill (fbBuf[c][b].begin(), fbBuf[c][b].end(), 0.0f);  fbLp[c][b] = 0.0; }
                 cx[c].reset();
                 for (int b = 0; b < kBands; ++b) st[c][b] = Chan();
                 loCut[c] = Bq();  hiCut[c] = Bq();
             }
-            for (int b = 0; b < kBands; ++b) lastKey[b] = -1;
+            for (int b = 0; b < kBands; ++b) { lastKey[b] = -1;  fbWas[b] = false; }
             eIn = eOut = 0.0;  alGain = 1.0;
         }
         // value, slope and antiderivative of each curve (all pass through 0 with slope 1, except Rectify, whose slope there is 1/2)
@@ -565,6 +586,7 @@ namespace FxExtra
                 bool bump;
                 double toneG, toneAlpha;  bool tone;
                 double dyn;  bool useDyn;
+                bool fb;  int fbD;  double fbG, fbAlpha;          // b112: feedback on, its delay, its loop gain and the loop's low-pass
             } B[kBands];
             for (int b = 0; b < kBands; ++b)
             {
@@ -591,6 +613,18 @@ namespace FxExtra
                 q.toneAlpha = 1.0 - std::exp (-tau * centre[b]);
                 q.dyn = 0.5 * (double) juce::jlimit (-1.0f, 1.0f, p.dyn[b]);
                 q.useDyn = std::abs (p.dyn[b]) > 0.002f;
+                q.fb = p.fb[b] > 0.001f && ! fbBuf[0][b].empty();
+                if (q.fb && ! fbWas[b]) for (int c = 0; c < 2; ++c) { std::fill (fbBuf[c][b].begin(), fbBuf[c][b].end(), 0.0f);  fbLp[c][b] = 0.0; }     // coming on: start from silence
+                fbWas[b] = q.fb;
+                if (q.fb)
+                {
+                    const double f = std::min (0.45 * (double) sr, centre[b] * std::pow (2.0, (double) juce::jlimit (-1.0f, 1.0f, p.fbPitch)));
+                    q.fbD = juce::jlimit (2, fbMask - 1, (int) std::lround ((double) sr / std::max (20.0, f)));
+                    q.fbAlpha = 1.0 - std::exp (-tau * std::min (0.45 * (double) sr, 2.0 * f));
+                    // the loop gain is kept at 0.9 x Feedback or less once the band's own gain (its drive at small signals) is counted, so it can ring but not run away
+                    const double gs = (1.0 - q.mix) + q.mix * q.lv * q.k * q.d0 * q.g;
+                    q.fbG = 0.9 * (double) juce::jlimit (0.0f, 1.0f, p.fb[b]) / std::max (1.0, gs);
+                }
             }
             const double bumpAlpha = 1.0 - std::exp (-tau * 75.0);
             const double envRel = 1.0 - std::exp (-1.0 / (0.06 * (double) sr));
@@ -605,12 +639,24 @@ namespace FxExtra
                     // ADAA on the part of the curve that is not a straight line (r = f(u) - u, with antiderivative F - u^2/2): the straight part
                     // is passed exactly, so small signals keep their highs and their timing, and only the bend gets the half-sample smoothing
                     const double R = icurve (q.ct, u) - 0.5 * u * u;
-                    if (! a.primed) { y = fcurve (q.ct, u);  a.primed = true; }
+                    if (! a.primed) { y = fcurve (q.ct, u);  a.fy = y;  a.primed = true; }
                     else
                     {
                         const double du = u - a.u;
                         const double mid = 0.5 * (u + a.u);
-                        y = u + (std::abs (du) < 1.0e-5 ? fcurve (q.ct, mid) - mid : (R - a.F) / du);
+                        // b114: the straight part u is taken at the current sample, which keeps small signals exactly as they were. But where the curve
+                        // is saturated the average of r already removes the straight part, and the extra u - mid = du / 2 stayed in the output: with a big
+                        // step per sample (hard drive, loud and bright) that was the 28x peak at 48 dB. The correction is s x du / 2, where
+                        // s = 1 - (f(u) - f(u_prev)) / du is how much of the step the curve flattened (0 on the straight part, 1 when fully saturated).
+                        // Smooth in the signal, no thresholds, and unchanged wherever the curve is straight.
+                        const double f1 = fcurve (q.ct, u);
+                        if (std::abs (du) < 1.0e-5) y = u + fcurve (q.ct, mid) - mid;
+                        else
+                        {
+                            const double sFlat = std::min (1.0, std::max (0.0, 1.0 - (f1 - a.fy) / du));
+                            y = u - 0.5 * sFlat * du + (R - a.F) / du;
+                        }
+                        a.fy = f1;
                     }
                     a.u = u;  a.F = R;
                 }
@@ -630,6 +676,12 @@ namespace FxExtra
                         Chan& a = st[c][b];
                         const Cfg& q = B[b];
                         double x = (double) band[c][b];
+                        if (q.fb)                                                  // b112: what the band sounded like one pitch period ago, softened, goes back in
+                        {
+                            const double d = (double) fbBuf[c][b][(size_t) ((fbW[c] - q.fbD) & fbMask)];
+                            fbLp[c][b] += q.fbAlpha * (d - fbLp[c][b]);
+                            x += q.fbG * fbLp[c][b];
+                        }
                         if (q.tone)                                                // tilt ahead of the curve
                         {
                             a.toneZ += q.toneAlpha * (x - a.toneZ);
@@ -659,9 +711,11 @@ namespace FxExtra
                             a.postZ += q.emAlpha * (xr - a.postZ);  y = xr;
                         }
                         if (q.bump) { a.bumpZ += bumpAlpha * (y - a.bumpZ);  y += 0.35 * a.bumpZ; }
+                        if (q.fb) fbBuf[c][b][(size_t) (fbW[c] & fbMask)] = (float) y;
                         sum += y;
                     }
                     (c == 0 ? l : r)[i] = (float) sum;
+                    ++fbW[c];
                 }
             }
 
@@ -699,6 +753,19 @@ namespace FxExtra
                 alGain = g1;
             }
             else { eIn = eOut = 0.0;  alGain = 1.0; }
+
+            // b114: a last safety ceiling, independent of everything above (Drive, Auto level, Feedback). Up to 2.0 (+6 dBFS) the signal is untouched;
+            // beyond that it bends smoothly towards 3.0 (+9.5 dBFS) and never passes it.
+            for (int c = 0; c < chans; ++c)
+            {
+                float* x = c == 0 ? l : r;
+                for (int i = 0; i < n; ++i)
+                {
+                    const float ax = std::abs (x[i]);
+                    if (ax > 2.0f) x[i] = std::copysign (2.0f + std::tanh (ax - 2.0f), x[i]);
+                    else if (! (ax == ax)) x[i] = 0.0f;       // a NaN is turned into silence
+                }
+            }
         }
     private:
         // halfband filter as two all-pass chains (two sections each); coefficients from a minimax search, 65 dB down from 28 kHz at a 96 kHz rate
@@ -712,7 +779,7 @@ namespace FxExtra
                 return x;
             }
         };
-        struct Chan { Ap up0, up1, dn0, dn1; double voPrev = 0.0, u = 0.0, F = 0.0, dc = 0.0; bool primed = false;
+        struct Chan { Ap up0, up1, dn0, dn1; double voPrev = 0.0, u = 0.0, F = 0.0, fy = 0.0, dc = 0.0; bool primed = false;
                       double toneZ = 0.0, env = 0.0, preZ = 0.0, postZ = 0.0, bumpZ = 0.0; };
         struct Bq        // second-order Butterworth (RBJ), direct form II transposed
         {
@@ -732,6 +799,10 @@ namespace FxExtra
         int lastKey[kBands] { -1, -1, -1, -1 };
         Split4 cx[2];
         Chan st[2][kBands];
+        std::vector<float> fbBuf[2][kBands];
+        double fbLp[2][kBands] {};
+        int fbW[2] { 0, 0 }, fbMask = 0;
+        bool fbWas[kBands] { false, false, false, false };
         Bq loCut[2], hiCut[2];
         double eIn = 0.0, eOut = 0.0, alGain = 1.0;
     };
@@ -985,6 +1056,537 @@ namespace FxExtra
     };
 
     // =====================================================================================================================
+    // b81: Digital damage (Mod slot type 24). Own design from the published description of lossy-codec and packet-loss pedals/plugins
+    // (nothing was measured or copied). A short-time spectrum (Hann window, 75 % overlap) is damaged three ways:
+    //   Loss     : the spectrum is split into about 25 bands and each band's bins are rounded to a coarse grid (steeper the more Loss),
+    //              so quiet bins drop out and the rest "birdie"; the top end is also cut back and the phases are jittered a little.
+    //              Rate sets how often the pattern of holes is re-rolled.
+    //   Dropouts : short "packets" (one to three frames, about 5 to 16 ms) are lost: muted, or the last good frame is repeated with its
+    //              phase rolling on (the stutter a decoder makes when it hides a lost packet).
+    //   Freeze   : a snapshot of the damaged spectrum is held and played on with its own measured phase advance (so it sustains instead of
+    //              buzzing); Rate sets how often a new snapshot is taken. Freeze is the amount of it blended in.
+    // The wet signal is N samples late (1024 at 48 kHz, about 21 ms; b118: 512 or 256 with the Frame menu); the dry signal is delayed to match, so Mix does not comb.
+    class DigitalDamageFx
+    {
+    public:
+        struct Params { float loss = 0.0f, drops = 0.0f, speedHz = 1.0f, freeze = 0.0f, toneHz = 16000.0f, mix = 1.0f; };
+
+        int latencySamples() const { return N; }
+
+        // b118: the frame (and so the delay) has three sizes, Long / Medium / Short = 1024 / 512 / 256 samples at 48 kHz (21 / 11 / 5 ms); the
+        // transforms, windows and band edges of all three are made here, so switching between them later does not allocate.
+        void prepare (double sampleRate)
+        {
+            sr = (float) sampleRate;
+            baseOrder = sampleRate > 70000.0 ? 11 : 10;
+            // band edges (Hz) of about 25 bands, roughly the width of the ear's critical bands
+            static const float edgesHz[] = { 0, 100, 200, 300, 400, 510, 630, 770, 920, 1080, 1270, 1480, 1720, 2000, 2320, 2700, 3150, 3700, 4400, 5300, 6400, 7700, 9500, 12000, 15500 };
+            for (int k = 0; k < 3; ++k)
+            {
+                const int o = baseOrder - k, n = 1 << o, h = n / 2;
+                fftK[k] = std::make_unique<juce::dsp::FFT> (o);
+                winK[k].assign ((size_t) n, 0.0f);
+                for (int i = 0; i < n; ++i) winK[k][(size_t) i] = 0.5f - 0.5f * std::cos (6.2831853f * (float) i / (float) n);
+                {
+                    // the inverse transform's own scaling, measured once: a unit impulse goes in, index 0 comes out as N (or 1, if the library scales)
+                    std::vector<float> t ((size_t) (2 * n), 0.0f);
+                    t[0] = 1.0f;
+                    fftK[k]->performRealOnlyForwardTransform (t.data());
+                    fftK[k]->performRealOnlyInverseTransform (t.data());
+                    invScaleK[k] = std::abs (t[0]) > 1.0e-9f ? 1.0f / t[0] : 1.0f;
+                }
+                const float binHz = sr / (float) n;
+                edgesK[k].clear();
+                for (float e : edgesHz)
+                {
+                    const int bb = std::min (h, (int) std::lround (e / binHz));
+                    if (edgesK[k].empty() || bb > edgesK[k].back()) edgesK[k].push_back (bb);
+                }
+                if (edgesK[k].back() < h + 1) edgesK[k].push_back (h + 1);
+            }
+            edges.reserve (64);
+            const int maxN = 1 << baseOrder;
+            work.assign ((size_t) (2 * maxN), 0.0f);
+            for (auto& c : ch)
+            {
+                c.in.assign ((size_t) maxN, 0.0f);  c.acc.assign ((size_t) maxN, 0.0f);  c.outq.assign ((size_t) (maxN / 4), 0.0f);
+                for (auto* v : { &c.lastMag, &c.lastPh, &c.fMag, &c.fPh, &c.fD, &c.aPh, &c.aMag, &c.mag, &c.ph })
+                    v->assign ((size_t) (maxN / 2 + 1), 0.0f);
+            }
+            selectFrame (frameSel);
+            reset();
+        }
+
+        // 0 Long, 1 Medium, 2 Short. Changing it clears the frame state (a short gap in the effect); it does not allocate.
+        void setFrame (int k)
+        {
+            k = std::max (0, std::min (2, k));
+            if (k != frameSel && fftK[0] != nullptr) { selectFrame (k);  reset(); }
+        }
+
+        void reset()
+        {
+            for (auto& c : ch)
+            {
+                std::fill (c.in.begin(), c.in.end(), 0.0f);  std::fill (c.acc.begin(), c.acc.end(), 0.0f);  std::fill (c.outq.begin(), c.outq.end(), 0.0f);
+                for (auto* v : { &c.lastMag, &c.lastPh, &c.fMag, &c.fPh, &c.fD, &c.aPh, &c.aMag })
+                    std::fill (v->begin(), v->end(), 0.0f);
+                c.fValid = false;
+            }
+            w = 0;  hopCount = 0;  readIdx = 0;  accPos = 0;
+            patternPhase = 0.0f;  seed = 12345u;  rng = 987654321u;
+            packetLeft = 0;  packetLost = false;  packetMute = false;
+            freezeTimer = 0.0f;  capStage = 0;
+        }
+
+        // l (and r, or nullptr for a mono signal), processed in place
+        void process (float* l, float* r, int n, const Params& pr)
+        {
+            if (fft == nullptr) return;
+            p = pr;
+            const int nch = r != nullptr ? 2 : 1;
+            const float mix = juce::jlimit (0.0f, 1.0f, p.mix);
+            const int mask = N - 1;
+            for (int i = 0; i < n; ++i)
+            {
+                for (int c = 0; c < nch; ++c)
+                {
+                    float& x = c == 0 ? l[i] : r[i];
+                    auto& s = ch[c];
+                    const float dryDelayed = s.in[(size_t) w];            // the oldest sample in the ring is exactly N samples old
+                    s.in[(size_t) w] = x;
+                    x = dryDelayed * (1.0f - mix) + s.outq[(size_t) readIdx] * mix;
+                }
+                w = (w + 1) & mask;
+                ++readIdx;
+                if (++hopCount >= hop)
+                {
+                    hopCount = 0;
+                    frame (nch);
+                    readIdx = 0;
+                }
+            }
+        }
+
+    private:
+        struct Chan
+        {
+            std::vector<float> in, acc, outq, lastMag, lastPh, fMag, fPh, fD, aPh, aMag, mag, ph;
+            bool fValid = false;
+        };
+
+        float rand01() { rng = rng * 1664525u + 1013904223u; return (float) (rng >> 8) / 16777216.0f; }
+        // a fixed pseudo-random number in -1..1 for (pattern seed, bin, salt): the same until the seed changes
+        static float hashSigned (unsigned s, int k, unsigned salt)
+        {
+            unsigned h = s * 2654435761u + (unsigned) k * 40503u + salt * 97u;
+            h ^= h >> 15;  h *= 2246822519u;  h ^= h >> 13;  h *= 3266489917u;  h ^= h >> 16;
+            return (float) (h & 0xffffffu) / 8388608.0f - 1.0f;
+        }
+
+        void frame (int nch)
+        {
+            const float binHz = sr / (float) N;
+            const float loss = juce::jlimit (0.0f, 1.0f, p.loss), fz = juce::jlimit (0.0f, 1.0f, p.freeze);
+            const int mask = N - 1;
+
+            // decisions shared by both channels
+            patternPhase += std::max (0.02f, p.speedHz) * (float) hop / sr;
+            if (patternPhase >= 1.0f) { patternPhase -= std::floor (patternPhase); seed = (unsigned) (rand01() * 16777215.0f) + 1u; }
+            if (--packetLeft <= 0)
+            {
+                packetLeft = 1 + (int) (rand01() * 2.999f);
+                packetLost = rand01() < p.drops * p.drops * 0.7f;
+                packetMute = rand01() < 0.55f;
+            }
+            if (p.drops < 0.001f) packetLost = false;
+            freezeTimer -= (float) hop / sr;
+            if (freezeTimer <= 0.0f)
+            {
+                freezeTimer = 1.0f / std::max (0.02f, p.speedHz);
+                if (fz > 0.01f && capStage == 0) capStage = 1;
+            }
+
+            const float cutHz = std::min (p.toneHz, 16000.0f * (1.0f - 0.72f * std::pow (loss, 1.1f)));
+            const float levels = 1.5f + 46.5f * std::pow(1.0f - loss, 1.6f);
+            const float phJit = loss * loss * 0.8f;
+
+            for (int c = 0; c < nch; ++c)
+            {
+                auto& s = ch[c];
+                for (int n = 0; n < N; ++n) work[(size_t) n] = s.in[(size_t) ((w + n) & mask)] * win[(size_t) n];
+                std::fill (work.begin() + N, work.end(), 0.0f);
+                fft->performRealOnlyForwardTransform (work.data());
+                for (int k = 0; k <= H; ++k)
+                {
+                    const float re = work[(size_t) (2 * k)], im = work[(size_t) (2 * k + 1)];
+                    s.mag[(size_t) k] = std::sqrt (re * re + im * im);
+                    s.ph[(size_t) k] = std::atan2 (im, re);
+                }
+
+                // ---- Loss
+                if (loss > 0.002f || p.toneHz < 15990.0f)
+                {
+                    for (int k = 0; k <= H; ++k)
+                    {
+                        const float f = (float) k * binHz;
+                        const float g = juce::jlimit (0.0f, 1.0f, (cutHz * 1.1f - f) / std::max (1.0f, cutHz * 0.1f));
+                        s.mag[(size_t) k] *= g;
+                    }
+                }
+                if (loss > 0.002f)
+                {
+                    for (size_t b = 0; b + 1 < edges.size(); ++b)
+                    {
+                        const int k0 = edges[b], k1 = std::min (H + 1, edges[b + 1]);
+                        float peak = 0.0f;
+                        for (int k = k0; k < k1; ++k) peak = std::max (peak, s.mag[(size_t) k]);
+                        if (peak < 1.0e-7f) continue;
+                        for (int k = k0; k < k1; ++k)
+                        {
+                            const float x = std::pow (s.mag[(size_t) k] / peak, 0.75f);
+                            const float q = std::floor (x * levels + 0.5f + 0.5f * loss * hashSigned (seed, k, 1u));
+                            s.mag[(size_t) k] = q <= 0.0f ? 0.0f : peak * std::pow (std::min (1.0f, q / levels), 1.3333333f);
+                        }
+                    }
+                    for (int k = 0; k <= H; ++k)
+                        s.ph[(size_t) k] += phJit * (0.6f * hashSigned (seed, k, 2u) + 0.4f * (2.0f * rand01() - 1.0f));
+                }
+
+                // ---- Dropouts: the last good frame is remembered, a lost one is muted or repeated with the phase rolling on
+                if (! packetLost)
+                {
+                    s.lastMag = s.mag;  s.lastPh = s.ph;
+                }
+                else if (packetMute)
+                {
+                    std::fill (s.mag.begin(), s.mag.end(), 0.0f);
+                }
+                else
+                {
+                    for (int k = 0; k <= H; ++k)
+                    {
+                        s.lastPh[(size_t) k] += (float) k * 1.5707963f;          // one hop of N/4 samples advances bin k by k * pi / 2
+                        s.lastPh[(size_t) k] -= 6.2831853f * std::floor (s.lastPh[(size_t) k] / 6.2831853f + 0.5f);
+                    }
+                    s.mag = s.lastMag;  s.ph = s.lastPh;
+                }
+
+                // ---- Freeze: two snapshots one hop apart give each bin's phase advance, then the snapshot is played on by itself
+                if (capStage == 1)
+                {
+                    s.aMag = s.mag;  s.aPh = s.ph;
+                }
+                else if (capStage == 2)
+                {
+                    for (int k = 0; k <= H; ++k)
+                    {
+                        float d = s.ph[(size_t) k] - s.aPh[(size_t) k];
+                        d -= 6.2831853f * std::floor (d / 6.2831853f + 0.5f);
+                        s.fD[(size_t) k] = d;
+                        s.fMag[(size_t) k] = 0.5f * (s.mag[(size_t) k] + s.aMag[(size_t) k]);
+                        s.fPh[(size_t) k] = s.ph[(size_t) k];
+                    }
+                    s.fValid = true;
+                }
+                const bool useFreeze = fz > 0.01f && s.fValid;
+                if (useFreeze)
+                    for (int k = 0; k <= H; ++k)
+                    {
+                        s.fPh[(size_t) k] += s.fD[(size_t) k];
+                        s.fPh[(size_t) k] -= 6.2831853f * std::floor (s.fPh[(size_t) k] / 6.2831853f + 0.5f);
+                    }
+
+                // ---- back to the time domain
+                for (int k = 0; k <= H; ++k)
+                {
+                    float re = s.mag[(size_t) k] * std::cos (s.ph[(size_t) k]), im = s.mag[(size_t) k] * std::sin (s.ph[(size_t) k]);
+                    if (useFreeze)
+                    {
+                        re = (1.0f - fz) * re + fz * s.fMag[(size_t) k] * std::cos (s.fPh[(size_t) k]);
+                        im = (1.0f - fz) * im + fz * s.fMag[(size_t) k] * std::sin (s.fPh[(size_t) k]);
+                    }
+                    if (k == 0 || k == H) im = 0.0f;
+                    work[(size_t) (2 * k)] = re;  work[(size_t) (2 * k + 1)] = im;
+                    if (k > 0 && k < H) { work[(size_t) (2 * (N - k))] = re;  work[(size_t) (2 * (N - k) + 1)] = -im; }
+                }
+                fft->performRealOnlyInverseTransform (work.data());
+                const float scale = invScale / 1.5f;
+                for (int n = 0; n < N; ++n) s.acc[(size_t) ((accPos + n) & mask)] += work[(size_t) n] * win[(size_t) n] * scale;
+                for (int n = 0; n < hop; ++n)
+                {
+                    s.outq[(size_t) n] = s.acc[(size_t) ((accPos + n) & mask)];
+                    s.acc[(size_t) ((accPos + n) & mask)] = 0.0f;
+                }
+            }
+            accPos = (accPos + hop) & mask;
+            if (capStage == 1) capStage = 2; else if (capStage == 2) capStage = 0;
+        }
+
+        float sr = 48000.0f;
+        void selectFrame (int k)
+        {
+            frameSel = k;  order = baseOrder - k;  N = 1 << order;  hop = N / 4;  H = N / 2;
+            fft = fftK[k].get();  win = winK[k].data();  invScale = invScaleK[k];  edges = edgesK[k];
+        }
+        int order = 10, N = 1024, hop = 256, H = 512, baseOrder = 10, frameSel = 0;
+        int w = 0, hopCount = 0, readIdx = 0, accPos = 0, packetLeft = 0, capStage = 0;
+        bool packetLost = false, packetMute = false;
+        float patternPhase = 0.0f, freezeTimer = 0.0f, invScale = 1.0f;
+        unsigned seed = 12345u, rng = 987654321u;
+        Params p;
+        std::unique_ptr<juce::dsp::FFT> fftK[3];
+        std::vector<float> winK[3];
+        std::vector<int> edgesK[3];
+        float invScaleK[3] { 1.0f, 1.0f, 1.0f };
+        juce::dsp::FFT* fft = nullptr;
+        const float* win = nullptr;
+        std::vector<float> work;
+        std::vector<int> edges;
+        Chan ch[2];
+    };
+
+    // =====================================================================================================================
+    // b120: Repeater (beat repeat). It listens all the time; when it is engaged (the REPEAT NOW switch, or automatically in time with the bar) it
+    // grabs the last slice (a note value long) of the finished sound and loops it. Each repeat can bend in pitch a little further than the one
+    // before, get quieter, and, with Glitch, be played backwards, skipped, cut in half or jumped in pitch at random. It adds no latency: it only
+    // plays what it already heard, and the grab is made the moment it engages. My own design (nothing measured on another unit).
+    class RepeaterFx
+    {
+    public:
+        struct Params
+        {
+            int   autoMode;      // 0 manual (hold), 1 last beat of every bar, 2 last two beats of every bar, 3 the second half of every beat
+            bool  hold;          // manual: engaged while true
+            float sliceBeats;    // the slice length in quarter notes
+            float pitchSt;       // semitones each repeat is further from the one before
+            float glitch;        // 0..1
+            float decay;         // 0..1: each repeat quieter
+            float mix;           // 0..1: 1 replaces the live sound while it repeats
+            double bpm, beat0;   // the tempo, and the position in quarter notes at the start of this block
+        };
+
+        void prepare (double sampleRate)
+        {
+            sr = sampleRate;
+            size = 1;
+            while (size < (int) (4.0 * sr) + 8) size <<= 1;
+            maxSlice = (int) (3.5 * sr);
+            for (int c = 0; c < 2; ++c) { ring[c].assign ((size_t) size, 0.0f);  slice[c].assign ((size_t) maxSlice + 4, 0.0f); }
+            reset();
+        }
+
+        void reset()
+        {
+            for (int c = 0; c < 2; ++c) { std::fill (ring[c].begin(), ring[c].end(), 0.0f);  std::fill (slice[c].begin(), slice[c].end(), 0.0f); }
+            w = 0;  wasEng = false;  wa = 0.0f;  rep = 0;  elapsed = 0;  period = 1;  readPos = 0.0;  rate = 1.0f;  gain = 1.0f;  reverse = false;  skip = false;  L = 64;
+            rng = 0xA5F1523Du;
+        }
+
+        bool isLive() const { return wasEng || wa > 1.0e-4f; }
+
+        // keeps listening while the effect is off (no output change)
+        void listen (const float* l, const float* r, int n)
+        {
+            for (int i = 0; i < n; ++i) { ring[0][(size_t) w] = l[i];  ring[1][(size_t) w] = r != nullptr ? r[i] : l[i];  w = (w + 1) & (size - 1); }
+            wasEng = false;  wa = 0.0f;
+        }
+
+        void process (float* l, float* r, int n, const Params& p)
+        {
+            if (ring[0].empty()) return;
+            const double beatStep = p.bpm / (60.0 * sr);
+            const float coef = 1.0f - std::exp (-1.0f / (0.004f * (float) sr));
+            const float fade = std::max (8.0f, 0.0015f * (float) sr);
+            const int sliceLen = std::max (64, std::min (maxSlice, (int) std::lround (p.sliceBeats * 60.0 / std::max (20.0, p.bpm) * sr)));
+            for (int i = 0; i < n; ++i)
+            {
+                const float inL = l[i], inR = r != nullptr ? r[i] : l[i];
+                ring[0][(size_t) w] = inL;  ring[1][(size_t) w] = inR;
+                const double beat = p.beat0 + (double) i * beatStep;
+                bool eng;
+                if (p.autoMode == 0) eng = p.hold;
+                else
+                {
+                    const double inBar = std::fmod (std::max (0.0, beat), 4.0), inBeat = inBar - std::floor (inBar);
+                    eng = p.autoMode == 1 ? inBar >= 3.0 : p.autoMode == 2 ? inBar >= 2.0 : inBeat >= 0.5;
+                }
+                if (eng && ! wasEng)
+                {
+                    // grab: the last sliceLen samples (this one included)
+                    L = sliceLen;
+                    for (int c = 0; c < 2; ++c)
+                        for (int k = 0; k < L; ++k)
+                            slice[c][(size_t) k] = ring[c][(size_t) ((w - (L - 1) + k) & (size - 1))];
+                    rep = 0;  elapsed = 0;  period = L;  readPos = 0.0;  rate = 1.0f;  gain = 1.0f;  reverse = false;  skip = false;
+                }
+                wasEng = eng;
+                wa += coef * ((eng ? 1.0f : 0.0f) - wa);
+                if (wa > 1.0e-4f || eng)
+                {
+                    float wl = 0.0f, wr = 0.0f;
+                    if (! skip)
+                    {
+                        double pos = readPos;
+                        while (pos >= (double) L) pos -= (double) L;
+                        if (reverse) pos = (double) (L - 1) - pos;
+                        const int i0 = (int) pos;  const float f = (float) (pos - (double) i0);
+                        const int i1 = i0 + 1 < L ? i0 + 1 : 0;
+                        wl = slice[0][(size_t) i0] + f * (slice[0][(size_t) i1] - slice[0][(size_t) i0]);
+                        wr = slice[1][(size_t) i0] + f * (slice[1][(size_t) i1] - slice[1][(size_t) i0]);
+                        const float e = std::min (1.0f, std::min ((float) elapsed / fade, (float) (period - elapsed) / fade));
+                        const float g = gain * std::max (0.0f, e);
+                        wl *= g;  wr *= g;
+                    }
+                    readPos += (double) rate;
+                    if (++elapsed >= period) nextRepeat (p, sliceLen);
+                    const float m = p.mix * wa;
+                    l[i] = inL * (1.0f - m) + wl * m;
+                    if (r != nullptr) r[i] = inR * (1.0f - m) + wr * m;
+                }
+                w = (w + 1) & (size - 1);
+            }
+        }
+
+    private:
+        float rnd01() { rng ^= rng << 13;  rng ^= rng >> 17;  rng ^= rng << 5;  return (float) (rng >> 8) / 16777216.0f; }
+
+        void nextRepeat (const Params& p, int)
+        {
+            ++rep;  elapsed = 0;  readPos = 0.0;  period = L;  reverse = false;  skip = false;
+            float st = std::max (-24.0f, std::min (24.0f, (float) rep * p.pitchSt));
+            const float g = p.glitch;
+            if (g > 0.001f)
+            {
+                if (rnd01() < 0.20f * g) skip = true;
+                else
+                {
+                    if (rnd01() < 0.35f * g) reverse = true;
+                    if (rnd01() < 0.25f * g) period = std::max (32, L / 2);
+                    if (rnd01() < 0.30f * g) { static const float jump[5] = { 12.0f, 7.0f, 5.0f, -5.0f, -12.0f };  st = std::max (-24.0f, std::min (24.0f, st + jump[(int) (rnd01() * 5.0f) % 5])); }
+                }
+            }
+            rate = std::pow (2.0f, st / 12.0f);
+            gain = std::exp (-0.8f * p.decay * (float) rep);
+            if (reverse) readPos = 0.0;
+        }
+
+        std::vector<float> ring[2], slice[2];
+        double sr = 48000.0, readPos = 0.0;
+        int size = 1, maxSlice = 1, w = 0, rep = 0, elapsed = 0, period = 1, L = 64;
+        float wa = 0.0f, rate = 1.0f, gain = 1.0f;
+        bool wasEng = false, reverse = false, skip = false;
+        std::uint32_t rng = 0xA5F1523Du;
+    };
+
+    // =====================================================================================================================
+    // b81: Tape stop. The signal always runs into a short ring buffer. Switching it on slows the read speed down to zero (the
+    // pitch falls and the sound winds to a halt); switching it off again winds the sound back up from what you are playing now
+    // and, once the speed is back to normal, crossfades to the live signal. While it is off the signal passes through untouched.
+    class TapeStopFx
+    {
+    public:
+        struct Params { bool on = false; float stopSec = 1.0f; };
+
+        void prepare (double sampleRate)
+        {
+            sr = (float) sampleRate;
+            len = 1;  while ((double) len < 8.0 * sampleRate) len <<= 1;
+            for (auto& b : buf) b.assign ((size_t) len, 0.0f);
+            reset();
+        }
+        void reset()
+        {
+            for (auto& b : buf) std::fill (b.begin(), b.end(), 0.0f);
+            w = 0;  state = Live;  rate = 1.0f;  rp = 0.0f;  join = 0.0f;
+        }
+        bool isLive() const { return state == Live; }
+        // while the stop is idle the buffer still has to hear the signal, so the first stop can start at once
+        void keepRecording (const float* l, const float* r, int n)
+        {
+            if (len < 16) return;
+            const int mask = len - 1;
+            for (int i = 0; i < n; ++i)
+            {
+                buf[0][(size_t) w] = l[i];
+                buf[1][(size_t) w] = r != nullptr ? r[i] : l[i];
+                w = (w + 1) & mask;
+            }
+        }
+
+        void process (float* l, float* r, int n, const Params& p)
+        {
+            if (len < 16) return;
+            const int mask = len - 1;
+            const float downStep = 1.0f / (std::max (0.05f, p.stopSec) * sr);
+            const float upStep = 1.0f / (std::max (0.1f, 0.6f * p.stopSec) * sr);
+            const float joinStep = 1.0f / (0.05f * sr);
+            const int nch = r != nullptr ? 2 : 1;
+            for (int i = 0; i < n; ++i)
+            {
+                float in[2] = { l[i], nch == 2 ? r[i] : l[i] };
+                for (int c = 0; c < nch; ++c) buf[c][(size_t) w] = in[c];
+
+                if (p.on && (state == Live || state == Up || state == Join))
+                {
+                    if (state == Live) { rp = (float) w - 4.0f; if (rp < 0.0f) rp += (float) len; }
+                    if (state == Join) join = 0.0f;
+                    state = Down;
+                }
+                else if (! p.on && (state == Down || state == Stopped))
+                {
+                    if (state == Stopped || rate < 0.04f)
+                    {
+                        rp = (float) w - 0.03f * sr;             // start winding up from a moment ago, not from where it stopped
+                        while (rp < 0.0f) rp += (float) len;
+                        rate = 0.0f;
+                    }
+                    state = Up;
+                }
+
+                if (state != Live)
+                {
+                    if (state == Down) { rate = std::max (0.0f, rate - downStep);  if (rate <= 0.0f) state = Stopped; }
+                    else if (state == Up) { rate = std::min (1.0f, rate + upStep);  if (rate >= 1.0f) { state = Join; join = 0.0f; } }
+                    else if (state == Join) { join = std::min (1.0f, join + joinStep);  if (join >= 1.0f) { state = Live; rate = 1.0f; } }
+
+                    float out[2] = { 0.0f, 0.0f };
+                    if (state != Stopped)
+                    {
+                        const int i0 = (int) rp;
+                        const float fr = rp - (float) i0;
+                        for (int c = 0; c < nch; ++c)
+                        {
+                            const float a = buf[c][(size_t) (i0 & mask)], b = buf[c][(size_t) ((i0 + 1) & mask)];
+                            out[c] = a + fr * (b - a);
+                        }
+                        const float g = std::min (1.0f, rate / 0.12f);       // fade the last of the slow growl so nothing thumps
+                        for (int c = 0; c < nch; ++c) out[c] *= g;
+                        rp += rate;
+                        if (rp >= (float) len) rp -= (float) len;
+                        // never let the read pointer run into the write pointer or fall off the old end
+                        float lag = (float) w - rp;  if (lag < 0.0f) lag += (float) len;
+                        if (lag < 2.0f) { rp = (float) w - 2.0f; if (rp < 0.0f) rp += (float) len; }
+                        if (lag > (float) len - 64.0f) { rp = (float) w - 0.5f * sr;  if (rp < 0.0f) rp += (float) len; }
+                    }
+                    if (state == Join)
+                        for (int c = 0; c < nch; ++c) out[c] = out[c] * (1.0f - join) + in[c] * join;
+                    l[i] = out[0];
+                    if (nch == 2) r[i] = out[1];
+                }
+                w = (w + 1) & mask;
+            }
+        }
+
+    private:
+        enum State { Live, Down, Stopped, Up, Join };
+        float sr = 48000.0f, rate = 1.0f, rp = 0.0f, join = 0.0f;
+        int len = 0, w = 0;
+        State state = Live;
+        std::vector<float> buf[2];
+    };
+
+    // =====================================================================================================================
     // b32: spring reverb tank. Two springs of different length, each a delay line in a feedback loop. A spring is dispersive:
     // low frequencies travel slower than high ones, so a pluck arrives as a falling chirp (the "drip" and "boing"). That is built
     // with a long cascade of first-order all-pass sections (coefficient -0.7) inside each loop. The loop loses level and top
@@ -1010,8 +1612,13 @@ namespace FxExtra
         void reset()
         {
             for (int k = 0; k < 2; ++k) { std::fill (buf[k].begin(), buf[k].end(), 0.0f);  std::fill (z[k].begin(), z[k].end(), 0.0f);  lpFb[k] = 0.0f; }
-            w = 0;  inLp = outHp = outLp = 0.0f;
+            w = 0;  inLp = outHp = outLp = 0.0f;  fbSig = 0.0f;
         }
+        // b111: Feedback 0..1. The tank's own output (the band the pickup hears) goes back into its driver through a soft clip, so a hit spring
+        // keeps ringing and the ring turns into the metallic boing of a spring that is fed back on itself. The first version (a clip at 1)
+        // self-oscillated at +38 dB; the clip now sits at about the level of a hit (fbKnee) and the knob's top is set so the loop gain stays just
+        // under one (measured in the tests), so the ring gets very long but does not sustain. 0 = off, and then nothing changes.
+        void setFeedback (float amount) { fbK = 0.15f * juce::jlimit (0.0f, 1.0f, amount); }
         // decaySeconds: time for the tail to fall by 60 dB. damping 0..1: how quickly the top end is lost on each trip.
         void setParams (float decaySeconds, float damping)
         {
@@ -1021,15 +1628,19 @@ namespace FxExtra
                 const float loopTime = (float) (delayLen[k] + (int) (0.006f * sr)) / sr;
                 g[k] = juce::jlimit (0.0f, 0.985f, std::pow (10.0f, -3.0f * loopTime / decay));
             }
-            const float hz = 6500.0f - 4200.0f * juce::jlimit (0.0f, 1.0f, damping);
+            // b123: damping runs -1..1. 0..1 is the old range (6.5 kHz down to 2.3 kHz); below 0 the loop opens up to 10.7 kHz and the driver and
+            // pickup filters open with it (5 to 8 kHz, 4.8 to 8 kHz), so a bright spring (the Gibbs kind) can be reached.
+            const float dmp = juce::jlimit (-1.0f, 1.0f, damping), bright = std::max (0.0f, -dmp);
+            const float hz = std::min (0.45f * sr, 6500.0f - 4200.0f * dmp);
             lpC = 1.0f - std::exp (-juce::MathConstants<float>::twoPi * hz / sr);
-            inC = 1.0f - std::exp (-juce::MathConstants<float>::twoPi * 5000.0f / sr);
+            inC = 1.0f - std::exp (-juce::MathConstants<float>::twoPi * std::min (0.45f * sr, 5000.0f + 3000.0f * bright) / sr);
             hpC = 1.0f - std::exp (-juce::MathConstants<float>::twoPi * 120.0f / sr);
-            outC = 1.0f - std::exp (-juce::MathConstants<float>::twoPi * 4800.0f / sr);
+            outC = 1.0f - std::exp (-juce::MathConstants<float>::twoPi * std::min (0.45f * sr, 4800.0f + 3200.0f * bright) / sr);
         }
         void process (float in, float& l, float& r)
         {
-            inLp += inC * (in - inLp);                        // the driver and the spring's ends only pass the middle of the spectrum
+            const float back = fbK > 0.0f ? fbK * fbKnee * std::tanh (fbSig / fbKnee) : 0.0f;
+            inLp += inC * (in + back - inLp);                 // the driver and the spring's ends only pass the middle of the spectrum
             float tap[2];
             for (int k = 0; k < 2; ++k)
             {
@@ -1053,12 +1664,15 @@ namespace FxExtra
             outHp += hpC * (m - outHp);                        // the pickup does not hear the lows
             outLp += outC * (m - outLp - 0.0f);
             const float band = outLp - outHp;
+            fbSig = band * 2.0f;                               // b111: what goes back into the driver (a clean copy of what is heard)
             const float side = 0.5f * (a0 - a1);
             l = (band + side) * outGain;
             r = (band - side) * outGain;
         }
         float outGain = 1.6f;
     private:
+        float fbK = 0.0f, fbSig = 0.0f;
+        static constexpr float fbKnee = 0.1f;
         float sr = 48000.0f, g[2] { 0.9f, 0.9f }, lpC = 0.5f, inC = 0.5f, hpC = 0.01f, outC = 0.5f;
         float lpFb[2] { 0.0f, 0.0f }, inLp = 0.0f, outHp = 0.0f, outLp = 0.0f;
         int sections = 100, mask = 0, w = 0, delayLen[2] { 1000, 1300 };
@@ -1069,7 +1683,7 @@ namespace FxExtra
     // b33: the electronics around a spring tank. The tank (SpringTank, or the old Spring type) is the same; what changes is how the
     // send is shaped before it and how the return is filtered after it. Each style is read off one amp's reverb circuit
     // (see CIRCUITS.md): the return high-pass is the coupling capacitor into the Reverb pot, the rest is the pickup and gain stages.
-    //   0 Generic (nothing), 1 Twin (530 Hz, pickup sizzle), 2 AC30 (1.6 kHz), 3 Chieftain (two stages near 400 Hz, send high-pass),
+    //   0 Generic (nothing), 1 Twin (530 Hz return, 318 Hz send high-pass, pickup sizzle), 2 AC30 (1.6 kHz), 3 Chieftain (two stages near 400 Hz, send high-pass),
     //   4 Full (almost no high-pass), 5 Clean (solid-state current drive: flat, and the driver does not clip), 6 Tilt (treble-tilted op-amp).
     class SpringReturn
     {
@@ -1091,7 +1705,7 @@ namespace FxExtra
             auto hp = [this] (float f) { hpC[nHp++] = 1.0f - std::exp (-6.28318531f * f / fs); };
             switch (s)
             {
-                case 1: hp (530.0f);  peak (0, 4000.0f, 1.2f, 4.0f);  trim = 1.0f;  break;
+                case 1: hp (530.0f);  peak (0, 4000.0f, 1.2f, 4.0f);  sendKind = 1;  sendC = 1.0f - std::exp (-6.28318531f * 318.0f / fs);  trim = 1.08f;  break;      // b68 (R10): the real send is a 500 pF coupling into a 1M grid leak (318 Hz); +0.7 dB keeps the wet level where it was
                 case 2: hp (1600.0f);  trim = 1.41f;  break;        // +3 dB: the high-pass takes out most of the energy, measured -4 dB
                 case 3: hp (329.0f);  hp (226.0f);  sendKind = 1;  sendC = 1.0f - std::exp (-6.28318531f * 284.0f / fs);  trim = 1.12f;  break;
                 case 4: hp (55.0f);  trim = 1.0f;  break;
@@ -1161,7 +1775,7 @@ namespace FxExtra
         void prepare (double sr) { fs = (float) sr;  reset(); }
         void reset()
         {
-            sq = 0.0f;  grA = grB = mem = 0.0f;  gritHp = gritLp = shelfLp = 0.0f;  uPrev = 0.0f;
+            sq = 0.0f;  grA = grB = mem = 0.0f;  darkLp = 0.0f;  gritHp = gritLp = shelfLp = 0.0f;  uPrev = 0.0f;
             makeupSm = -1000.0f;  volSm = blendSm = gritSm = trebSm = -1000.0f;
         }
         // Mono, in place. Returns the gain reduction in dB (the squeeze, not counting the makeup), for the meter.
@@ -1170,12 +1784,11 @@ namespace FxExtra
             const float sus = juce::jlimit (0.0f, 1.0f, p.sustain);
             const float thr = -14.0f - 40.0f * sus;                       // the Sustain knob lowers the threshold
             const float makeupT = 36.0f * sus;                            // and the level it holds the note at stays about the same (about -16 dB)
-            const float slope = 1.0f - 1.0f / 40.0f;                      // "as high as it goes"
-            const float knee = 6.0f;
+            const float slope = 0.9f;                                     // b68 (R14): about 10:1 (the Pigtronix trace gives 4 dB more output for 40 dB more input; was 40:1)
+            const float knee = 8.0f;                                      // b68: about 8 dB on the trace (was 6)
             const float levelC = 1.0f - std::exp (-1.0f / (0.004f * fs));
-            const float atkC = std::exp (-1.0f / (0.002f * fs));          // fixed, very fast
-            const float relA = std::exp (-1.0f / (0.090f * fs));          // first half of the release
-            const float memC = 1.0f - std::exp (-1.0f / (1.2f * fs));
+            const float dtR = 1.0f / fs;                                  // b68 (R14): release step, see below
+            const float kRel = 1.0f / 7.0f;                               // hyperbolic release: di/dt = -i^2 / 7 s, with i = 10^(GR / 18) (50 % of 9 dB in 1.8 s, 50 % of 20 dB in about 0.6 s)
             const float smC = 1.0f - std::exp (-1.0f / (0.020f * fs));
             const float tc = 1.0f - std::exp (-2.0f * juce::MathConstants<float>::pi * 2500.0f / fs);       // treble shelf corner
             const float hc = 1.0f - std::exp (-2.0f * juce::MathConstants<float>::pi * 150.0f / fs);        // the grit layer has no lows
@@ -1200,18 +1813,35 @@ namespace FxExtra
                 else if (2.0f * std::abs (over) <= knee) target = slope * (over + 0.5f * knee) * (over + 0.5f * knee) / (2.0f * knee);
                 else if (over > 0.0f)                   target = slope * over;
 
-                // two-stage release (a fast half and a slow half), the slow half longer the longer and deeper it has been squeezing
-                mem += memC * ((grA + grB) - mem);
-                const float held = juce::jlimit (0.0f, 1.0f, mem / 12.0f);
-                const float relB = std::exp (-1.0f / ((0.45f + 0.5f * held) * fs));
-                const float tgt = 0.5f * target;
-                grA = tgt + (tgt > grA ? atkC : relA) * (grA - tgt);
-                grB = tgt + (tgt > grB ? atkC : relB) * (grB - tgt);
-                const float gr = grA + grB;
+                // b68 (R14): the Pigtronix trace. The gain reduction follows the cell's LED current, which a 2200 uF cap charges in about 40 ms when the signal is
+                // 10 dB or more over the knee (about 120 ms close to the knee) and lets go hyperbolically, I(t) = I0 / (1 + t / tau0), faster after louder notes.
+                // In dB: attack is a one-pole approach to the target with that time constant; release is di/dt = -i^2 / 7 s on i = 10^(GR / 18), never below the target.
+                {
+                    if (target > grA)
+                    {
+                        const float tauA = 0.040f + 0.080f * juce::jlimit (0.0f, 1.0f, 1.0f - over / 10.0f);
+                        grA = target + std::exp (-dtR / tauA) * (grA - target);
+                    }
+                    else if (grA > 0.0f)
+                    {
+                        const float iNow = std::exp2 (grA * (3.32192809f / 18.0f));   // 10^(GR / 18); the two constants must be exact inverses or the release stalls
+                        const float iNew = 1.0f / (1.0f / iNow + dtR * kRel);
+                        grA = juce::jmax (target, (18.0f / 3.32192809f) * std::log2 (iNew));
+                    }
+                }
+                const float gr = grA;
                 lastGr = gr;
 
                 float y = in * std::exp2 ((makeupSm - gr) * 0.166096f);
-                y = 2.0f * std::tanh (0.5f * y);                      // a soft ceiling for the first few milliseconds of a note after silence (the gain is still at its highest)
+                // b68 (R15): the pedal's clipper sits 2 to 6 dB above the level it holds; the soft ceiling is 4 dB above it (held level about -16 dB rms re full scale = 0.22 peak; ceiling 0.36; was 2.0)
+                y = 0.36f * std::tanh (y / 0.36f);
+                // b68 (R14): the dark-state low-pass, 33 pF across the feedback: a first-order low-pass at 2.19 kHz x 10^(GR / 20), up to 20 kHz
+                {
+                    const float fcLp = std::min (20000.0f, 2190.0f * std::exp2 (gr * 0.166096f));
+                    const float aLp = 1.0f - std::exp (-2.0f * juce::MathConstants<float>::pi * fcLp / fs);
+                    darkLp += aLp * (y - darkLp);
+                    y = darkLp;
+                }
 
                 // grit: the squeezed signal, high-passed, driven hard into a hard clipper (first-order anti-aliased), then low-passed
                 if (gritSm > 0.002f)
@@ -1239,8 +1869,164 @@ namespace FxExtra
         }
 
     private:
-        float fs = 48000.0f, sq = 0.0f, grA = 0.0f, grB = 0.0f, mem = 0.0f, gritHp = 0.0f, gritLp = 0.0f, shelfLp = 0.0f, uPrev = 0.0f;
+        float fs = 48000.0f, sq = 0.0f, grA = 0.0f, grB = 0.0f, mem = 0.0f, darkLp = 0.0f, gritHp = 0.0f, gritLp = 0.0f, shelfLp = 0.0f, uPrev = 0.0f;
         float makeupSm = -1000.0f, volSm = 1.0f, blendSm = 1.0f, gritSm = 0.0f, trebSm = 1.0f;
+    };
+
+    //==============================================================================
+    // b76: the Comp style "CS-3 (Boss sustainer)": the Boss CS-3 Compression Sustainer, from the 1986 service notes (SchematicsRead/CS3_notes.md).
+    // Signal path as read: input buffer -> a voltage-controlled amplifier (uPC1252, the gain set through a JFET by the envelope) -> current-to-voltage stage with a 10k / 1.8 nF
+    // feedback (8.8 kHz low-pass) -> tone stage (a treble boost / cut around 1.25 kHz, up to +9.9 dB) -> Level. The DETECTOR listens AFTER the VCA (a closed-loop, feedback
+    // compressor): a 339 Hz high-pass, then a full-wave rectifier into a 4.7 uF reservoir whose recharge resistor is the Attack pot (22k + 0 to 250k: a recovery time of 0.10 to 1.28 s).
+    // What the notes do not give, and I have estimated: the VCA's gain law (here a hyperbolic control law, 1 / (1 + (e / eref)^2), about 3:1 at the top), the Sustain knob's range (0 to
+    // +30 dB of gain at the bottom of the control law), the detector's own attack (3 ms; the Attack knob lengthens it to 15 ms, as the pedal's name for the knob suggests),
+    // the tone cut side (-12 dB) and the level it settles at. The gain-control chip's datasheet was not available.
+    struct Cs3Fx
+    {
+        struct Params { float sustain = 0.5f, attack = 0.5f, tone = 0.0f, mix = 1.0f, volumeDb = 0.0f; };
+
+        void prepare (double sr) { fs = (float) sr;  reset(); }
+        void reset() { env = 0.0f;  detHp = 0.0f;  ioLp = 0.0f;  shelfLp = 0.0f;  susSm = atkSm = toneSm = mixSm = volSm = -1000.0f; }
+        // Mono, in place. Returns the gain change in dB (a negative of the control law, so the meter shows how far the VCA is turned down from its maximum).
+        float process (float* x, int n, const Params& p)
+        {
+            const float susT = juce::jlimit (0.0f, 1.0f, p.sustain), atkT = juce::jlimit (0.0f, 1.0f, p.attack);
+            const float toneT = juce::jlimit (-1.0f, 1.0f, p.tone), mixT = juce::jlimit (0.0f, 1.0f, p.mix);
+            const float volT = std::pow (10.0f, juce::jlimit (-24.0f, 24.0f, p.volumeDb) / 20.0f);
+            if (susSm < -999.0f) { susSm = susT;  atkSm = atkT;  toneSm = toneT;  mixSm = mixT;  volSm = volT; }
+            const float smC = 1.0f - std::exp (-1.0f / (0.020f * fs));
+            const float pi = juce::MathConstants<float>::pi;
+            const float detHpC = 1.0f - std::exp (-2.0f * pi * 339.0f / fs);        // R12 47k with C7 0.01 uF
+            const float ioC = 1.0f - std::exp (-2.0f * pi * 8800.0f / fs);          // R6 10k with C5 1.8 nF
+            const float shC = 1.0f - std::exp (-2.0f * pi * 1250.0f / fs);          // 4.7k with 0.027 uF
+            const float eref = 0.12f;
+            float last = 0.0f;
+            for (int i = 0; i < n; ++i)
+            {
+                susSm += smC * (susT - susSm);  atkSm += smC * (atkT - atkSm);  toneSm += smC * (toneT - toneSm);
+                mixSm += smC * (mixT - mixSm);  volSm += smC * (volT - volSm);
+                const float tAtk = (0.003f + 0.012f * atkSm), tRel = 0.10f + 1.18f * atkSm;
+                const float aC = 1.0f - std::exp (-1.0f / (tAtk * fs)), rC = std::exp (-1.0f / (tRel * fs));
+                const float gMax = std::pow (10.0f, 30.0f * susSm / 20.0f);
+                const float in = x[i];
+                const float ctrl = 1.0f / (1.0f + (env / eref) * (env / eref));
+                float y = in * gMax * ctrl;
+                y = 1.6f * std::tanh (y * (1.0f / 1.6f));                               // the VCA overloads softly
+                ioLp += ioC * (y - ioLp);  y = ioLp;
+                // detector, after the VCA: high-pass, full wave, fast attack, recovery set by the Attack pot
+                detHp += detHpC * (y - detHp);
+                const float a = std::abs (y - detHp);
+                if (a > env) env += aC * (a - env); else env *= rC;
+                // tone: boost (up to +9.9 dB) or cut (down to -12 dB) of the highs above 1.25 kHz
+                shelfLp += shC * (y - shelfLp);
+                const float tg = toneSm >= 0.0f ? std::pow (10.0f, 9.9f * toneSm / 20.0f) : std::pow (10.0f, 12.0f * toneSm / 20.0f);
+                const float t = shelfLp + tg * (y - shelfLp);
+                x[i] = (in * (1.0f - mixSm) + t * mixSm) * volSm;
+                last = ctrl;
+            }
+            return -20.0f * std::log10 (std::max (1.0e-4f, last));
+        }
+
+    private:
+        float fs = 48000.0f, env = 0.0f, detHp = 0.0f, ioLp = 0.0f, shelfLp = 0.0f;
+        float susSm = -1000.0f, atkSm = 0.5f, toneSm = 0.0f, mixSm = 1.0f, volSm = 1.0f;
+    };
+
+    //==============================================================================
+    // b86: an analogue octave-down divider, after the classic flip-flop octave pedal (the OC-2 service notes: a comparator, a flip-flop that divides by two for
+    // the first octave down and a second flip-flop for the second, TL022 filters, and the squares gated by the input level). Monophonic: it follows the
+    // zero crossings of the low-passed note, so a chord or a pick scratch makes it jump, which is what the real pedal does. From the sheet's table
+    // (600 Hz in): the octave outputs have periods of 3.33 ms and 6.67 ms (half and a quarter of the frequency), and with the level knobs at maximum the first
+    // octave is 3 dB above the direct signal and the second 3.5 dB below it, at -20 and at -50 dBm in (the squares follow the input level, no expansion).
+    // A square of peak E has the RMS E; the direct sine of peak A has A / sqrt (2): E = A gives +3 dB, E = 0.47 A gives -3.5 dB. The input filter corner,
+    // the hysteresis, the envelope speeds and the Tone corner are my estimates (the sheet's filter values were not legible).
+    struct FlipFlopOctaverFx
+    {
+        struct Params { float oct1 = 0.6f, oct2 = 0.0f, dry = 1.0f, tone = 0.5f; };
+
+        void prepare (double sr) { fs = (float) sr;  reset(); }
+        void reset() { lp1 = lp2 = 0.0f;  env = 0.0f;  armed = true;  ff1 = ff2 = 1.0f;  v1 = v2 = 0.0f;  tl1 = tl2 = tl3 = tl4 = 0.0f;  prev = 0.0f;  sw = false; }
+        void process (float* x, int n, const Params& p)
+        {
+            const float pi = juce::MathConstants<float>::pi;
+            const float inC = 1.0f - std::exp (-2.0f * pi * 600.0f / fs);                         // the note filter, two poles at about 600 Hz
+            const float aC = 1.0f - std::exp (-1.0f / (0.003f * fs)), rC = std::exp (-1.0f / (0.080f * fs));
+            const float fc = 400.0f * std::pow (10.0f, 1.3f * juce::jlimit (0.0f, 1.0f, p.tone));
+            const float tC = 1.0f - std::exp (-2.0f * pi * std::min (fc, 0.45f * fs) / fs);
+            for (int i = 0; i < n; ++i)
+            {
+                const float in = x[i];
+                lp1 += inC * (in - lp1);  lp2 += inC * (lp1 - lp2);
+                const float a = std::abs (lp2) * 1.0f;
+                if (a > env) env += aC * (a - env); else env *= rC;
+                // Schmitt trigger: re-arms when the note falls below minus 15 % of its level, fires on the way up through plus 15 % (and never on hiss)
+                const float th = std::max (0.0015f, 0.15f * env);
+                bool rising = false;
+                if (armed && lp2 > th) { armed = false;  rising = true; }
+                else if (! armed && lp2 < -th) armed = true;
+                if (rising && env > 0.0015f)
+                {
+                    ff1 = -ff1;                                    // divide by two
+                    if (ff1 > 0.0f) ff2 = -ff2;                    // divide by two again, on every second rising edge of the first
+                }
+                // the squares, gated by the input level (the note's peak: env follows |lp2|, whose peak is the fundamental's amplitude)
+                const float g = env > 0.0015f ? 1.19f * env : 0.0f;      // 1.19: the rectified-peak follower sits 1.5 dB under the note's peak at 110 Hz; calibrated so the sheet's +3 / -3.5 dB hold (my calibration)
+                const float o1 = ff1 * g * p.oct1, o2 = ff2 * g * 0.47f * p.oct2;
+                tl1 += tC * (o1 - tl1);  tl2 += tC * (tl1 - tl2);
+                tl3 += tC * (o2 - tl3);  tl4 += tC * (tl3 - tl4);
+                x[i] = in * p.dry + tl2 + tl4;
+            }
+        }
+
+    private:
+        float fs = 48000.0f, lp1 = 0.0f, lp2 = 0.0f, env = 0.0f, ff1 = 1.0f, ff2 = 1.0f, v1 = 0.0f, v2 = 0.0f, tl1 = 0.0f, tl2 = 0.0f, tl3 = 0.0f, tl4 = 0.0f, prev = 0.0f;
+        bool armed = true, sw = false;
+    };
+
+    //==============================================================================
+    // b85: the Comp style "Sustainer, early OTA" (a late-1970s sustain pedal with an OTA (BA662A) in its signal path). Fit to the output table in the
+    // service sheet, with the Level knob at maximum: 1 kHz at -50 dBm in gives -12 out, at -40 gives -8.5, at 0 gives -8 (slight distortion); with Sustain
+    // at minimum -40 in gives -33 out. A soft-limit law, out = P * u / sqrt(1 + u^2), reproduces the first four rows to within 0.2 dB (gain +40 dB
+    // below the knee, a flat ceiling near -8 dBm; 0 dBm is taken as a 0.5 sine). What the sheet does not give: the speeds of the detector (the Attack
+    // knob runs 3 to 30 ms attack with 30 to 300 ms release here: my estimates), how the ceiling moves with Sustain (I lower it by 20 dB at minimum),
+    // and the two 100 Hz rows (-4.5 and -10.5 dBm), which this static law does not reproduce.
+    struct Cs2Fx
+    {
+        struct Params { float sustain = 1.0f, attack = 0.5f, mix = 1.0f, volumeDb = 0.0f; };
+
+        void prepare (double sr) { fs = (float) sr;  reset(); }
+        void reset() { env = 0.0f;  susSm = atkSm = mixSm = volSm = -1000.0f; }
+        // Mono, in place. Returns the gain reduction from the small-signal gain in dB (for the meter).
+        float process (float* x, int n, const Params& p)
+        {
+            const float susT = juce::jlimit (0.0f, 1.0f, p.sustain), atkT = juce::jlimit (0.0f, 1.0f, p.attack), mixT = juce::jlimit (0.0f, 1.0f, p.mix);
+            const float volT = std::pow (10.0f, juce::jlimit (-24.0f, 24.0f, p.volumeDb) / 20.0f);
+            if (susSm < -999.0f) { susSm = susT;  atkSm = atkT;  mixSm = mixT;  volSm = volT; }
+            const float smC = 1.0f - std::exp (-1.0f / (0.020f * fs));
+            float lastRed = 0.0f;
+            for (int i = 0; i < n; ++i)
+            {
+                susSm += smC * (susT - susSm);  atkSm += smC * (atkT - atkSm);  mixSm += smC * (mixT - mixSm);  volSm += smC * (volT - volSm);
+                const float ta = 0.003f * std::pow (10.0f, atkSm), tr = 0.03f * std::pow (10.0f, atkSm);
+                const float ca = 1.0f - std::exp (-1.0f / (ta * fs)), cr = std::exp (-1.0f / (tr * fs));
+                const float g0Db = 7.0f + 33.0f * susSm, ceilDb = -8.0f + 20.0f * (1.0f - susSm);      // small-signal gain and the ceiling in dBm
+                const float g0 = std::pow (10.0f, g0Db / 20.0f);
+                const float eAmp = 0.5f * std::pow (10.0f, (ceilDb - g0Db - 1.0f) / 20.0f);          // the knee, in detector units (0 dBm = 0.5)
+                const float in = x[i];
+                const float k = env / eAmp;
+                const float red = 1.0f / std::sqrt (1.0f + k * k);
+                float y = in * g0 * red;
+                y = 1.6f * std::tanh (y * (1.0f / 1.6f));
+                const float a = std::abs (in);
+                if (a > env) env += ca * (a - env); else env *= cr;
+                x[i] = (in * (1.0f - mixSm) + y * mixSm) * volSm;
+                lastRed = red;
+            }
+            return -20.0f * std::log10 (std::max (1.0e-4f, lastRed));
+        }
+
+    private:
+        float fs = 48000.0f, env = 0.0f, susSm = -1000.0f, atkSm = 0.5f, mixSm = 1.0f, volSm = 1.0f;
     };
 
     //==============================================================================
@@ -1533,8 +2319,8 @@ namespace FxExtra
                         if (std::abs (fb) > 0.001f)
                         {
                             float rp = (float) c.w - dly;  if (rp < 0.0f) rp += (float) dsize;
-                            const int i0 = (int) rp, i1 = (i0 + 1) % dsize;
-                            const float f = rp - (float) i0;
+                            int i0 = (int) rp;  const float f = rp - (float) i0;  if (i0 >= dsize) i0 -= dsize;      // b84: see GuitarShifter::readDelayed
+                            const int i1 = (i0 + 1) % dsize;
                             fbv = c.buf[(size_t) i0] * (1.0f - f) + c.buf[(size_t) i1] * f;
                         }
                         float a, b;
@@ -1704,5 +2490,181 @@ namespace FxExtra
             return 0.0f;
         }
         float ph[4] {};
+    };
+
+    // ---- b105: Sustain hold (a sostenuto pedal for guitar). While Hold is on, the last 0.1 to 0.3 s of what you played is looped, without the pick attack, so the note or chord
+    //      goes on ringing under your live playing. Each time Hold is switched on a new layer is captured (up to Layers; the oldest is dropped past that). When Hold is
+    //      switched off the layers die away by Tail (the far end of Tail: never, until a new capture takes the place). Rise is how fast a held layer swells in.
+    //      The loop is cut at a point where its end continues smoothly into its start (a search over the last 15 ms for the best waveform match) and cross-faded for 10 ms.
+    //      Mono. My own design from descriptions of such pedals; the sound has not been compared with any unit.
+    class SustainHoldFx
+    {
+    public:
+        static constexpr int kSlots = 6;
+        struct Params { bool hold = false; int layers = 3; float rise = 0.2f, tail = 0.0f, toneHz = 9000.0f, mix = 0.5f; };
+
+        void prepare (double sr)
+        {
+            fs = (float) sr;
+            histSize = 1;  while (histSize < (int) sr + 64) histSize <<= 1;
+            hist.assign ((size_t) histSize, 0.0f);
+            xf = std::max (16, (int) (0.010 * sr));
+            maxLoop = (int) (0.300 * sr);
+            for (auto& l : lay) l.buf.assign ((size_t) (xf + maxLoop + 64), 0.0f);
+            frameLen = std::max (16, (int) (0.005 * sr));
+            reset();
+        }
+
+        void reset()
+        {
+            std::fill (hist.begin(), hist.end(), 0.0f);
+            wp = 0;  frameSum = 0.0f;  frameCnt = 0;  frameHead = 0;  nFrames = 0;
+            for (auto& e : frameE) e = 0.0f;
+            for (auto& l : lay) { l.state = Idle;  l.gain = 0.0f;  l.len = 0;  l.pos = 0;  l.stolen = false;  l.age = 0; }
+            prevHold = false;  pending = false;  waitLeft = 0;  ageCounter = 0;  lpState = 0.0f;  norm = 1.0f;
+        }
+
+        void process (float* x, int n, const Params& p)
+        {
+            if (hist.empty()) return;
+            const int allowed = std::max (1, std::min (5, p.layers));
+            if (p.hold && ! prevHold)
+            {
+                int onAge = 0;
+                const int settle = (int) (0.13f * fs);                   // the attack is skipped: wait until the note has settled
+                pending = true;
+                waitLeft = (findOnset (onAge) && onAge < settle) ? settle - onAge : 0;
+            }
+            if (! p.hold && prevHold)
+            {
+                pending = false;
+                for (auto& l : lay) if (l.state == Held) l.state = Fading;
+            }
+            prevHold = p.hold;
+
+            const float riseMs = 20.0f * std::pow (150.0f, juce::jlimit (0.0f, 1.0f, p.rise));
+            const float riseC = 1.0f - std::exp (-3.0f / (riseMs * 0.001f * fs));
+            const float tl = juce::jlimit (0.0f, 1.0f, p.tail);
+            const float fadeMul = tl >= 0.985f ? 1.0f : std::pow (10.0f, -3.0f / (0.12f * std::pow (60.0f, tl / 0.98f) * fs));
+            const float stealMul = std::pow (10.0f, -3.0f / (0.025f * fs));
+            const float toneC = 1.0f - std::exp (-6.2831853f * juce::jlimit (500.0f, 0.45f * fs, p.toneHz) / fs);
+            const float wetGain = 2.0f * juce::jlimit (0.0f, 1.0f, p.mix);
+            const int mask = histSize - 1;
+            for (int i = 0; i < n; ++i)
+            {
+                const float in = x[i];
+                hist[(size_t) (wp & mask)] = in;  ++wp;
+                frameSum += in * in;
+                if (++frameCnt >= frameLen)
+                {
+                    frameHead = (frameHead + 1) & (kFrames - 1);
+                    frameE[frameHead] = frameSum / (float) frameLen;
+                    frameSum = 0.0f;  frameCnt = 0;  if (nFrames < kFrames) ++nFrames;
+                }
+                if (pending)
+                {
+                    if (waitLeft > 0) --waitLeft;
+                    else { capture (allowed);  pending = false; }
+                }
+                float wet = 0.0f;  int act = 0;
+                for (auto& l : lay)
+                {
+                    if (l.state == Idle) continue;
+                    float v = l.buf[(size_t) (xf + l.pos)];
+                    const int xs = l.len - xf;
+                    if (l.pos >= xs) { const float t = (float) (l.pos - xs) / (float) xf;  v = v * (1.0f - t) + l.buf[(size_t) (l.pos - xs)] * t; }
+                    if (++l.pos >= l.len) l.pos = 0;
+                    if (l.state == Held && ! l.stolen) l.gain += riseC * (1.0f - l.gain);
+                    else
+                    {
+                        l.gain *= l.stolen ? stealMul : fadeMul;
+                        if (l.gain < 1.0e-4f) { l.state = Idle;  l.gain = 0.0f;  continue; }
+                    }
+                    wet += l.gain * v;
+                    if (l.gain > 0.01f) ++act;
+                }
+                norm += 0.002f * (1.0f / std::sqrt ((float) std::max (1, act)) - norm);
+                lpState += toneC * (wet * norm - lpState);
+                x[i] = in + wetGain * lpState;
+            }
+        }
+
+    private:
+        enum State { Idle, Held, Fading };
+        struct Layer { std::vector<float> buf;  State state = Idle;  float gain = 0.0f;  int len = 0, pos = 0;  bool stolen = false;  uint64_t age = 0; };
+        static constexpr int kFrames = 128;
+
+        // the most recent note start in the last ~0.5 s: a 5 ms frame at least 6 dB above the 4 frames before it. Returns its age in samples.
+        bool findOnset (int& ageSamples) const
+        {
+            for (int k = 0; k < std::min (nFrames - 5, 100); ++k)
+            {
+                const int f = (frameHead - k) & (kFrames - 1);
+                float prev = 0.0f;  for (int j = 1; j <= 4; ++j) prev += frameE[(size_t) ((f - j) & (kFrames - 1))];
+                prev *= 0.25f;
+                if (frameE[(size_t) f] > 1.0e-7f && frameE[(size_t) f] > 4.0f * prev + 1.0e-9f)
+                {
+                    ageSamples = frameCnt + (k + 1) * frameLen;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        void capture (int allowed)
+        {
+            const int mask = histSize - 1;
+            int onAge = 0;
+            const bool hasOn = findOnset (onAge) && onAge < maxLoop + xf + 4 * frameLen;
+            int L = hasOn ? onAge - (int) (0.030f * fs) : maxLoop;
+            L = std::max ((int) (0.05f * fs), std::min (maxLoop, L));
+            const int W = std::max (16, (int) (0.004f * fs)), D = (int) (0.015f * fs);
+            const int64_t s0 = wp - L;
+            auto H = [&] (int64_t i) { return hist[(size_t) (i & mask)]; };
+            float ref = 0.0f;  for (int j = 1; j <= W; ++j) ref += H (s0 - j) * H (s0 - j);
+            int bestD = 0;  float best = -2.0f;
+            for (int d = 0; d <= D; ++d)
+            {
+                const int64_t e = wp - d;
+                float c = 0.0f, en = 0.0f;
+                for (int j = 1; j <= W; ++j) { const float a = H (e - j), b = H (s0 - j);  c += a * b;  en += a * a; }
+                const float score = c / std::sqrt (ref * en + 1.0e-12f);
+                if (score > best) { best = score;  bestD = d; }
+            }
+            int len = L - bestD;
+            if (len < (int) (0.04f * fs)) { len = L;  bestD = 0; }
+            // choose the layer: a free one; past 'allowed' live layers the oldest is dropped fast
+            int live = 0, oldest = -1;
+            for (int k = 0; k < kSlots; ++k)
+                if (lay[(size_t) k].state != Idle && ! lay[(size_t) k].stolen)
+                {
+                    ++live;
+                    if (oldest < 0 || lay[(size_t) k].age < lay[(size_t) oldest].age) oldest = k;
+                }
+            if (live >= allowed && oldest >= 0) lay[(size_t) oldest].stolen = true;
+            int slot = -1;
+            for (int k = 0; k < kSlots; ++k) if (lay[(size_t) k].state == Idle) { slot = k;  break; }
+            if (slot < 0)
+            {
+                float lo = 1.0e9f;
+                for (int k = 0; k < kSlots; ++k) if (lay[(size_t) k].gain < lo) { lo = lay[(size_t) k].gain;  slot = k; }
+            }
+            Layer& L2 = lay[(size_t) slot];
+            for (int j = 0; j < xf; ++j) L2.buf[(size_t) j] = H (s0 - xf + j);
+            for (int j = 0; j < len; ++j) L2.buf[(size_t) (xf + j)] = H (s0 + j);
+            L2.len = len;  L2.pos = 0;  L2.gain = 0.0f;  L2.state = Held;  L2.stolen = false;  L2.age = ++ageCounter;
+        }
+
+        float fs = 48000.0f;
+        int histSize = 0, xf = 480, maxLoop = 14400, frameLen = 240;
+        std::vector<float> hist;
+        int64_t wp = 0;
+        float frameSum = 0.0f, frameE[kFrames] {};
+        int frameCnt = 0, frameHead = 0, nFrames = 0;
+        Layer lay[kSlots];
+        bool prevHold = false, pending = false;
+        int waitLeft = 0;
+        uint64_t ageCounter = 0;
+        float lpState = 0.0f, norm = 1.0f;
     };
 }

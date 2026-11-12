@@ -11,7 +11,7 @@ namespace StageShaper
     inline float lut (const float* y, float u)
     {
         float p = (u - StageCurves::kU0) / StageCurves::kDu;
-        if (p < 0.0f) p = 0.0f;
+        if (! (p >= 0.0f)) p = 0.0f;   // b95: written so a NaN takes this branch and cannot index the table
         if (p > (float) (StageCurves::kN - 1) - 0.001f) p = (float) (StageCurves::kN - 1) - 0.001f;
         const int i = (int) p;
         const float f = p - (float) i;
@@ -73,11 +73,28 @@ namespace StageShaper
     };
 
     // Hybrid mode: the measured level difference (guitar-like test signal, three gain settings) of the 50/50 mix against Classic, undone
-    // b66: the split amps (34 to 40) shape their stages like the amp they were built on
+    // b66: the split amps (34 to 40) shape their stages like the amp they were built on (b73: Ember like the Brown Eye; b80: Kindle like the Chime Thirty's cold class-A stages)
     inline int shapeSource (int model)
     {
-        switch (model) { case 34: return 9; case 35: return 11; case 38: return 23; case 39: return 9; case 40: return 25; default: return model; }
+        switch (model) { case 34: return 9; case 35: return 11; case 38: return 23; case 39: return 9; case 40: return 25; case 43: return 2; case 44: return 1; case 45: return 23; default: return model; }
     }
+    // b92: the share of the circuit-derived stage shapes in the Hybrid mix, per amp (0.5 for every amp unless a row below says otherwise). A table that a
+    // tool may change at start-up (the fit tool does, to try values); the plug-in only reads it.
+    struct HybridShareTable
+    {
+        float v[64];
+        HybridShareTable()
+        {
+            for (auto& x : v) x = 0.5f;
+            // b92 lowered Hi-Wat Headroom (21) and Ironside (45) to 0.20 / 0.25 on plug-in renders, which turned out to share the model's own error floor. b121 retunes against
+            // the real-hardware captures (Hiwatt DR103 / Super-Hi / Custom 100 and Laney Lead Top / VH100R / GH100 / LA30 / L60, amp-only): the mean signed second-harmonic gap
+            // (capture minus amp, over six levels) crosses zero near 0.36 for Hi-Wat; for Ironside it is already about zero at the plain 0.5 mix, so it goes back to the default.
+            // Measured against captures, not listened to.
+            v[21] = 0.36f;
+        }
+    };
+    inline HybridShareTable& hybridShares() { static HybridShareTable t;  return t; }
+    inline float hybridShare (int model) { return model >= 0 && model < 64 ? hybridShares().v[model] : 0.5f; }
     inline float hybridTrimDb (int model)
     {
         model = shapeSource (model);
@@ -89,10 +106,11 @@ namespace StageShaper
     inline Plan planFor (int model, int preTube, int pwrSel)
     {
         model = shapeSource (model);
+        // b68 (R8): model 0 (Twin Sparkle) now uses arch 3 (B 350 V, 100k load, 1.5k cathode: plate 236 V, cathode 1.7 V), the closest tabulated point to the Twin Reverb's V1/V2 (plates +240 to +270 V, cathode +2.0 V on AB763); it had arch 0 (Deluxe Reverb point: 170 V, 1.2 V)
         // model: 0 clean, 1 chime, 2 hot-rod, 3 sat lead, 4 modern, 5 acoustic, 6 classic rock, 7 boutique, 8 tight metal,
         // 9 low-watt, 10 glass clean, 11 creamy, 12 doom, 13 precision, 14 digital, 15 MV rock, 16 to 20 the v95 amps
         static const signed char arch[29][3] = {
-            { 0, 0, 0 }, { 1, 1, 1 }, { 2, 2, 3 }, { 2, 3, 3 }, { 3, 3, 3 }, { 0, 0, 0 }, { 2, 2, 2 }, { 1, 3, 3 },
+            { 3, 3, 3 }, { 1, 1, 1 }, { 2, 2, 3 }, { 2, 3, 3 }, { 3, 3, 3 }, { 0, 0, 0 }, { 2, 2, 2 }, { 1, 3, 3 },
             { 3, 3, 4 }, { 1, 1, 1 }, { 0, 0, 0 }, { 2, 3, 3 }, { 2, 2, 3 }, { 3, 3, 4 }, { 3, 3, 3 }, { 2, 2, 3 },
             { 2, 3, 3 }, { 3, 3, 4 }, { 3, 3, 4 }, { 3, 3, 4 }, { 2, 3, 3 },   // 16 to 20 (v95)
             { 0, 2, 2 }, { 0, 0, 0 },   // 21 Hi-Wat Headroom, 22 Console DI (v0.1)
@@ -103,7 +121,8 @@ namespace StageShaper
             { 3, 3, 2 } };   // 28 Dual Thirty (hot cascaded 12AX7 stages, a gentler third)
         static const signed char defPwr[29] = { 1, 3, 0, 0, 1, 0, 0, 1, 1, 2, 1, 0, 4, 1, 0, 0, 0, 0, 4, 1, 0, 0, 0, 0, 0, 4, 0, 0, 3 };
         Plan p;
-        if (model < 0 || model > 28 || model == 5 || model == 10 || model == 14 || model == 22) return p;   // acoustic, solid-state and digital amps keep their own shaping
+        // b68: Cedar Grand (36) and Cedar Ten (37) stay on the classic shaping in Hybrid: the Twin's arch 3 and the 6L6 power curve were tried for them and fitted the Blues DeVille captures worse (Cedar Ten Drive 2.60 against 2.05, Normal 2.15 against 1.85)
+        if ((model < 0 || model > 28 || model == 5 || model == 10 || model == 14 || model == 22)) return p;   // acoustic, solid-state and digital amps keep their own shaping
         for (int i = 0; i < 3; ++i) p.pre[i] = preCurve (preTube, arch[model][i]);
         const int pt = pwrSel <= 0 ? defPwr[model] : pwrSel - 1;
         p.pwrMed = pwrCurve (pt, false);

@@ -27,6 +27,16 @@ else()
     set(STARTERAMP_FORMATS Standalone VST3)
 endif()
 
+# AAX (Pro Tools, b94). The AAX SDK is free but Avid makes you register, accept their licence and download it yourself, and it cannot be redistributed,
+# so it is not part of this project. Point this at the unpacked SDK folder to add an AAX build on Windows or macOS:
+#   cmake -B build -DSTARTERAMP_AAX_SDK_PATH=C:/SDKs/aax-sdk
+# A Pro Tools release (not the developer build) also needs the plug-in signed with PACE / iLok; see WINDOWS_BUILD.md. Not tried here: no SDK on the machine this was written on.
+set(STARTERAMP_AAX_SDK_PATH "" CACHE PATH "Folder of Avid's AAX SDK; leave empty to skip the AAX format")
+if(STARTERAMP_AAX_SDK_PATH AND (WIN32 OR APPLE))
+    juce_set_aax_sdk_path("${STARTERAMP_AAX_SDK_PATH}")
+    list(APPEND STARTERAMP_FORMATS AAX)
+endif()
+
 juce_add_plugin(StarterAmp
     COMPANY_NAME "Starter Amp"
     BUNDLE_ID com.starteramp.StarterAmp        # JUCE builds one from the company and product names otherwise, and spaces in it make CMake warn
@@ -41,6 +51,17 @@ juce_add_plugin(StarterAmp
     MICROPHONE_PERMISSION_ENABLED TRUE
     MICROPHONE_PERMISSION_TEXT "Starter Amp needs audio input to process your guitar.")
 
+# CLAP (b94): the open plug-in format used by Bitwig, Reaper, MultitrackStudio and others. JUCE 8 does not make CLAP itself, so the
+# clap-juce-extensions project (MIT licence) is fetched and wrapped around the same plug-in. Switch off with -DSTARTERAMP_BUILD_CLAP=OFF.
+option(STARTERAMP_BUILD_CLAP "Also build a CLAP plug-in (needs internet the first time)" ON)
+if(STARTERAMP_BUILD_CLAP)
+    FetchContent_Declare(
+        clap-juce-extensions
+        GIT_REPOSITORY https://github.com/free-audio/clap-juce-extensions.git
+        GIT_TAG 7adee3a1bd4684d4caa5601100e364abccff4b4d)
+    FetchContent_MakeAvailable(clap-juce-extensions)
+endif()
+
 target_sources(StarterAmp PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginProcessor.h
@@ -49,8 +70,15 @@ target_sources(StarterAmp PRIVATE
     Source/CabRealism.h
     Source/PluginEditor.cpp
     Source/PluginEditor.h
+    Source/InputCalibration.h
     Source/IrLibrary.h
     Source/IrLibraryPanel.h)
+
+if(STARTERAMP_BUILD_CLAP)
+    clap_juce_extensions_plugin(TARGET StarterAmp
+        CLAP_ID "com.starteramp.StarterAmp"
+        CLAP_FEATURES audio-effect distortion stereo)
+endif()
 
 # Smaller binary: the plugin only reads WAV / AIFF impulse responses, so the other audio
 # codecs JUCE can include are switched off.

@@ -8,7 +8,7 @@ Command-line tool: takes an amp capture (amp only, no cab) and ranks every elect
     fitcapture --di dry.wav --out recorded.wav       capture = recorded output of that DI (same length, aligned; any rate; mono/stereo)
     fitcapture --list | --build-lib | --capture-amp M:V:G (self test) | --render amp:M:V:G|nam:FILE --di F --write F
 Options: `--label`, `--knobs "text"` (only echoed), `--only 13,24:2,modern` (models by number or name part, optional `:voicing` 1-4),
-`--lib FILE`, `--jobs N`, `--refine N`, `--top N`, `--csv FILE`, `--modes 0,1,2`, `--quality N`, `--di-start/--di-sec/--screen-sec`, `--no-offset`. `--help` lists all.
+`--lib FILE`, `--share 21=0.5` (b121: try a Hybrid stage-shape share for a model; use a separate `--lib` per value), `--jobs N`, `--refine N`, `--top N`, `--csv FILE`, `--modes 0,1,2`, `--quality N`, `--di-start/--di-sec/--screen-sec`, `--no-offset`. `--help` lists all.
 
 ## What is measured
 Per candidate (every amp except the acoustic one, Triple Blend included; 4 voicings; Gain 0.2/0.35/0.5/0.65/0.8; auto level off; every `...On` switch off, i.e. pedals, cab, effects, second amp; gate off; output 0 dB), at six input levels (-50 to -10 dB rms, 8 dB steps):

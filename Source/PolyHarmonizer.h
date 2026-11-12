@@ -254,15 +254,18 @@ private:
 class SpectralShifter
 {
 public:
-    struct NoteMap { float f0 = 0.0f; float alpha[2] = { 1.0f, 1.0f }; };
+    struct NoteMap { float f0 = 0.0f; float alpha[4] = { 1.0f, 1.0f, 1.0f, 1.0f }; };      // b115: up to four voices (the Harmonizer); the Octaver and the pitch pedal use two
 
     // Set by the engine before each block
     bool  scaleMode = false;
-    int   key = 0, scale = 0, deg[2] = { 2, 4 };
-    float alphaInterval[2] = { 1.0f, 1.0f };
+    int   key = 0, scale = 0, deg[4] = { 2, 4, 7, -7 };
+    float alphaInterval[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    bool  on[4] = { true, true, true, true };      // b115: a voice that is off is not computed at all
+    bool  midiMode = false;                         // b115: peaks that belong to no heard note follow the first heard note's shift (a fixed target pitch cannot be applied per peak)
     int   nNotes = 0;
     NoteMap notes[10];
 
+    void setVoices (int n) { nV = std::min (4, std::max (2, n)); }        // b115: call before prepare
     void prepare (double sampleRate)
     {
         sr = (float) sampleRate;
@@ -272,6 +275,10 @@ public:
             const int n = (maxN >> 1) << o;
             fftSet[o] = std::make_unique<juce::dsp::FFT> (polyh::orderOf (n));
         }
+        // b91: size every vector for the LONG window first, then settle on the short one. A later setSize (long) from the audio thread
+        // (tracking-mode switch in the Harmonizer, the Octaver bank and the wow pedal) then only re-fills memory that is already
+        // there: std::vector::assign never gives capacity back, so it does not allocate.
+        setSize (maxN);
         setSize (maxN >> 1);
     }
 
@@ -291,7 +298,7 @@ public:
         prevPh.assign ((size_t) (K + 2), 0.0);
         yRe.assign ((size_t) (K + 2), 0.0f);  yIm.assign ((size_t) (K + 2), 0.0f);  yMag.assign ((size_t) (K + 2), 0.0f);
         pk.assign ((size_t) (K + 2), 0);
-        for (int v = 0; v < 2; ++v)
+        for (int v = 0; v < nV; ++v)
         {
             ola[v].assign ((size_t) N, 0.0f);
             for (int s = 0; s < 2; ++s) { stamp[v][s].assign ((size_t) (K + 2), -10); psi[v][s].assign ((size_t) (K + 2), 0.0f); }
@@ -304,13 +311,23 @@ public:
     void reset()
     {
         std::fill (inRing.begin(), inRing.end(), 0.0f);
-        for (int v = 0; v < 2; ++v)
+        for (int v = 0; v < nV; ++v)
         {
             std::fill (ola[v].begin(), ola[v].end(), 0.0f);
             for (int s = 0; s < 2; ++s) std::fill (stamp[v][s].begin(), stamp[v][s].end(), -10);
         }
         std::fill (prevPh.begin(), prevPh.end(), 0.0);
         wp = 0;  rp = 0;  hopCount = 0;  frameId = 0;  haveFrame = false;
+    }
+
+    // b115: the same for up to four voices (y points at four floats; voices that are off give 0)
+    void process4 (float x, float* y)
+    {
+        inRing[(size_t) wp] = x;
+        if (++wp >= N) wp = 0;
+        for (int v = 0; v < nV; ++v) { y[v] = ola[v][(size_t) rp];  ola[v][(size_t) rp] = 0.0f; }
+        if (++rp >= N) rp = 0;
+        if (++hopCount >= H) { hopCount = 0; doFrame(); }
     }
 
     void process (float x, float& y0, float& y1)
@@ -325,16 +342,16 @@ public:
 
 private:
     float sr = 44100.0f;
-    int   maxN = 4096, N = 2048, H = 512, K = 1024;
+    int   maxN = 4096, N = 2048, H = 512, K = 1024, nV = 2;
     int   wp = 0, rp = 0, hopCount = 0, frameId = 0;
     bool  haveFrame = false;
     std::unique_ptr<juce::dsp::FFT> fftSet[2];
     juce::dsp::FFT* fft = nullptr;
-    std::vector<float> win, inRing, buf, spec, mag, yRe, yIm, yMag, ola[2];
+    std::vector<float> win, inRing, buf, spec, mag, yRe, yIm, yMag, ola[4];
     std::vector<double> ph, prevPh;
     std::vector<int> pk;
-    std::vector<int>   stamp[2][2];          // [voice][frame parity]: frame number at which a shifted peak sat on this bin
-    std::vector<float> psi[2][2];            //                         its synthesis phase
+    std::vector<int>   stamp[4][2];          // [voice][frame parity]: frame number at which a shifted peak sat on this bin
+    std::vector<float> psi[4][2];            //                         its synthesis phase
 
     // The shift (as a frequency ratio) for a spectral peak at 'hz', for voice v
     float alphaFor (int v, float hz) const
@@ -351,6 +368,7 @@ private:
             if (std::abs (cents) <= 35.0f) { bestNote = i; bestH = h; }
         }
         if (bestNote >= 0) return notes[bestNote].alpha[v];
+        if (midiMode) return nNotes > 0 ? notes[0].alpha[v] : 1.0f;
         // 2. Otherwise follow the pitch of the peak itself (right for the strong low partials of a new note)
         if (hz < 25.0f) return 1.0f;
         const float shift = harmonyShift (polyh::midiOfHz (hz), key, scale, deg[v]);
@@ -384,8 +402,9 @@ private:
             if (m >= floorMag && m > mag[(size_t) k - 1] && m >= mag[(size_t) k + 1] && m > mag[(size_t) k - 2] && m >= mag[(size_t) k + 2])
                 pk[(size_t) np++] = k;
         }
-        for (int v = 0; v < 2; ++v)
+        for (int v = 0; v < nV; ++v)
         {
+            if (! on[v]) continue;
             std::fill (yRe.begin(), yRe.end(), 0.0f);  std::fill (yIm.begin(), yIm.end(), 0.0f);  std::fill (yMag.begin(), yMag.end(), 0.0f);
             for (int j = 0; j < np; ++j)
             {

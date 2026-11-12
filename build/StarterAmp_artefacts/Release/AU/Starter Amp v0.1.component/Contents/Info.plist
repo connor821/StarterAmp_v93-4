@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>AudioComponents</key>
+	<array>
+		<dict>
+			<key>description</key>
+			<string>Starter Amp v0.1</string>
+			<key>factoryFunction</key>
+			<string>Starter_Amp_v0_1AUFactory</string>
+			<key>manufacturer</key>
+			<string>Stam</string>
+			<key>name</key>
+			<string>Starter Amp: Starter Amp v0.1</string>
+			<key>resourceUsage</key>
+			<dict>
+				<key>network.client</key>
+				<true/>
+				<key>temporary-exception.files.all.read-write</key>
+				<true/>
+			</dict>
+			<key>subtype</key>
+			<string>SamM</string>
+			<key>type</key>
+			<string>aumf</string>
+			<key>version</key>
+			<integer>256</integer>
+		</dict>
+	</array>
+	<key>BuildMachineOSBuild</key>
+	<string>26A434</string>
+	<key>CFBundleDisplayName</key>
+	<string>Starter Amp v0.1</string>
+	<key>CFBundleExecutable</key>
+	<string>Starter Amp v0.1</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.starteramp.StarterAmp</string>
+	<key>CFBundleName</key>
+	<string>Starter Amp v0.1</string>
+	<key>CFBundlePackageType</key>
+	<string>BNDL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleSupportedPlatforms</key>
+	<array>
+		<string>MacOSX</string>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>0.1.0</string>
+	<key>DTCompiler</key>
+	<string>com.apple.compilers.llvm.clang.1_0</string>
+	<key>DTPlatformBuild</key>
+	<string>26A425</string>
+	<key>DTPlatformName</key>
+	<string>macosx</string>
+	<key>DTPlatformVersion</key>
+	<string>27.0</string>
+	<key>DTSDKBuild</key>
+	<string>26A425</string>
+	<key>DTSDKName</key>
+	<string>macosx27.0</string>
+	<key>DTXcode</key>
+	<string>2700</string>
+	<key>DTXcodeBuild</key>
+	<string>27A266a</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>27.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Starter Amp needs audio input to process your guitar.</string>
+</dict>
+</plist>
