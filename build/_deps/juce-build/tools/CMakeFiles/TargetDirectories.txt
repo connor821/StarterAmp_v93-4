@@ -1,7 +1,0 @@
-/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/juce-build/tools/CMakeFiles/install.dir
-/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/juce-build/tools/CMakeFiles/ALL_BUILD.dir
-/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/juce-build/tools/CMakeFiles/ZERO_CHECK.dir
-/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/juce-build/tools/modules/CMakeFiles/install.dir
-/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/juce-build/tools/extras/Build/CMakeFiles/install.dir
-/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/juce-build/tools/extras/Build/juceaide/CMakeFiles/juceaide.dir
-/Users/connor/Downloads/StarterAmp_v0.1 22/build/_deps/juce-build/tools/extras/Build/juceaide/CMakeFiles/install.dir
